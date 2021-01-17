@@ -47,6 +47,7 @@ namespace Hex
 
         protected FramerateHelper Framerate { get; set; }
         protected InputHelper Input { get; set; }
+        protected CameraHelper Camera { get; set; }
 
         protected SpriteFont Font { get; set; }
         protected List<Hexagon> Hexagons { get; set; } = new List<Hexagon>();
@@ -76,12 +77,16 @@ namespace Hex
                 int r2 = Math.Min(n, -q + n);
                 for (int r = r1; r <= r2; r++)
                 {
-                    Hexagons.Add(new Hexagon(r, q, (q == 0 && r == 0) ? Color.Gold : color));
+                    this.Hexagons.Add(new Hexagon(r, q, (q == 0 && r == 0) ? Color.Gold : color));
                 }
             }
 
+            // maybe make DI:
+            // here we register the classes (typeof(FramerateHelper))
+            // then the factory looks at the CTOR, calls
             this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDraw);
             this.Input = new InputHelper(this.SubscribeToUpdate);
+            this.Camera = new CameraHelper();
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
@@ -99,6 +104,9 @@ namespace Hex
             this.Graphics.PreferredBackBufferWidth = BASE_WINDOW_WIDTH;
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
+
+            this.Camera.ViewportWidth = this.Graphics.PreferredBackBufferWidth;
+            this.Camera.ViewportHeight = this.Graphics.PreferredBackBufferHeight;
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -162,6 +170,8 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.Down))
                 this.GridCenter += new Vector2(0, 100);
 
+            this.Camera.HandleInput(this.Input);
+
             this.OnUpdate?.Invoke(gameTime);
         }
 
@@ -174,9 +184,45 @@ namespace Hex
             // var scaleY = this.Graphics.GraphicsDevice.Viewport.Height / (float) BASE_WINDOW_HEIGHT;
             // var matrix = Matrix.CreateScale(scaleX, scaleY, 1.0f);
             // BlendState.NonPremultiplied, AlphaBlend, PointWrap
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp
+            , transformMatrix: this.Camera.TranslationMatrix);
 
             this.OnDraw?.Invoke(this.SpriteBatch);
+
+            var width = this.HexTexOuter.Width;
+            var height = this.HexTexOuter.Height;
+            foreach (var hex in this.Hexagons)
+            {
+                var q = hex.X;
+                var r = hex.Y;
+
+                // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
+                // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
+                var adjustedWidth = width / 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
+                var adjustedHeight = height / 2.075; // but this one no idea, doesn't seem to match any offset
+
+                double newx, newy;
+                if (this.PointyTop)
+                {
+                    newx = Math.Round(adjustedWidth * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
+                    newy = Math.Round(adjustedHeight * (3.0 / 2.0 * r));
+                }
+                else
+                {
+                    newx = Math.Round(adjustedWidth * (3.0 / 2.0 * q));
+                    newy = Math.Round(adjustedHeight * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
+                }
+                var rotation = this.PointyTop ? 0f : (float) Math.PI / 2;
+                var position = this.GridCenter + new Vector2((float) newx, (float) newy);
+                this.SpriteBatch.Draw(this.HexTexOuter, position, sourceRectangle: null,
+                    color: Color.Black, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
+                this.SpriteBatch.Draw(this.HexTexInner, position, sourceRectangle: null,
+                    color: hex.Color, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
+            }
+
+            this.SpriteBatch.End();
+
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
             var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
             var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
@@ -194,43 +240,6 @@ namespace Hex
                 rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
             this.SpriteBatch.Draw(this.BlankTexture, middleRectangle, sourceRectangle: null, Color.Maroon,
                 rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
-
-            var width = this.HexTexOuter.Width;
-            var height = this.HexTexOuter.Height;
-            foreach (var hex in this.Hexagons)
-            {
-                var q = hex.X;
-                var r = hex.Y;
-
-                // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
-                // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
-                var adjustedWidth = width / 1.805;
-                var adjustedHeight = height / 2.075;
-
-                double newx, newy;
-                if (this.PointyTop)
-                {
-                    newx = Math.Round(adjustedWidth * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
-                    newy = Math.Round(adjustedHeight * (3.0 / 2.0 * r));
-                }
-                else
-                {
-                    newx = Math.Round(adjustedWidth * (3.0 / 2.0 * q));
-                    newy = Math.Round(adjustedHeight * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
-                }
-
-                var rotation = this.PointyTop ? 0f : (float) Math.PI / 2;
-
-                var position = this.GridCenter + new Vector2((float) newx, (float) newy);
-                this.SpriteBatch.Draw(this.HexTexOuter, position, sourceRectangle: null,
-                    color: Color.Black, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
-                this.SpriteBatch.Draw(this.HexTexInner, position, sourceRectangle: null,
-                    color: hex.Color, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
-            }
-
-            this.SpriteBatch.End();
-
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
             var absoluteMS = this.Input.CurrentMouseState;
             // translation is only needed in fullscreen mode; in windowed mode ClientBounds matches PreferredBackBuffer size
@@ -275,8 +284,8 @@ namespace Hex
         protected void OnWindowResize(object sender, EventArgs e)
         {
             // When going to fullscreen, it is important not to change the backbuffer size,
-            // as doing that makes it impossible to go back to windowed mode (might be a bug in Monogame?).
-            // Toggling fullscreen already triggers GraphicsDeviceManager.ApplyChanges, so just return here.
+            // because doing that makes it impossible to go back to windowed mode (might be a bug in Monogame?).
+            // Toggling fullscreen already triggers GraphicsDeviceManager.ApplyChanges, so can just return here.
             if (this.Graphics.IsFullScreen)
                 return;
 
@@ -293,6 +302,9 @@ namespace Hex
                 this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
                 this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
             }
+
+            this.Camera.ViewportWidth = this.Graphics.PreferredBackBufferWidth;
+            this.Camera.ViewportHeight = this.Graphics.PreferredBackBufferHeight;
 
             this.Graphics.ApplyChanges();
             this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
