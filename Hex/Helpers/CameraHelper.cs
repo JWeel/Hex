@@ -1,18 +1,30 @@
 using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using System;
 
 namespace Hex.Helpers
 {
     public class CameraHelper
     {
+        #region Constants
+
+        private const float ZOOM_SCALE_FACTOR_INCREMENT = 1/16f;
+        private const float POSITION_MOVE_INCREMENT = 100f;
+
+        #endregion
+
         #region Constructors
 
-        public CameraHelper()
+        public CameraHelper(Func<int> viewportWidthGetter, Func<int> viewportHeightGetter)
         {
-            this.Scale = 1.0f;
-            this.Rotation = 0.0f;
+            // possibly needs to be relative to map size
+            this.ViewportWidthGetter = viewportWidthGetter;
+            // possibly needs to be relative to map size
+            this.ViewportHeightGetter = viewportHeightGetter;
             this.Position = Vector2.Zero;
+            this.ZoomScaleFactor = 1.0f;
+            this.Rotation = 0.0f;
         }
 
         #endregion
@@ -20,43 +32,27 @@ namespace Hex.Helpers
         #region Properties
 
         public Vector2 Position { get; protected set; }
-        public float Scale { get; protected set; }
+        public float ZoomScaleFactor { get; protected set; }
         public float Rotation { get; protected set; }
 
-        public int ViewportWidth { get; set; } // should be protected
-        public int ViewportHeight { get; set; }
+        protected Func<int> ViewportWidthGetter { get; }
+        protected Func<int> ViewportHeightGetter { get; }
 
         public Vector2 ViewportCenter =>
-            new Vector2(this.ViewportWidth / 2f, this.ViewportHeight / 2f);
+            new Vector2(this.ViewportWidthGetter() / 2f, this.ViewportHeightGetter() / 2f);
 
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-(int) this.Position.X, -(int) this.Position.Y, 0) *
             Matrix.CreateRotationZ(this.Rotation) *
-            Matrix.CreateScale(new Vector3(this.Scale, this.Scale, 1)) *
+            Matrix.CreateScale(new Vector3(this.ZoomScaleFactor, this.ZoomScaleFactor, 1)) *
             Matrix.CreateTranslation(new Vector3(this.ViewportCenter, 0));
-
-        public Rectangle ViewportWorldBoundry
-        {
-            get
-            {
-                var viewPortCorner = this.ScreenToWorld(new Vector2(0, 0));
-                var viewPortBottomCorner = this.ScreenToWorld(new Vector2(this.ViewportWidth, this.ViewportHeight));
-                return new Rectangle((int) viewPortCorner.X,
-                    (int) viewPortCorner.Y,
-                    (int) (viewPortBottomCorner.X - viewPortCorner.X),
-                    (int) (viewPortBottomCorner.Y - viewPortCorner.Y));
-            }
-        }
-
 
         #endregion
 
         #region Methods
 
-        public void Zoom(float amount)
-        {
-            this.Scale = this.Scale.AddWithLimits(amount, 1f, 4f);
-        }
+        public void Zoom(float amount) =>
+            this.ZoomScaleFactor = this.ZoomScaleFactor.AddWithLimits(amount, 1f, 4f);
 
         public void Move(Vector2 amount, bool clamp = true)
         {
@@ -65,11 +61,11 @@ namespace Hex.Helpers
                 this.Position += amount;
                 return;
             }
-            // var x = this.Position.X.AddWithLimits(amount.X, 0, 1000);
-            // var y = this.Position.Y.AddWithLimits(amount.Y, 0, 1000);
-            // this.Position = new Vector2(x, y);
             this.Position = this.MapClampedPosition(this.Position + amount);
         }
+
+        public Vector2 WorldToScreen(Vector2 worldPosition) =>
+            Vector2.Transform(worldPosition, this.TranslationMatrix);
 
         public Vector2 ScreenToWorld(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
@@ -92,47 +88,34 @@ namespace Hex.Helpers
         protected Vector2 MapClampedPosition(Vector2 position)
         {
             var cameraMax = new Vector2(
-                1280 - (this.ViewportWidth / this.Scale / 2),
-                720 - (this.ViewportHeight / this.Scale / 2));
+                Core.BASE_MAP_WIDTH - (this.ViewportWidthGetter() / this.ZoomScaleFactor / 2),
+                Core.BASE_MAP_HEIGHT - (this.ViewportHeightGetter() / this.ZoomScaleFactor / 2));
             return Vector2.Clamp(position,
-                new Vector2(this.ViewportWidth / this.Scale / 2, this.ViewportHeight / this.Scale / 2),
+                new Vector2(this.ViewportWidthGetter() / this.ZoomScaleFactor / 2, this.ViewportHeightGetter() / this.ZoomScaleFactor / 2),
                 cameraMax);
         }
 
         public void HandleInput(InputHelper input)
         {
+            if (input.KeyDown(Keys.Q))
+                this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
+            if (input.KeyDown(Keys.E))
+                this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
+
             Vector2 cameraMovement = Vector2.Zero;
-            if (input.KeyPressed(Keys.A))
-            {
-                cameraMovement.X = +1;
-            }
-            else if (input.KeyPressed(Keys.D))
-            {
-                cameraMovement.X = -1;
-            }
-            if (input.KeyPressed(Keys.W))
-            {
-                cameraMovement.Y = +1;
-            }
-            else if (input.KeyPressed(Keys.S))
-            {
-                cameraMovement.Y = -1;
-            }
-            if (input.KeyPressed(Keys.Q))
-            {
-                this.Zoom(-0.25f);
-            }
-            else if (input.KeyPressed(Keys.E))
-            {
-                this.Zoom(+0.25f);
-            }
+            if (input.KeyDown(Keys.A))
+                cameraMovement.X = +POSITION_MOVE_INCREMENT;
+            if (input.KeyDown(Keys.D))
+                cameraMovement.X = -POSITION_MOVE_INCREMENT;
+            if (input.KeyDown(Keys.W))
+                cameraMovement.Y = +POSITION_MOVE_INCREMENT;
+            if (input.KeyDown(Keys.S))
+                cameraMovement.Y = -POSITION_MOVE_INCREMENT;
 
             // Normalizing is needed when changing two directions at once
             if (cameraMovement != Vector2.Zero)
                 cameraMovement.Normalize();
-
-            // Multiply by defined increment
-            cameraMovement *= 25f;
+            cameraMovement *= this.ZoomScaleFactor;
             this.Move(cameraMovement, clamp: true);
         }
 

@@ -24,7 +24,7 @@ namespace Hex.Helpers
             subscribeToDraw(this.DrawState);
 
             this.Position = position;
-            this.FrameRate = 0;
+            this.Framerate = 0;
             this.FrameCounter = 0;
             this.ElapsedTime = TimeSpan.Zero;
         }
@@ -35,7 +35,7 @@ namespace Hex.Helpers
 
         protected Vector2 Position { get; }
 
-        protected int FrameRate { get; set; }
+        protected int Framerate { get; set; }
         protected int FrameCounter { get; set; }
         protected TimeSpan ElapsedTime { get; set; }
 
@@ -57,14 +57,14 @@ namespace Hex.Helpers
                 return;
 
             this.ElapsedTime -= ONE_SECOND;
-            this.FrameRate = this.FrameCounter;
+            this.Framerate = this.FrameCounter;
             this.FrameCounter = 0;
         }
 
         protected void DrawState(SpriteBatch spriteBatch)
         {
             this.FrameCounter++;
-            string text = this.FrameRate.ToString();
+            string text = this.Framerate.ToString();
             spriteBatch.DrawText(this.Font, text, this.Position, Color.White, scale: 2f, depth: 0.9f);
         }
 

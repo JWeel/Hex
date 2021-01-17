@@ -18,12 +18,17 @@ namespace Hex
         private const float BASE_GLOBAL_SCALE = 1.5f;
         private const float MAX_GLOBAL_SCALE = 5f;
         private const float MIN_GLOBAL_SCALE = 0.25f;
-        private const int BASE_WINDOW_WIDTH = 1280;
-        private const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
-        private const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling, not mouse
-        private const int BASE_WINDOW_WIDTH_MAX = BASE_WINDOW_WIDTH * 2; // maximum for keyboard-based scaling, not mouse
-        private const int BASE_WINDOW_HEIGHT = 720;
+        public const int BASE_WINDOW_WIDTH = 1280;
+        public const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
+        public const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
+        public const int BASE_WINDOW_WIDTH_MAX = BASE_WINDOW_WIDTH * 2; // maximum for keyboard-based scaling (not for mouse)
+        public const int BASE_WINDOW_HEIGHT = 720;
+        public const int BASE_MAP_WIDTH = 791; // 1280 / 1.618 = 791.10
+        public const int BASE_MAP_HEIGHT = BASE_WINDOW_HEIGHT;
+        public const int BASE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_WIDTH;
+        public const int BASE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
         private const float BASE_ASPECT_RATIO = BASE_WINDOW_WIDTH / (float) BASE_WINDOW_HEIGHT;
+        private const float GOLDEN_RATIO = 1.618f;
 
         #endregion
 
@@ -40,7 +45,8 @@ namespace Hex
 
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdate;
-        protected event Action<SpriteBatch> OnDraw;
+        protected event Action<SpriteBatch> OnDrawMap;
+        protected event Action<SpriteBatch> OnDrawPanel;
 
         protected GraphicsDeviceManager Graphics { get; set; }
         protected SpriteBatch SpriteBatch { get; set; }
@@ -77,16 +83,19 @@ namespace Hex
                 int r2 = Math.Min(n, -q + n);
                 for (int r = r1; r <= r2; r++)
                 {
-                    this.Hexagons.Add(new Hexagon(r, q, (q == 0 && r == 0) ? Color.Gold : color));
+                    this.Hexagons.Add(new Hexagon(r, q,
+                        (q == 0 && r == 0) ? Color.Gold
+                        : (q == 0 && r == 2) ? Color.Silver
+                        : color));
                 }
             }
 
             // maybe make DI:
             // here we register the classes (typeof(FramerateHelper))
             // then the factory looks at the CTOR, calls
-            this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDraw);
+            this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
-            this.Camera = new CameraHelper();
+            this.Camera = new CameraHelper(() => this.Graphics.PreferredBackBufferWidth, () => this.Graphics.PreferredBackBufferHeight);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
@@ -105,9 +114,6 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
-            this.Camera.ViewportWidth = this.Graphics.PreferredBackBufferWidth;
-            this.Camera.ViewportHeight = this.Graphics.PreferredBackBufferHeight;
-
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
         }
@@ -121,13 +127,15 @@ namespace Hex
             this.HexTexOuter = this.Content.Load<Texture2D>("xo");
             this.HexTexInner = this.Content.Load<Texture2D>("xi");
 
+            // var HexTexOuter2 = this.HexTexOuter.
+
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
-            this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+            this.ScaledWindowSize = this.Window.ClientBounds.Location;
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
-            this.GridCenter = new Vector2(BASE_WINDOW_WIDTH / 2 - this.HexTexOuter.Width / 2, BASE_WINDOW_HEIGHT / 2 - this.HexTexOuter.Height / 2);
+            this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexTexOuter.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexTexOuter.Height / 2);
 
             this.OnLoad?.Invoke(this.Content);
         }
@@ -178,16 +186,9 @@ namespace Hex
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
-            this.GraphicsDevice.Clear(Color.CornflowerBlue);
-
-            // var scaleX = this.Graphics.GraphicsDevice.Viewport.Width / (float) BASE_WINDOW_WIDTH;
-            // var scaleY = this.Graphics.GraphicsDevice.Viewport.Height / (float) BASE_WINDOW_HEIGHT;
-            // var matrix = Matrix.CreateScale(scaleX, scaleY, 1.0f);
-            // BlendState.NonPremultiplied, AlphaBlend, PointWrap
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp
-            , transformMatrix: this.Camera.TranslationMatrix);
-
-            this.OnDraw?.Invoke(this.SpriteBatch);
+            this.GraphicsDevice.Clear(Color.LightSlateGray);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
+            this.OnDrawMap?.Invoke(this.SpriteBatch);
 
             var width = this.HexTexOuter.Width;
             var height = this.HexTexOuter.Height;
@@ -199,7 +200,7 @@ namespace Hex
                 // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
                 // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
                 var adjustedWidth = width / 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
-                var adjustedHeight = height / 2.075; // but this one no idea, doesn't seem to match any offset
+                var adjustedHeight = height / 2.07; // but this one no idea, doesn't seem to match any offset
 
                 double newx, newy;
                 if (this.PointyTop)
@@ -214,41 +215,47 @@ namespace Hex
                 }
                 var rotation = this.PointyTop ? 0f : (float) Math.PI / 2;
                 var position = this.GridCenter + new Vector2((float) newx, (float) newy);
-                this.SpriteBatch.Draw(this.HexTexOuter, position, sourceRectangle: null,
-                    color: Color.Black, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
-                this.SpriteBatch.Draw(this.HexTexInner, position, sourceRectangle: null,
-                    color: hex.Color, rotation, origin: default, scale: 1f, SpriteEffects.None, layerDepth: 0.5f);
+                var origin = new Vector2(width / 2f, height / 2f);
+                this.SpriteBatch.DrawAt(this.HexTexOuter, position, 1f, Color.Black, depth: 0.6f);
+                this.SpriteBatch.DrawAt(this.HexTexInner, position, 1f, hex.Color, depth: 0.5f);
             }
 
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
+            this.OnDrawPanel?.Invoke(this.SpriteBatch);
 
-            var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
-            var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
-            var leftRectangle = new Rectangle(0, 0, 1, BASE_WINDOW_HEIGHT - 1);
-            var rightRectangle = new Rectangle(BASE_WINDOW_WIDTH - 1, 0, 1, BASE_WINDOW_HEIGHT - 1);
-            var middleRectangle = new Rectangle(BASE_WINDOW_WIDTH / 2 - 1, 0, 2, BASE_WINDOW_HEIGHT - 1);
+            var mapToPanelSeparator = new Rectangle(BASE_MAP_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
+            var panelToLogSeparator = new Rectangle(BASE_MAP_WIDTH, BASE_PANEL_HEIGHT, BASE_PANEL_WIDTH, 1);
+            var panelOverlay = new Rectangle(BASE_MAP_WIDTH, 0, BASE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
+            this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
 
-            this.SpriteBatch.Draw(this.BlankTexture, topRectangle, sourceRectangle: null, Color.Maroon,
-                rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
-            this.SpriteBatch.Draw(this.BlankTexture, bottomRectangle, sourceRectangle: null, Color.Maroon,
-                rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
-            this.SpriteBatch.Draw(this.BlankTexture, leftRectangle, sourceRectangle: null, Color.Maroon,
-                rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
-            this.SpriteBatch.Draw(this.BlankTexture, rightRectangle, sourceRectangle: null, Color.Maroon,
-                rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
-            this.SpriteBatch.Draw(this.BlankTexture, middleRectangle, sourceRectangle: null, Color.Maroon,
-                rotation: 0f, origin: Vector2.Zero, SpriteEffects.None, layerDepth: 1f);
+            // var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
+            // var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
+            // var leftRectangle = new Rectangle(0, 0, 1, BASE_WINDOW_HEIGHT - 1);
+            // var rightRectangle = new Rectangle(BASE_WINDOW_WIDTH - 1, 0, 1, BASE_WINDOW_HEIGHT - 1);
+            // var middleRectangle = new Rectangle(BASE_WINDOW_WIDTH / 2 - 1, 0, 2, BASE_WINDOW_HEIGHT - 1);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, topRectangle, Color.Maroon);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, bottomRectangle, Color.Maroon);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, leftRectangle, Color.Maroon);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon);
 
-            var absoluteMS = this.Input.CurrentMouseState;
-            // translation is only needed in fullscreen mode; in windowed mode ClientBounds matches PreferredBackBuffer size
-            var translatedX = absoluteMS.X * (this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width);
-            var translatedY = absoluteMS.Y * (this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
-            var relativeMS = new Vector2((int) translatedX, (int) translatedY);
+            var absoluteMouseVector = this.Input.CurrentMouseState.ToVector2();
+            // client size translation is needed for fullscreen mode (in windowed mode ClientBounds == BackBuffer size)
+            var clientSizeTranslation = new Vector2(
+                this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
+                this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
+            var clientSizeTranslatedMouseVector = absoluteMouseVector * clientSizeTranslation;
+            // camera translation is needed when camera is zoomed in
+            var cameraTranslatedMouseVector = this.Camera.ScreenToWorld(clientSizeTranslatedMouseVector);
 
-            var log = $"M: {absoluteMS.X}, {absoluteMS.Y}{Environment.NewLine}R: {relativeMS.X}, {relativeMS.Y}";
-            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10, 40), Color.White, scale: 1f, depth: 1f);
+            var log = $"M: {absoluteMouseVector.X:0}, {absoluteMouseVector.Y:0}"
+                + Environment.NewLine + $"R: {clientSizeTranslatedMouseVector.X:0}, {clientSizeTranslatedMouseVector.Y:0}"
+                + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}";
+            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_WIDTH, 10), Color.White, scale: 1f, depth: 1f);
             this.SpriteBatch.End();
         }
 
@@ -303,9 +310,6 @@ namespace Hex
                 this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
             }
 
-            this.Camera.ViewportWidth = this.Graphics.PreferredBackBufferWidth;
-            this.Camera.ViewportHeight = this.Graphics.PreferredBackBufferHeight;
-
             this.Graphics.ApplyChanges();
             this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             this.Window.ClientSizeChanged += this.OnWindowResize;
@@ -315,7 +319,9 @@ namespace Hex
 
         protected void SubscribeToUpdate(Action<GameTime> handler) => this.OnUpdate += handler;
 
-        protected void SubscribeToDraw(Action<SpriteBatch> handler) => this.OnDraw += handler;
+        protected void SubscribeToDrawMap(Action<SpriteBatch> handler) => this.OnDrawMap += handler;
+
+        protected void SubscribeToDrawPanel(Action<SpriteBatch> handler) => this.OnDrawPanel += handler;
 
         #endregion
     }
