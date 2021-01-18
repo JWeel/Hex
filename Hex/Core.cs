@@ -97,9 +97,7 @@ namespace Hex
             // then the factory looks at the CTOR, calls
             this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
-            this.Camera = new CameraHelper(
-                () => (int)(this.Graphics.PreferredBackBufferWidth),
-                () => this.Graphics.PreferredBackBufferHeight);
+            this.Camera = new CameraHelper(() => BASE_MAP_WIDTH, () => BASE_MAP_HEIGHT);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;

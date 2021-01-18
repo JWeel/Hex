@@ -10,7 +10,7 @@ namespace Hex.Helpers
         #region Constants
 
         private const float ZOOM_SCALE_FACTOR_INCREMENT = 1 / 16f;
-        private const float POSITION_MOVE_INCREMENT = 200f;
+        private const float POSITION_MOVE_INCREMENT = 10f;
 
         #endregion
 
@@ -90,8 +90,8 @@ namespace Hex.Helpers
         protected Vector2 MapClampedPosition(Vector2 position)
         {
             var cameraMax = new Vector2(
-                Core.BASE_WINDOW_WIDTH - (this.ViewportWidthGetter() / this.ZoomScaleFactor / 2),
-                Core.BASE_WINDOW_HEIGHT - (this.ViewportHeightGetter() / this.ZoomScaleFactor / 2));
+                Core.BASE_MAP_WIDTH - (this.ViewportWidthGetter() / this.ZoomScaleFactor / 2),
+                Core.BASE_MAP_HEIGHT - (this.ViewportHeightGetter() / this.ZoomScaleFactor / 2));
             return Vector2.Clamp(position,
                 new Vector2(
                     this.ViewportWidthGetter() / this.ZoomScaleFactor / 2,
@@ -108,17 +108,17 @@ namespace Hex.Helpers
 
             Vector2 cameraMovement = Vector2.Zero;
             if (input.KeyDown(Keys.A))
-                cameraMovement.X = +POSITION_MOVE_INCREMENT;
+                cameraMovement.X = +1;
             if (input.KeyDown(Keys.D))
-                cameraMovement.X = -POSITION_MOVE_INCREMENT;
+                cameraMovement.X = -1;
             if (input.KeyDown(Keys.W))
-                cameraMovement.Y = +POSITION_MOVE_INCREMENT;
+                cameraMovement.Y = +1;
             if (input.KeyDown(Keys.S))
-                cameraMovement.Y = -POSITION_MOVE_INCREMENT;
-
+                cameraMovement.Y = -1;
             // Normalizing is needed when changing two directions at once
             if (cameraMovement != Vector2.Zero)
                 cameraMovement.Normalize();
+            cameraMovement *= POSITION_MOVE_INCREMENT;
             cameraMovement *= this.ZoomScaleFactor;
             this.Move(cameraMovement, clamp: true);
         }
