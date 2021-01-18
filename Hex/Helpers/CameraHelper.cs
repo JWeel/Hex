@@ -9,8 +9,8 @@ namespace Hex.Helpers
     {
         #region Constants
 
-        private const float ZOOM_SCALE_FACTOR_INCREMENT = 1/16f;
-        private const float POSITION_MOVE_INCREMENT = 100f;
+        private const float ZOOM_SCALE_FACTOR_INCREMENT = 1 / 16f;
+        private const float POSITION_MOVE_INCREMENT = 200f;
 
         #endregion
 
@@ -39,7 +39,9 @@ namespace Hex.Helpers
         protected Func<int> ViewportHeightGetter { get; }
 
         public Vector2 ViewportCenter =>
-            new Vector2(this.ViewportWidthGetter() / 2f, this.ViewportHeightGetter() / 2f);
+            new Vector2(
+                this.ViewportWidthGetter() / 2f,
+                this.ViewportHeightGetter() / 2f);
 
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-(int) this.Position.X, -(int) this.Position.Y, 0) *
@@ -88,10 +90,12 @@ namespace Hex.Helpers
         protected Vector2 MapClampedPosition(Vector2 position)
         {
             var cameraMax = new Vector2(
-                Core.BASE_MAP_WIDTH - (this.ViewportWidthGetter() / this.ZoomScaleFactor / 2),
-                Core.BASE_MAP_HEIGHT - (this.ViewportHeightGetter() / this.ZoomScaleFactor / 2));
+                Core.BASE_WINDOW_WIDTH - (this.ViewportWidthGetter() / this.ZoomScaleFactor / 2),
+                Core.BASE_WINDOW_HEIGHT - (this.ViewportHeightGetter() / this.ZoomScaleFactor / 2));
             return Vector2.Clamp(position,
-                new Vector2(this.ViewportWidthGetter() / this.ZoomScaleFactor / 2, this.ViewportHeightGetter() / this.ZoomScaleFactor / 2),
+                new Vector2(
+                    this.ViewportWidthGetter() / this.ZoomScaleFactor / 2,
+                    this.ViewportHeightGetter() / this.ZoomScaleFactor / 2),
                 cameraMax);
         }
 

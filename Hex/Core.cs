@@ -58,8 +58,10 @@ namespace Hex
         protected SpriteFont Font { get; set; }
         protected List<Hexagon> Hexagons { get; set; } = new List<Hexagon>();
         protected Vector2 GridCenter { get; set; }
-        protected Texture2D HexTexOuter { get; set; }
-        protected Texture2D HexTexInner { get; set; }
+        protected Texture2D HexOuterPointyTop { get; set; }
+        protected Texture2D HexInnerPointyTop { get; set; }
+        protected Texture2D HexOuterFlattyTop { get; set; }
+        protected Texture2D HexInnerFlattyTop { get; set; }
         protected Texture2D BlankTexture { get; set; }
         protected Troolean PointyTop { get; set; }
 
@@ -95,7 +97,9 @@ namespace Hex
             // then the factory looks at the CTOR, calls
             this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
-            this.Camera = new CameraHelper(() => this.Graphics.PreferredBackBufferWidth, () => this.Graphics.PreferredBackBufferHeight);
+            this.Camera = new CameraHelper(
+                () => (int)(this.Graphics.PreferredBackBufferWidth),
+                () => this.Graphics.PreferredBackBufferHeight);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
@@ -124,18 +128,20 @@ namespace Hex
             this.SpriteBatch = new SpriteBatch(this.GraphicsDevice);
 
             this.Font = this.Content.Load<SpriteFont>("Alphabet/alphabet");
-            this.HexTexOuter = this.Content.Load<Texture2D>("xo");
-            this.HexTexInner = this.Content.Load<Texture2D>("xi");
+            this.HexOuterPointyTop = this.Content.Load<Texture2D>("xop");
+            this.HexInnerPointyTop = this.Content.Load<Texture2D>("xip");
+            this.HexOuterFlattyTop = this.Content.Load<Texture2D>("xof");
+            this.HexInnerFlattyTop = this.Content.Load<Texture2D>("xif");
 
             // var HexTexOuter2 = this.HexTexOuter.
 
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
-            this.ScaledWindowSize = this.Window.ClientBounds.Location;
+            this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
-            this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexTexOuter.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexTexOuter.Height / 2);
+            this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexOuterPointyTop.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexOuterPointyTop.Height / 2);
 
             this.OnLoad?.Invoke(this.Content);
         }
@@ -190,8 +196,10 @@ namespace Hex
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
             this.OnDrawMap?.Invoke(this.SpriteBatch);
 
-            var width = this.HexTexOuter.Width;
-            var height = this.HexTexOuter.Height;
+            var hexTextureOuter = this.PointyTop ? this.HexOuterPointyTop : this.HexOuterFlattyTop;
+            var hexTextureInner = this.PointyTop ? this.HexInnerPointyTop : this.HexInnerFlattyTop;
+            var width = hexTextureOuter.Width;
+            var height = hexTextureOuter.Height;
             foreach (var hex in this.Hexagons)
             {
                 var q = hex.X;
@@ -199,8 +207,10 @@ namespace Hex
 
                 // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
                 // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
-                var adjustedWidth = width / 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
-                var adjustedHeight = height / 2.07; // but this one no idea, doesn't seem to match any offset
+                var shortFactor = 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
+                var longFactor = 2.07; // but this one no idea, doesn't seem to match any offset
+                var adjustedWidth = width / (this.PointyTop ? shortFactor : longFactor);
+                var adjustedHeight = height / (this.PointyTop ? longFactor : shortFactor);
 
                 double newx, newy;
                 if (this.PointyTop)
@@ -216,8 +226,8 @@ namespace Hex
                 var rotation = this.PointyTop ? 0f : (float) Math.PI / 2;
                 var position = this.GridCenter + new Vector2((float) newx, (float) newy);
                 var origin = new Vector2(width / 2f, height / 2f);
-                this.SpriteBatch.DrawAt(this.HexTexOuter, position, 1f, Color.Black, depth: 0.6f);
-                this.SpriteBatch.DrawAt(this.HexTexInner, position, 1f, hex.Color, depth: 0.5f);
+                this.SpriteBatch.DrawAt(hexTextureOuter, position, 1f, Color.Black, depth: 0.6f);
+                this.SpriteBatch.DrawAt(hexTextureInner, position, 1f, hex.Color, depth: 0.5f);
             }
 
             this.SpriteBatch.End();
@@ -255,6 +265,7 @@ namespace Hex
             var log = $"M: {absoluteMouseVector.X:0}, {absoluteMouseVector.Y:0}"
                 + Environment.NewLine + $"R: {clientSizeTranslatedMouseVector.X:0}, {clientSizeTranslatedMouseVector.Y:0}"
                 + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}";
+
             this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_WIDTH, 10), Color.White, scale: 1f, depth: 1f);
             this.SpriteBatch.End();
         }
@@ -296,7 +307,7 @@ namespace Hex
             if (this.Graphics.IsFullScreen)
                 return;
 
-            // This method later calls GraphicsDeviceManager.ApplyChanges, which would trigger this event again.
+            // This event would be triggered again by GraphicsDeviceManager.ApplyChanges
             this.Window.ClientSizeChanged -= this.OnWindowResize;
 
             if (this.Window.ClientBounds.Width != this.ScaledWindowSize.X)
@@ -313,6 +324,7 @@ namespace Hex
             this.Graphics.ApplyChanges();
             this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             this.Window.ClientSizeChanged += this.OnWindowResize;
+            // TODO: may also need to reclamp camera (displacement seems to happen when restoring after maximizing)
         }
 
         protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
