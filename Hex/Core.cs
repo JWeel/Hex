@@ -1,4 +1,6 @@
-﻿using Hex.Auxiliary;
+﻿using System.Runtime.InteropServices.ComTypes;
+using Hex.Auxiliary;
+using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
@@ -7,6 +9,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Hex
 {
@@ -65,9 +68,17 @@ namespace Hex
         protected Texture2D BlankTexture { get; set; }
         protected Troolean PointyTop { get; set; }
 
-        protected Point ScaledWindowSize { get; set; }
-        protected Matrix ScalingMatrix { get; set; }
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
+        // protected Matrix ScalingMatrix { get; set; }
+        protected Vector2 ClientSizeTranslation { get; set; }
+        protected Vector2 ScaledWindowSize { get; set; }
+        protected Vector2 ScaledMapSize { get; set; }
+        protected Rectangle ScaledMapRectangle { get; set; }
+
+        protected float MapWidth => this.Graphics.PreferredBackBufferWidth / GOLDEN_RATIO;
+        protected float MapHeight => this.Graphics.PreferredBackBufferHeight;
+
+        protected string CalculatedDebug;
 
         #endregion
 
@@ -76,18 +87,31 @@ namespace Hex
         protected override void Initialize()
         {
             var random = new Random();
-            var n = 16;
-            for (int q = -n; q <= n; q++)
+            var n = 20;
+            var m = 30;
+            // for (var q = -n; q <= n; q++)
+            // {
+            //     // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
+            //     var color = Color.White;
+            //     var r1 = Math.Max(-n, -q - n);
+            //     var r2 = Math.Min(n, -q + n);
+            //     for (var r = r1; r <= r2; r++)
+            //     {
+            //         this.Hexagons.Add(new Hexagon(r, q,
+            //             (q == 0 && r == 0) ? Color.Gold
+            //             : (q == 1 && r == 1) ? Color.Silver
+            //             : color));
+            //     }
+            // }
+            for (var r = 0; r < m; r++)
             {
-                // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
                 var color = Color.White;
-                int r1 = Math.Max(-n, -q - n);
-                int r2 = Math.Min(n, -q + n);
-                for (int r = r1; r <= r2; r++)
+                var r_offset = (int) Math.Floor(r / 2f);
+                for (var q = -r_offset; q < n - r_offset; q++)
                 {
-                    this.Hexagons.Add(new Hexagon(r, q,
+                    this.Hexagons.Add(new Hexagon(q, r,
                         (q == 0 && r == 0) ? Color.Gold
-                        : (q == 0 && r == 2) ? Color.Silver
+                        : (q == 1 && r == 1) ? Color.Silver
                         : color));
                 }
             }
@@ -136,10 +160,33 @@ namespace Hex
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
-            this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+            this.RecalculateSizes();
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
             this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexOuterPointyTop.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexOuterPointyTop.Height / 2);
+
+            foreach (var hex in this.Hexagons)
+            {
+                var q = hex.X;
+                var r = hex.Y;
+
+                // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
+                // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
+                var shortDivisor = 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
+                var longDivisor = 2.072; // but this one no idea, doesn't seem to match any offset
+
+                var adjustedWidthPointyTop = this.HexOuterPointyTop.Width / shortDivisor;
+                var adjustedHeightPointyTop = this.HexOuterPointyTop.Height / longDivisor;
+                var pointyTopX = Math.Round(adjustedWidthPointyTop * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
+                var pointyTopY = Math.Round(adjustedHeightPointyTop * (3.0 / 2.0 * r));
+                hex.PositionPointyTop = new Vector2((float) pointyTopX, (float) pointyTopY);
+
+                var adjustedWidthFlattyTop = this.HexOuterFlattyTop.Width / longDivisor;
+                var adjustedHeightFlattyTop = this.HexOuterFlattyTop.Height / shortDivisor;
+                var flattyTopX = Math.Round(adjustedWidthFlattyTop * (3.0 / 2.0 * q));
+                var flattyTopY = Math.Round(adjustedHeightFlattyTop * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
+                hex.PositionFlattyTop = new Vector2((float) flattyTopX, (float) flattyTopY);
+            }
 
             this.OnLoad?.Invoke(this.Content);
         }
@@ -182,7 +229,31 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.Down))
                 this.GridCenter += new Vector2(0, 100);
 
+            if (this.Input.KeyPressed(Keys.P))
+                this.Camera.CenterOn(this.Hexagons.First(hex => (hex.X == 0 && hex.Y == 0)));
+
             this.Camera.HandleInput(this.Input);
+
+            var rect = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
+
+            if (this.Camera.IsMoving)
+            {
+                this.Camera.MouseMove(this.Input.CurrentMouseState.ToVector2());
+                if (this.Input.MouseReleased(MouseButton.Middle))
+                    this.Camera.StopMouseMove();
+            }
+            if (this.ScaledMapRectangle.Contains(this.Input.CurrentMouseState))
+            {
+                if (this.Input.MouseScrolled())
+                    this.Camera.Zoom(this.Input.MouseScrolledUp() ? .25f : -.25f
+                        );//, zoomOrigin: this.Input.CurrentMouseState.ToVector2());
+
+                if (!this.Camera.IsMoving && this.Input.MousePressed(MouseButton.Middle))
+                    this.Camera.StartMouseMove(this.Input.CurrentMouseState.ToVector2());
+            }
+
+            if (this.Input.KeyPressed(Keys.P))
+                this.RecalculateDebug();
 
             this.OnUpdate?.Invoke(gameTime);
         }
@@ -196,38 +267,16 @@ namespace Hex
 
             var hexTextureOuter = this.PointyTop ? this.HexOuterPointyTop : this.HexOuterFlattyTop;
             var hexTextureInner = this.PointyTop ? this.HexInnerPointyTop : this.HexInnerFlattyTop;
-            var width = hexTextureOuter.Width;
-            var height = hexTextureOuter.Height;
             foreach (var hex in this.Hexagons)
             {
-                var q = hex.X;
-                var r = hex.Y;
-
-                // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
-                // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
-                var shortFactor = 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
-                var longFactor = 2.07; // but this one no idea, doesn't seem to match any offset
-                var adjustedWidth = width / (this.PointyTop ? shortFactor : longFactor);
-                var adjustedHeight = height / (this.PointyTop ? longFactor : shortFactor);
-
-                double newx, newy;
-                if (this.PointyTop)
-                {
-                    newx = Math.Round(adjustedWidth * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
-                    newy = Math.Round(adjustedHeight * (3.0 / 2.0 * r));
-                }
-                else
-                {
-                    newx = Math.Round(adjustedWidth * (3.0 / 2.0 * q));
-                    newy = Math.Round(adjustedHeight * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
-                }
-                var rotation = this.PointyTop ? 0f : (float) Math.PI / 2;
-                var position = this.GridCenter + new Vector2((float) newx, (float) newy);
-                var origin = new Vector2(width / 2f, height / 2f);
+                var position = this.GridCenter + (this.PointyTop ? hex.PositionPointyTop : hex.PositionFlattyTop);
                 this.SpriteBatch.DrawAt(hexTextureOuter, position, 1f, Color.Black, depth: 0.6f);
                 this.SpriteBatch.DrawAt(hexTextureInner, position, 1f, hex.Color, depth: 0.5f);
+                var hexLog = $"{hex.X},{hex.Y}";
+                this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
             }
 
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapRectangle, Color.DarkOliveGreen, depth: 0.1f);
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
@@ -253,18 +302,18 @@ namespace Hex
 
             var absoluteMouseVector = this.Input.CurrentMouseState.ToVector2();
             // client size translation is needed for fullscreen mode (in windowed mode ClientBounds == BackBuffer size)
-            var clientSizeTranslation = new Vector2(
-                this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
-                this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
-            var clientSizeTranslatedMouseVector = absoluteMouseVector * clientSizeTranslation;
+            var clientSizeTranslatedMouseVector = absoluteMouseVector * this.ClientSizeTranslation;
             // camera translation is needed when camera is zoomed in
-            var cameraTranslatedMouseVector = this.Camera.ScreenToWorld(clientSizeTranslatedMouseVector);
+            var cameraTranslatedMouseVector = this.Camera.ScreenToCamera(clientSizeTranslatedMouseVector);
 
             var log = $"M: {absoluteMouseVector.X:0}, {absoluteMouseVector.Y:0}"
                 + Environment.NewLine + $"R: {clientSizeTranslatedMouseVector.X:0}, {clientSizeTranslatedMouseVector.Y:0}"
-                + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}";
+                + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}"
+                + Environment.NewLine + this.ScaledWindowSize.ToString()
+                + Environment.NewLine + this.ScaledMapSize.ToString()
+                + Environment.NewLine + this.CalculatedDebug;
 
-            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_WIDTH, 10), Color.White, scale: 1f, depth: 1f);
+            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_WIDTH, 10));
             this.SpriteBatch.End();
         }
 
@@ -287,6 +336,28 @@ namespace Hex
 
         #region Helper Methods
 
+        protected void RecalculateDebug()
+        {
+            var hw = this.PointyTop ? 25 : 29;
+            var hh = this.PointyTop ? 29 : 25;
+            var (minX, maxX, minY, maxY) = this.Hexagons
+                .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
+                    (t, x) => (Math.Min(t.MinX, Math.Abs(x.X)), Math.Max(t.MaxX, Math.Abs(x.X)),
+                        Math.Min(t.MinY, Math.Abs(x.Y)), Math.Max(t.MaxY, Math.Abs(x.Y))));
+            
+            // need to calculate furthest left and furthest right
+            // and furthers up and furthest down
+            // minX is not enough because going down in straight line lowers X but does not go further left
+
+            // so calculate for each row what is width and for each column
+            // then take max
+            // add half hex offset (if > 1 in row / col)
+
+            var width = (maxX - minX) * hw;
+            var height = (maxY - minY) * hh;
+            this.CalculatedDebug = $"x:{minX}/{maxX} y:{minY}/{maxY} w:{width} h:{height}";
+        }
+
         protected void ResizeWindowFromKeyboard(int newBackBufferWidth)
         {
             this.Graphics.PreferredBackBufferWidth = newBackBufferWidth;
@@ -301,28 +372,36 @@ namespace Hex
         {
             // When going to fullscreen, it is important not to change the backbuffer size,
             // because doing that makes it impossible to go back to windowed mode (might be a bug in Monogame?).
-            // Toggling fullscreen already triggers GraphicsDeviceManager.ApplyChanges, so can just return here.
-            if (this.Graphics.IsFullScreen)
-                return;
-
-            // This event would be triggered again by GraphicsDeviceManager.ApplyChanges
-            this.Window.ClientSizeChanged -= this.OnWindowResize;
-
-            if (this.Window.ClientBounds.Width != this.ScaledWindowSize.X)
+            if (!this.Graphics.IsFullScreen)
             {
-                this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
-                this.Graphics.PreferredBackBufferHeight = (int) (this.Window.ClientBounds.Width / BASE_ASPECT_RATIO);
-            }
-            else if (this.Window.ClientBounds.Height != this.ScaledWindowSize.Y)
-            {
-                this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
-                this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
-            }
+                // This event would be triggered again by GraphicsDeviceManager.ApplyChanges
+                this.Window.ClientSizeChanged -= this.OnWindowResize;
 
-            this.Graphics.ApplyChanges();
-            this.ScaledWindowSize = new Point(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-            this.Window.ClientSizeChanged += this.OnWindowResize;
-            // TODO: may also need to reclamp camera (displacement seems to happen when restoring after maximizing)
+                if (this.Window.ClientBounds.Width != this.ScaledWindowSize.X)
+                {
+                    this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
+                    this.Graphics.PreferredBackBufferHeight = (int) (this.Window.ClientBounds.Width / BASE_ASPECT_RATIO);
+                }
+                else if (this.Window.ClientBounds.Height != this.ScaledWindowSize.Y)
+                {
+                    this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
+                    this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
+                }
+
+                this.Graphics.ApplyChanges();
+                this.Window.ClientSizeChanged += this.OnWindowResize;
+            }
+            this.RecalculateSizes();
+        }
+
+        protected void RecalculateSizes()
+        {
+            this.ClientSizeTranslation = new Vector2(
+                this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
+                this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
+            this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+            this.ScaledMapSize = new Vector2(this.MapWidth, this.MapHeight) / this.ClientSizeTranslation;
+            this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
         protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
@@ -336,7 +415,7 @@ namespace Hex
         #endregion
     }
 
-    public readonly struct Hexagon
+    public class Hexagon
     {
         public Hexagon(int x, int y, Color color)
         {
@@ -345,8 +424,10 @@ namespace Hex
             this.Color = color;
         }
 
-        public readonly int X;
-        public readonly int Y;
-        public readonly Color Color;
+        public int X { get; }
+        public int Y { get; }
+        public Color Color { get; }
+        public Vector2 PositionPointyTop { get; set; }
+        public Vector2 PositionFlattyTop { get; set; }
     }
 }

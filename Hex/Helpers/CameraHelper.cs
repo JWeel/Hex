@@ -10,7 +10,7 @@ namespace Hex.Helpers
         #region Constants
 
         private const float ZOOM_SCALE_FACTOR_INCREMENT = 1 / 16f;
-        private const float POSITION_MOVE_INCREMENT = 10f;
+        private const float POSITION_MOVE_INCREMENT = 5f;
 
         #endregion
 
@@ -34,20 +34,34 @@ namespace Hex.Helpers
         public Vector2 Position { get; protected set; }
         public float ZoomScaleFactor { get; protected set; }
         public float Rotation { get; protected set; }
+        public bool IsMoving { get; protected set; }
+        protected Vector2 LastMovePosition { get; set; }
 
         protected Func<int> ViewportWidthGetter { get; }
         protected Func<int> ViewportHeightGetter { get; }
 
         public Vector2 ViewportCenter =>
             new Vector2(
-                this.ViewportWidthGetter() / 2f,
-                this.ViewportHeightGetter() / 2f);
+                this.ViewportWidthGetter().IfOddAddOne() / 2f,
+                this.ViewportHeightGetter().IfOddAddOne() / 2f);
 
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-(int) this.Position.X, -(int) this.Position.Y, 0) *
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateScale(new Vector3(this.ZoomScaleFactor, this.ZoomScaleFactor, 1)) *
             Matrix.CreateTranslation(new Vector3(this.ViewportCenter, 0));
+
+        public Rectangle ViewportWorldBoundry
+        {
+            get
+            {
+                var viewPortTopLeftCorner = this.ScreenToCamera(Vector2.Zero);
+                var viewPortBottomRightCorner = this.ScreenToCamera(new Vector2(this.ViewportWidthGetter(), this.ViewportHeightGetter()));
+                return new Rectangle((int) viewPortTopLeftCorner.X, (int) viewPortTopLeftCorner.Y,
+                    (int) (viewPortBottomRightCorner.X - viewPortTopLeftCorner.X),
+                    (int) (viewPortBottomRightCorner.Y - viewPortTopLeftCorner.Y));
+            }
+        }
 
         #endregion
 
@@ -66,17 +80,17 @@ namespace Hex.Helpers
             this.Position = this.MapClampedPosition(this.Position + amount);
         }
 
-        public Vector2 WorldToScreen(Vector2 worldPosition) =>
+        public Vector2 CameraToScreen(Vector2 worldPosition) =>
             Vector2.Transform(worldPosition, this.TranslationMatrix);
 
-        public Vector2 ScreenToWorld(Vector2 screenPosition) =>
+        public Vector2 ScreenToCamera(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
 
         public void CenterOn(Vector2 position) =>
             this.Position = position;
 
         public void CenterOn(Hexagon hex) =>
-            this.Position = this.CenteredPosition(hex, true);
+            this.Position = this.CenteredPosition(hex, clamp: true);
 
         protected Vector2 CenteredPosition(Hexagon hex, bool clamp = false)
         {
@@ -121,6 +135,23 @@ namespace Hex.Helpers
             cameraMovement *= POSITION_MOVE_INCREMENT;
             cameraMovement *= this.ZoomScaleFactor;
             this.Move(cameraMovement, clamp: true);
+        }
+
+        public void StartMouseMove(Vector2 startPosition)
+        {
+            this.IsMoving = true;
+            this.LastMovePosition = startPosition;
+        }
+
+        public void MouseMove(Vector2 position)
+        {
+            this.Move(-(position - this.LastMovePosition));
+            this.LastMovePosition = position;
+        }
+
+        public void StopMouseMove()
+        {
+            this.IsMoving = false;
         }
 
         #endregion

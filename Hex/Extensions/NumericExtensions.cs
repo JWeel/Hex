@@ -39,5 +39,8 @@ namespace Hex.Extensions
                 return upperLimit.Value;
             return value;
         }
+
+        public static int IfOddAddOne(this int value) =>
+            value % 2 == 0 ? value : value + 1;
     }
 }

@@ -32,14 +32,14 @@ namespace Hex.Extensions
                 layerDepth: depth
             );
 
-        public static void DrawText(this SpriteBatch spriteBatch, SpriteFont font, string text, Vector2 position, Color color, float scale, float depth)
+        public static void DrawText(this SpriteBatch spriteBatch, SpriteFont font, string text, Vector2 position, Color? color = default, float scale = 1f, float depth = 1f)
         {
-            var shadePosition = position + new Vector2(1);
+            var shadePosition = position + new Vector2(1 * scale);
             var shadeDepth = depth - 0.01f;
 
             spriteBatch.DrawString(font, text, shadePosition, Color.Black,
                 rotation: 0f, origin: default, scale, SpriteEffects.None, shadeDepth);
-            spriteBatch.DrawString(font, text, position, color,
+            spriteBatch.DrawString(font, text, position, color ?? Color.White,
                 rotation: 0f, origin: default, scale, SpriteEffects.None, depth);
         }
 
