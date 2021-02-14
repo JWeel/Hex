@@ -78,6 +78,15 @@ namespace Hex.Extensions
 
         #endregion
 
+        #region Into
+
+        /// <summary> Passes this value into the invocation of a <see cref="Func{,}"/> and returns the result. </summary>
+        [DebuggerStepThrough]
+        public static TResult Into<TValue, TResult>(this TValue value, Func<TValue, TResult> func) =>
+            func(value);
+
+        #endregion
+
         #region Case
 
         /// <summary> Invokes a given action only if this <paramref name="condition"/> is <see langword="true"/>. </summary>

@@ -1,8 +1,8 @@
-﻿using System.Runtime.InteropServices.ComTypes;
-using Hex.Auxiliary;
+﻿using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
+using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -75,8 +75,8 @@ namespace Hex
         protected Vector2 ScaledMapSize { get; set; }
         protected Rectangle ScaledMapRectangle { get; set; }
 
-        protected float MapWidth => this.Graphics.PreferredBackBufferWidth / GOLDEN_RATIO;
-        protected float MapHeight => this.Graphics.PreferredBackBufferHeight;
+        // protected float MapWidth => this.Graphics.PreferredBackBufferWidth / GOLDEN_RATIO;
+        // protected float MapHeight => this.Graphics.PreferredBackBufferHeight;
 
         protected string CalculatedDebug;
 
@@ -89,30 +89,36 @@ namespace Hex
             var random = new Random();
             var n = 20;
             var m = 30;
-            // for (var q = -n; q <= n; q++)
-            // {
-            //     // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
-            //     var color = Color.White;
-            //     var r1 = Math.Max(-n, -q - n);
-            //     var r2 = Math.Min(n, -q + n);
-            //     for (var r = r1; r <= r2; r++)
-            //     {
-            //         this.Hexagons.Add(new Hexagon(r, q,
-            //             (q == 0 && r == 0) ? Color.Gold
-            //             : (q == 1 && r == 1) ? Color.Silver
-            //             : color));
-            //     }
-            // }
-            for (var r = 0; r < m; r++)
+            if (false)
             {
-                var color = Color.White;
-                var r_offset = (int) Math.Floor(r / 2f);
-                for (var q = -r_offset; q < n - r_offset; q++)
+                for (var q = -n; q <= n; q++)
                 {
-                    this.Hexagons.Add(new Hexagon(q, r,
-                        (q == 0 && r == 0) ? Color.Gold
-                        : (q == 1 && r == 1) ? Color.Silver
-                        : color));
+                    // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
+                    var color = Color.White;
+                    var r1 = Math.Max(-n, -q - n);
+                    var r2 = Math.Min(n, -q + n);
+                    for (var r = r1; r <= r2; r++)
+                    {
+                        this.Hexagons.Add(new Hexagon(r, q,
+                            (q == 0 && r == 0) ? Color.Gold
+                            : (q == 1 && r == 1) ? Color.Silver
+                            : color));
+                    }
+                }
+            }
+            else
+            {
+                for (var r = 0; r < m; r++)
+                {
+                    var color = Color.White;
+                    var r_offset = (int) Math.Floor(r / 2f);
+                    for (var q = -r_offset; q < n - r_offset; q++)
+                    {
+                        this.Hexagons.Add(new Hexagon(q, r,
+                            (q == 0 && r == 0) ? Color.Gold
+                            : (q == 1 && r == 1) ? Color.Silver
+                            : color));
+                    }
                 }
             }
 
@@ -234,12 +240,12 @@ namespace Hex
 
             this.Camera.HandleInput(this.Input);
 
-            var rect = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
+            // var rect = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
 
             if (this.Camera.IsMoving)
             {
                 this.Camera.MouseMove(this.Input.CurrentMouseState.ToVector2());
-                if (this.Input.MouseReleased(MouseButton.Middle))
+                if (this.Input.MouseReleased(MouseButton.Right))
                     this.Camera.StopMouseMove();
             }
             if (this.ScaledMapRectangle.Contains(this.Input.CurrentMouseState))
@@ -248,12 +254,35 @@ namespace Hex
                     this.Camera.Zoom(this.Input.MouseScrolledUp() ? .25f : -.25f
                         );//, zoomOrigin: this.Input.CurrentMouseState.ToVector2());
 
-                if (!this.Camera.IsMoving && this.Input.MousePressed(MouseButton.Middle))
+                if (!this.Camera.IsMoving && this.Input.MousePressed(MouseButton.Right))
                     this.Camera.StartMouseMove(this.Input.CurrentMouseState.ToVector2());
             }
 
             if (this.Input.KeyPressed(Keys.P))
                 this.RecalculateDebug();
+
+            if (this.Input.KeyPressed(Keys.O))
+            {
+                var hw = this.PointyTop ? 25 : 29;
+                var hh = this.PointyTop ? 29 : 25;
+                Func<Hexagon, Vector2> positionGetter = this.PointyTop ?
+                    x => x.PositionPointyTop : x => x.PositionFlattyTop;
+                var (minX, maxX, minY, maxY) = this.Hexagons
+                    .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
+                        (aggregate, x) => (
+                            Math.Min(aggregate.MinX, (int) positionGetter(x).X),
+                            Math.Max(aggregate.MaxX, (int) positionGetter(x).X + hw),
+                            Math.Min(aggregate.MinY, (int) positionGetter(x).Y),
+                            Math.Max(aggregate.MaxY, (int) positionGetter(x).Y + hh)));
+
+                var centerHex = this.Hexagons.First(x => ((x.X == 0) && (x.Y == 0)));
+                var centerOffset = positionGetter(centerHex) - new Vector2(minX, minY);
+
+                var totalHexagonSpace = new Vector2(maxX - minX, maxY - minY);
+                var halfAvailableSpace = this.ScaledMapSize / 2;
+                var hexagonSpaceCenered = halfAvailableSpace - (totalHexagonSpace / 2);
+                this.GridCenter = hexagonSpaceCenered + centerOffset;
+            }
 
             this.OnUpdate?.Invoke(gameTime);
         }
@@ -340,22 +369,57 @@ namespace Hex
         {
             var hw = this.PointyTop ? 25 : 29;
             var hh = this.PointyTop ? 29 : 25;
+            Func<Hexagon, Vector2> positionGetter = this.PointyTop ?
+                x => x.PositionPointyTop : x => x.PositionFlattyTop;
+
             var (minX, maxX, minY, maxY) = this.Hexagons
                 .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
-                    (t, x) => (Math.Min(t.MinX, Math.Abs(x.X)), Math.Max(t.MaxX, Math.Abs(x.X)),
-                        Math.Min(t.MinY, Math.Abs(x.Y)), Math.Max(t.MaxY, Math.Abs(x.Y))));
-            
+                    (aggregate, x) => (
+                        Math.Min(aggregate.MinX, (int) positionGetter(x).X),
+                        Math.Max(aggregate.MaxX, (int) positionGetter(x).X + hw),
+                        Math.Min(aggregate.MinY, (int) positionGetter(x).Y),
+                        Math.Max(aggregate.MaxY, (int) positionGetter(x).Y + hh)));
+
             // need to calculate furthest left and furthest right
             // and furthers up and furthest down
             // minX is not enough because going down in straight line lowers X but does not go further left
+
+            // below is incorrect too
+            // instead just calc real pos? like why didnt that work?
 
             // so calculate for each row what is width and for each column
             // then take max
             // add half hex offset (if > 1 in row / col)
 
-            var width = (maxX - minX) * hw;
-            var height = (maxY - minY) * hh;
-            this.CalculatedDebug = $"x:{minX}/{maxX} y:{minY}/{maxY} w:{width} h:{height}";
+            // var maxRows = this.Hexagons
+            //     .GroupBy(hex => hex.X)
+            //     .Select(group => group.MinMax(hex => hex.Y))
+            //     .Select(minmax => minmax.Max - minmax.Min)
+            //     .Max();
+            // var maxColumns = this.Hexagons
+            //     .GroupBy(hex => hex.Y)
+            //     .Select(group => group.MinMax(hex => hex.X))
+            //     .Select(minmax => minmax.Max - minmax.Min)
+            //     .Max();
+
+            // 19 | 29
+            // 475 | 841
+
+            // paint.net
+            // 493 | 638
+
+            // var totalWidth = maxColumns * hw;
+            // var totalheight = maxRows * hh;
+
+            // var overlapWidth = maxColumns * 1 - (maxRows > 0 ? 1 : 0); // do not remove overlap for origin
+
+            // var offsetWidth = (maxColumns > 0 ? hw / 2 : 0);
+
+            // var realWidth = totalWidth - overlapWidth + offsetWidth;
+            // var realHeight = totalheight;
+
+            // this.CalculatedDebug = $"maxW:{maxColumns} maxH:{maxRows} tw:{totalWidth} ovw:{overlapWidth} ofw:{offsetWidth} w:{realWidth} h:{realHeight}";
+            this.CalculatedDebug = $"minX:{minX} maxX:{maxX} minY:{minY} maxY:{maxY} difX:{maxX - minX} difY:{maxY - minY}";
         }
 
         protected void ResizeWindowFromKeyboard(int newBackBufferWidth)
@@ -400,7 +464,7 @@ namespace Hex
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
             this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-            this.ScaledMapSize = new Vector2(this.MapWidth, this.MapHeight) / this.ClientSizeTranslation;
+            this.ScaledMapSize = new Vector2(BASE_MAP_WIDTH, BASE_MAP_HEIGHT) / this.ClientSizeTranslation;
             this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
@@ -413,21 +477,5 @@ namespace Hex
         protected void SubscribeToDrawPanel(Action<SpriteBatch> handler) => this.OnDrawPanel += handler;
 
         #endregion
-    }
-
-    public class Hexagon
-    {
-        public Hexagon(int x, int y, Color color)
-        {
-            this.X = x;
-            this.Y = y;
-            this.Color = color;
-        }
-
-        public int X { get; }
-        public int Y { get; }
-        public Color Color { get; }
-        public Vector2 PositionPointyTop { get; set; }
-        public Vector2 PositionFlattyTop { get; set; }
     }
 }

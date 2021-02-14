@@ -1,4 +1,5 @@
 using Hex.Extensions;
+using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
