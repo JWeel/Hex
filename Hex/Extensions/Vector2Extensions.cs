@@ -10,5 +10,15 @@ namespace Hex.Extensions
             $"({vector.X}, {vector.Y})";
 
         #endregion
+
+        #region Odd to Even Methods
+            
+        public static Vector2 IfOddAddOne(this Vector2 vector) =>
+            new Vector2(((int) vector.X).IfOddAddOne(), ((int) vector.Y).IfOddAddOne());
+            
+        public static Vector2 IfOddSubtractOne(this Vector2 vector) =>
+            new Vector2(((int) vector.X).IfOddSubtractOne(), ((int) vector.Y).IfOddSubtractOne());
+
+        #endregion
     }
 }
