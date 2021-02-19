@@ -26,10 +26,10 @@ namespace Hex
         public const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
         public const int BASE_WINDOW_WIDTH_MAX = BASE_WINDOW_WIDTH * 2; // maximum for keyboard-based scaling (not for mouse)
         public const int BASE_WINDOW_HEIGHT = 720;
-        public const int BASE_MAP_WIDTH = 791; // 1280 / 1.618 = 791.10
-        public const int BASE_MAP_HEIGHT = BASE_WINDOW_HEIGHT;
-        public const int BASE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_WIDTH;
-        public const int BASE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
+        public const int BASE_MAP_PANEL_WIDTH = 791; // 1280 / 1.618 = 791.10
+        public const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
+        public const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
+        public const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
         private const float BASE_ASPECT_RATIO = BASE_WINDOW_WIDTH / (float) BASE_WINDOW_HEIGHT;
         private const float GOLDEN_RATIO = 1.618f;
 
@@ -69,15 +69,22 @@ namespace Hex
         protected Troolean PointyTop { get; set; }
 
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
-        // protected Matrix ScalingMatrix { get; set; }
         protected Vector2 ClientSizeTranslation { get; set; }
         protected Vector2 ScaledWindowSize { get; set; }
-        protected Vector2 ScaledMapSize { get; set; }
-        protected Rectangle ScaledMapRectangle { get; set; }
+        protected Vector2 ScaledMapPanelSize { get; set; }
+        protected Rectangle ScaledMapPanelRectangle { get; set; }
 
-        // protected float MapWidth => this.Graphics.PreferredBackBufferWidth / GOLDEN_RATIO;
-        // protected float MapHeight => this.Graphics.PreferredBackBufferHeight;
+        protected Vector2 MapSizePointyTop { get; set; }
+        protected Vector2 MapSizeFlattyTop { get; set; }
+        protected Vector2 MapOriginPointyTop { get; set; }
+        protected Vector2 MapOriginFlattyTop { get; set; }
 
+        // todo figure out when to use .IfOddAddOne() , looks like for pointy it look good for flatty it look bad
+        protected int MapWidth => Math.Max(BASE_MAP_PANEL_WIDTH, 
+            (this.PointyTop ? ((int) this.MapSizePointyTop.X) : (int) this.MapSizeFlattyTop.X)).IfOddAddOne();
+        protected int MapHeight => Math.Max(BASE_MAP_PANEL_HEIGHT, 
+            (this.PointyTop ? ((int) this.MapSizePointyTop.Y) : (int) this.MapSizeFlattyTop.Y)).IfOddAddOne();
+        
         protected string CalculatedDebug;
 
         #endregion
@@ -89,7 +96,7 @@ namespace Hex
             var random = new Random();
             var n = 20;
             var m = 30;
-            if (false)
+            if (true)
             {
                 for (var q = -n; q <= n; q++)
                 {
@@ -127,7 +134,7 @@ namespace Hex
             // then the factory looks at the CTOR, calls
             this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
-            this.Camera = new CameraHelper(() => BASE_MAP_WIDTH, () => BASE_MAP_HEIGHT);
+            this.Camera = new CameraHelper(() => this.MapWidth, () => this.MapHeight, () => BASE_MAP_PANEL_WIDTH, () => BASE_MAP_PANEL_HEIGHT);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
@@ -166,10 +173,9 @@ namespace Hex
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
-            this.RecalculateSizes();
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
-            this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexOuterPointyTop.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexOuterPointyTop.Height / 2);
+            // this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexOuterPointyTop.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexOuterPointyTop.Height / 2);
 
             foreach (var hex in this.Hexagons)
             {
@@ -178,7 +184,7 @@ namespace Hex
 
                 // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
                 // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
-                var shortDivisor = 1.805; // this seems to be the offset for odd rows(pointy)/cols(flat)
+                var shortDivisor = 1.8045; // this seems to be the offset for odd rows(pointy)/cols(flat)
                 var longDivisor = 2.072; // but this one no idea, doesn't seem to match any offset
 
                 var adjustedWidthPointyTop = this.HexOuterPointyTop.Width / shortDivisor;
@@ -193,6 +199,29 @@ namespace Hex
                 var flattyTopY = Math.Round(adjustedHeightFlattyTop * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
                 hex.PositionFlattyTop = new Vector2((float) flattyTopX, (float) flattyTopY);
             }
+            
+            (int MinX, int MaxX, int MinY, int MaxY) CalculateMinMax(IEnumerable<(int X, int Y)> points, int width, int height) =>
+                points.Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
+                    (aggregate, point) => (
+                        Math.Min(aggregate.MinX, point.X),
+                        Math.Max(aggregate.MaxX, point.X + width),
+                        Math.Min(aggregate.MinY, point.Y),
+                        Math.Max(aggregate.MaxY, point.Y + height)));
+
+            var pPoints = this.Hexagons.Select(hex => ((int) hex.PositionPointyTop.X, (int) hex.PositionPointyTop.Y));
+            var (pMinX, pMaxX, pMinY, pMaxY) = CalculateMinMax(pPoints, this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height);
+            this.MapSizePointyTop = new Vector2(pMaxX - pMinX, pMaxY - pMinY);
+            this.MapOriginPointyTop = new Vector2(pMinX, pMinY);
+
+            var fPoints = this.Hexagons.Select(hex => ((int) hex.PositionFlattyTop.X, (int) hex.PositionFlattyTop.Y));
+            var (fMinX, fMaxX, fMinY, fMaxY) = CalculateMinMax(fPoints, this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
+            this.MapSizeFlattyTop = new Vector2(fMaxX - fMinX, fMaxY - fMinY);
+            this.MapOriginFlattyTop = new Vector2(fMinX, fMinY);
+
+            this.RecalculateClientSize();
+            this.RecenterGrid();
+            // reposition camera
+            this.Camera.Move(Vector2.Zero, clamp: true);
 
             this.OnLoad?.Invoke(this.Content);
         }
@@ -208,7 +237,16 @@ namespace Hex
                 this.Graphics.ToggleFullScreen();
 
             if (this.Input.KeyPressed(Keys.C))
+            {
                 this.PointyTop = !this.PointyTop;
+
+                // probably what we want instead is to have two GridCenters, one for pointy one for flatty
+                // same with map size?
+                // then simply swapping the PointyTop flag is enough
+                this.RecalculateMapSize();
+                this.RecenterGrid();
+                this.Camera.Move(Vector2.Zero, clamp: true);
+            }
 
             if (!this.Graphics.IsFullScreen)
             {
@@ -235,12 +273,11 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.Down))
                 this.GridCenter += new Vector2(0, 100);
 
-            if (this.Input.KeyPressed(Keys.P))
-                this.Camera.CenterOn(this.Hexagons.First(hex => (hex.X == 0 && hex.Y == 0)));
+            if (this.Input.KeyPressed(Keys.I))
+                this.Camera.CenterOn(this.Hexagons.First(hex => (hex.X == 0 && hex.Y == 0))
+                    .Into(x => this.PointyTop ? x.PositionPointyTop : x.PositionFlattyTop));
 
             this.Camera.HandleInput(this.Input);
-
-            // var rect = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
 
             if (this.Camera.IsMoving)
             {
@@ -248,7 +285,7 @@ namespace Hex
                 if (this.Input.MouseReleased(MouseButton.Right))
                     this.Camera.StopMouseMove();
             }
-            if (this.ScaledMapRectangle.Contains(this.Input.CurrentMouseState))
+            if (this.ScaledMapPanelRectangle.Contains(this.Input.CurrentMouseState))
             {
                 if (this.Input.MouseScrolled())
                     this.Camera.Zoom(this.Input.MouseScrolledUp() ? .25f : -.25f
@@ -263,25 +300,7 @@ namespace Hex
 
             if (this.Input.KeyPressed(Keys.O))
             {
-                var hw = this.PointyTop ? 25 : 29;
-                var hh = this.PointyTop ? 29 : 25;
-                Func<Hexagon, Vector2> positionGetter = this.PointyTop ?
-                    x => x.PositionPointyTop : x => x.PositionFlattyTop;
-                var (minX, maxX, minY, maxY) = this.Hexagons
-                    .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
-                        (aggregate, x) => (
-                            Math.Min(aggregate.MinX, (int) positionGetter(x).X),
-                            Math.Max(aggregate.MaxX, (int) positionGetter(x).X + hw),
-                            Math.Min(aggregate.MinY, (int) positionGetter(x).Y),
-                            Math.Max(aggregate.MaxY, (int) positionGetter(x).Y + hh)));
-
-                var centerHex = this.Hexagons.First(x => ((x.X == 0) && (x.Y == 0)));
-                var centerOffset = positionGetter(centerHex) - new Vector2(minX, minY);
-
-                var totalHexagonSpace = new Vector2(maxX - minX, maxY - minY);
-                var halfAvailableSpace = this.ScaledMapSize / 2;
-                var hexagonSpaceCenered = halfAvailableSpace - (totalHexagonSpace / 2);
-                this.GridCenter = hexagonSpaceCenered + centerOffset;
+                this.RecenterGrid();
             }
 
             this.OnUpdate?.Invoke(gameTime);
@@ -291,6 +310,11 @@ namespace Hex
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
             this.GraphicsDevice.Clear(Color.LightSlateGray);
+            
+            // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
+            // this.SpriteBatch.End();
+
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
             this.OnDrawMap?.Invoke(this.SpriteBatch);
 
@@ -305,15 +329,15 @@ namespace Hex
                 this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
             }
 
-            this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapRectangle, Color.DarkOliveGreen, depth: 0.1f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             this.OnDrawPanel?.Invoke(this.SpriteBatch);
 
-            var mapToPanelSeparator = new Rectangle(BASE_MAP_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
-            var panelToLogSeparator = new Rectangle(BASE_MAP_WIDTH, BASE_PANEL_HEIGHT, BASE_PANEL_WIDTH, 1);
-            var panelOverlay = new Rectangle(BASE_MAP_WIDTH, 0, BASE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
+            var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
+            var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
+            var panelOverlay = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
             this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
             this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
             this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
@@ -338,11 +362,15 @@ namespace Hex
             var log = $"M: {absoluteMouseVector.X:0}, {absoluteMouseVector.Y:0}"
                 + Environment.NewLine + $"R: {clientSizeTranslatedMouseVector.X:0}, {clientSizeTranslatedMouseVector.Y:0}"
                 + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}"
-                + Environment.NewLine + this.ScaledWindowSize.ToString()
-                + Environment.NewLine + this.ScaledMapSize.ToString()
+                + Environment.NewLine + "W:" + this.ScaledWindowSize.Print()
+                + Environment.NewLine + "P:" + this.ScaledMapPanelSize.Print()
+                + Environment.NewLine + "Z:" + this.Camera.ZoomScaleFactor
+                + Environment.NewLine + "G:" + this.GridCenter.Print()
+                + Environment.NewLine + "V:" + this.Camera.Position.Print()
+                + Environment.NewLine + "MW:" + new Vector2(this.MapWidth, this.MapHeight).Print()
                 + Environment.NewLine + this.CalculatedDebug;
 
-            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_WIDTH, 10));
+            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
             this.SpriteBatch.End();
         }
 
@@ -367,59 +395,20 @@ namespace Hex
 
         protected void RecalculateDebug()
         {
-            var hw = this.PointyTop ? 25 : 29;
-            var hh = this.PointyTop ? 29 : 25;
-            Func<Hexagon, Vector2> positionGetter = this.PointyTop ?
-                x => x.PositionPointyTop : x => x.PositionFlattyTop;
+        }
 
-            var (minX, maxX, minY, maxY) = this.Hexagons
-                .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
-                    (aggregate, x) => (
-                        Math.Min(aggregate.MinX, (int) positionGetter(x).X),
-                        Math.Max(aggregate.MaxX, (int) positionGetter(x).X + hw),
-                        Math.Min(aggregate.MinY, (int) positionGetter(x).Y),
-                        Math.Max(aggregate.MaxY, (int) positionGetter(x).Y + hh)));
+        protected void RecenterGrid()
+        {
+            var centerHex = this.Hexagons.First(hex => ((hex.X == 0) && (hex.Y == 0)));
+            var centerPosition = (this.PointyTop ? centerHex.PositionPointyTop : centerHex.PositionFlattyTop);
+            var mapPosition = (this.PointyTop ? this.MapOriginPointyTop : this.MapOriginFlattyTop);
+            var centerOffset = (centerPosition - mapPosition);
 
-            // need to calculate furthest left and furthest right
-            // and furthers up and furthest down
-            // minX is not enough because going down in straight line lowers X but does not go further left
+            var totalHexagonSpace = (this.PointyTop ? this.MapSizePointyTop : this.MapSizeFlattyTop);
+            var halfAvailableSpace = this.ScaledMapPanelSize / 2;
+            var hexagonSpaceCentered = halfAvailableSpace - (totalHexagonSpace / 2);
 
-            // below is incorrect too
-            // instead just calc real pos? like why didnt that work?
-
-            // so calculate for each row what is width and for each column
-            // then take max
-            // add half hex offset (if > 1 in row / col)
-
-            // var maxRows = this.Hexagons
-            //     .GroupBy(hex => hex.X)
-            //     .Select(group => group.MinMax(hex => hex.Y))
-            //     .Select(minmax => minmax.Max - minmax.Min)
-            //     .Max();
-            // var maxColumns = this.Hexagons
-            //     .GroupBy(hex => hex.Y)
-            //     .Select(group => group.MinMax(hex => hex.X))
-            //     .Select(minmax => minmax.Max - minmax.Min)
-            //     .Max();
-
-            // 19 | 29
-            // 475 | 841
-
-            // paint.net
-            // 493 | 638
-
-            // var totalWidth = maxColumns * hw;
-            // var totalheight = maxRows * hh;
-
-            // var overlapWidth = maxColumns * 1 - (maxRows > 0 ? 1 : 0); // do not remove overlap for origin
-
-            // var offsetWidth = (maxColumns > 0 ? hw / 2 : 0);
-
-            // var realWidth = totalWidth - overlapWidth + offsetWidth;
-            // var realHeight = totalheight;
-
-            // this.CalculatedDebug = $"maxW:{maxColumns} maxH:{maxRows} tw:{totalWidth} ovw:{overlapWidth} ofw:{offsetWidth} w:{realWidth} h:{realHeight}";
-            this.CalculatedDebug = $"minX:{minX} maxX:{maxX} minY:{minY} maxY:{maxY} difX:{maxX - minX} difY:{maxY - minY}";
+            this.GridCenter = (hexagonSpaceCentered + centerOffset);
         }
 
         protected void ResizeWindowFromKeyboard(int newBackBufferWidth)
@@ -455,17 +444,22 @@ namespace Hex
                 this.Graphics.ApplyChanges();
                 this.Window.ClientSizeChanged += this.OnWindowResize;
             }
-            this.RecalculateSizes();
+            this.RecalculateClientSize();
         }
 
-        protected void RecalculateSizes()
+        protected void RecalculateClientSize()
         {
             this.ClientSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
             this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-            this.ScaledMapSize = new Vector2(BASE_MAP_WIDTH, BASE_MAP_HEIGHT) / this.ClientSizeTranslation;
-            this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
+            this.RecalculateMapSize();
+        }
+
+        protected void RecalculateMapSize()
+        {
+            this.ScaledMapPanelSize = new Vector2(this.MapWidth, this.MapHeight) / this.ClientSizeTranslation;
+            this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
         }
 
         protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
