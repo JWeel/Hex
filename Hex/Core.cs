@@ -36,6 +36,11 @@ namespace Hex
         private static readonly Vector2 BASE_MAP_PANEL_SIZE = new Vector2(BASE_MAP_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT);
         private const int BASE_MAP_PADDING = 30;
 
+        // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
+        // without them there are small gaps or overlap between hexagons, especially as coordinates increase
+        private const double SHORT_OVERLAP_DIVISOR = 1.8045; // this seems to be the offset for odd rows(pointy)/cols(flat)
+        private const double LONG_OVERLAP_DIVISOR = 2.072; // but this one no idea, doesn't seem to match any offset
+
         #endregion
 
         #region Constructors
@@ -73,9 +78,19 @@ namespace Hex
 
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
         protected Vector2 ClientSizeTranslation { get; set; }
+        protected Vector2 AspectRatio { get; set; }
         protected Vector2 ScaledWindowSize { get; set; }
         protected Vector2 ScaledMapPanelSize { get; set; }
         protected Rectangle ScaledMapPanelRectangle { get; set; }
+
+        /// <summary> Mouse position relative to window. </summary>
+        protected Vector2 BaseMouseVector { get; set; }
+        /// <summary> Client size translation is needed for fullscreen mode (in windowed mode ClientBounds == BackBuffer size). </summary>
+        protected Vector2 ClientSizeTranslatedMouseVector { get; set; }
+        /// <summary> camera translation is needed when camera is zoomed in. </summary>
+        protected Vector2 CameraTranslatedMouseVector { get; set; }
+
+        protected Hexagon CursorHexagon { get; set; }
 
         protected Vector2 MapSizePointyTop { get; set; }
         protected Vector2 MapSizeFlattyTop { get; set; }
@@ -83,7 +98,7 @@ namespace Hex
         protected Vector2 MapOriginFlattyTop { get; set; }
 
         protected Vector2 MapSize =>
-            Vector2.Max(BASE_MAP_PANEL_SIZE, 
+            Vector2.Max(BASE_MAP_PANEL_SIZE,
                 (this.PointyTop ? this.MapSizePointyTop : this.MapSizeFlattyTop) + new Vector2(BASE_MAP_PADDING))
                     .IfOddAddOne();
 
@@ -108,6 +123,7 @@ namespace Hex
                     var r2 = Math.Min(n, -q + n);
                     for (var r = r1; r <= r2; r++)
                     {
+                        // not sure why q and r are flipped here
                         this.Hexagons.Add(new Hexagon(r, q,
                             (q == 0 && r == 0) ? Color.Gold
                             : (q == 1 && r == 1) ? Color.Silver
@@ -171,33 +187,24 @@ namespace Hex
             this.HexOuterFlattyTop = this.Content.Load<Texture2D>("xof");
             this.HexInnerFlattyTop = this.Content.Load<Texture2D>("xif");
 
-            // var HexTexOuter2 = this.HexTexOuter.
-
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
-            // this.GridCenter = new Vector2(BASE_MAP_WIDTH / 2 - this.HexOuterPointyTop.Width / 2, BASE_MAP_HEIGHT / 2 - this.HexOuterPointyTop.Height / 2);
-
             foreach (var hex in this.Hexagons)
             {
-                var q = hex.X;
-                var r = hex.Y;
+                var q = hex.Q;
+                var r = hex.R;
 
-                // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
-                // but without them there are small gaps or overlap between hexagons, especially as coordinates increase
-                var shortDivisor = 1.8045; // this seems to be the offset for odd rows(pointy)/cols(flat)
-                var longDivisor = 2.072; // but this one no idea, doesn't seem to match any offset
-
-                var adjustedWidthPointyTop = this.HexOuterPointyTop.Width / shortDivisor;
-                var adjustedHeightPointyTop = this.HexOuterPointyTop.Height / longDivisor;
+                var adjustedWidthPointyTop = this.HexOuterPointyTop.Width / SHORT_OVERLAP_DIVISOR;
+                var adjustedHeightPointyTop = this.HexOuterPointyTop.Height / LONG_OVERLAP_DIVISOR;
                 var pointyTopX = Math.Round(adjustedWidthPointyTop * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
                 var pointyTopY = Math.Round(adjustedHeightPointyTop * (3.0 / 2.0 * r));
                 hex.PositionPointyTop = new Vector2((float) pointyTopX, (float) pointyTopY);
 
-                var adjustedWidthFlattyTop = this.HexOuterFlattyTop.Width / longDivisor;
-                var adjustedHeightFlattyTop = this.HexOuterFlattyTop.Height / shortDivisor;
+                var adjustedWidthFlattyTop = this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR;
+                var adjustedHeightFlattyTop = this.HexOuterFlattyTop.Height / SHORT_OVERLAP_DIVISOR;
                 var flattyTopX = Math.Round(adjustedWidthFlattyTop * (3.0 / 2.0 * q));
                 var flattyTopY = Math.Round(adjustedHeightFlattyTop * (Math.Sqrt(3) / 2 * q + Math.Sqrt(3) * r));
                 hex.PositionFlattyTop = new Vector2((float) flattyTopX, (float) flattyTopY);
@@ -277,7 +284,7 @@ namespace Hex
                 this.GridCenter += new Vector2(0, 100);
 
             if (this.Input.KeyPressed(Keys.I))
-                this.Camera.CenterOn(this.Hexagons.First(hex => (hex.X == 0 && hex.Y == 0))
+                this.Camera.CenterOn(this.Hexagons.First(hex => (hex.Q == 0 && hex.R == 0))
                     .Into(x => this.PointyTop ? x.PositionPointyTop : x.PositionFlattyTop));
 
             this.Camera.HandleInput(this.Input);
@@ -302,14 +309,36 @@ namespace Hex
                 this.RecalculateDebug();
 
             if (this.Input.KeyPressed(Keys.O))
-            {
                 this.RecenterGrid();
+
+            this.BaseMouseVector = this.Input.CurrentMouseState.ToVector2();
+            this.ClientSizeTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.AspectRatio;
+            this.CameraTranslatedMouseVector = this.Camera.ScreenToCamera(this.ClientSizeTranslatedMouseVector);
+
+            var width = this.PointyTop ? this.HexOuterPointyTop.Width : this.HexOuterFlattyTop.Width;
+            var height = this.PointyTop ? this.HexOuterPointyTop.Height : this.HexOuterFlattyTop.Height;
+            var adjustedWidth = this.PointyTop ? width / SHORT_OVERLAP_DIVISOR : width / LONG_OVERLAP_DIVISOR;
+            var adjustedHeight = this.PointyTop ? height / LONG_OVERLAP_DIVISOR : height / SHORT_OVERLAP_DIVISOR;
+
+            var mx = this.CameraTranslatedMouseVector.X - this.GridCenter.X - width / 2;
+            var my = this.CameraTranslatedMouseVector.Y - this.GridCenter.Y - height / 2;
+            double q, r;
+            if (this.PointyTop)
+            {
+                q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / adjustedWidth;
+                r = (2.0 / 3.0 * my) / adjustedHeight;
             }
+            else
+            {
+                q = (2.0 / 3.0 * mx) / adjustedWidth;
+                r = (-1.0 / 3.0 * mx + Math.Sqrt(3) / 3.0 * my) / adjustedHeight;
+            }
+            var cube = Cube.Round(q, (-q - r), r);
+            this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Cube == cube));
 
             this.OnUpdate?.Invoke(gameTime);
         }
 
-        protected Hexagon SelectedHexagon;
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
@@ -328,8 +357,9 @@ namespace Hex
             {
                 var position = this.GridCenter + (this.PointyTop ? hex.PositionPointyTop : hex.PositionFlattyTop);
                 this.SpriteBatch.DrawAt(hexTextureOuter, position, 1f, Color.Black, depth: 0.6f);
-                this.SpriteBatch.DrawAt(hexTextureInner, position, 1f, hex.Color, depth: 0.5f);
-                var hexLog = $"{hex.X},{hex.Y}";
+                var color = (hex == this.CursorHexagon) ? Color.YellowGreen : hex.Color;
+                this.SpriteBatch.DrawAt(hexTextureInner, position, 1f, color, depth: 0.5f);
+                var hexLog = $"{hex.Q},{hex.R}";
                 this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
             }
 
@@ -357,23 +387,17 @@ namespace Hex
             // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon);
             // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon);
 
-            var absoluteMouseVector = this.Input.CurrentMouseState.ToVector2();
-            // client size translation is needed for fullscreen mode (in windowed mode ClientBounds == BackBuffer size)
-            var clientSizeTranslatedMouseVector = absoluteMouseVector * this.ClientSizeTranslation;
-            // camera translation is needed when camera is zoomed in
-            var cameraTranslatedMouseVector = this.Camera.ScreenToCamera(clientSizeTranslatedMouseVector);
-
-            // TODO calculate selected hexagon
-
-            var log = $"M: {absoluteMouseVector.X:0}, {absoluteMouseVector.Y:0}"
-                + Environment.NewLine + $"R: {clientSizeTranslatedMouseVector.X:0}, {clientSizeTranslatedMouseVector.Y:0}"
-                + Environment.NewLine + $"C: {cameraTranslatedMouseVector.X:0}, {cameraTranslatedMouseVector.Y:0}"
-                + Environment.NewLine + "W:" + this.ScaledWindowSize.Print()
-                + Environment.NewLine + "P:" + this.ScaledMapPanelSize.Print()
-                + Environment.NewLine + "Z:" + this.Camera.ZoomScaleFactor
-                + Environment.NewLine + "G:" + this.GridCenter.Print()
-                + Environment.NewLine + "V:" + this.Camera.Position.Print()
-                + Environment.NewLine + "MW:" + this.MapSize.Print()
+            var log = $"M1: {this.BaseMouseVector.Print()}"
+                + Environment.NewLine + $"M2: {this.ClientSizeTranslatedMouseVector.PrintRounded()}"
+                + Environment.NewLine + $"M3: {this.CameraTranslatedMouseVector.PrintRounded()}"
+                + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
+                + Environment.NewLine + "SM:" + this.ScaledMapPanelSize.Print()
+                + Environment.NewLine + "ZF:" + this.Camera.ZoomScaleFactor
+                + Environment.NewLine + "GC:" + this.GridCenter.Print()
+                + Environment.NewLine + "CP:" + this.Camera.Position.Print()
+                + Environment.NewLine + "MS:" + this.MapSize.Print()
+                + Environment.NewLine + "CZ:" + this.ClientSizeTranslation.Print()
+                + Environment.NewLine + "AR:" + this.AspectRatio.Print()
                 + Environment.NewLine + this.CalculatedDebug;
 
             this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
@@ -405,7 +429,7 @@ namespace Hex
 
         protected void RecenterGrid()
         {
-            var centerHex = this.Hexagons.First(hex => ((hex.X == 0) && (hex.Y == 0)));
+            var centerHex = this.Hexagons.First(hex => ((hex.Q == 0) && (hex.R == 0)));
             var centerPosition = (this.PointyTop ? centerHex.PositionPointyTop : centerHex.PositionFlattyTop);
             var mapPosition = (this.PointyTop ? this.MapOriginPointyTop : this.MapOriginFlattyTop);
             var centerOffset = (centerPosition - mapPosition);
@@ -455,6 +479,10 @@ namespace Hex
 
         protected void RecalculateClientSize()
         {
+            this.AspectRatio = new Vector2(
+                this.Graphics.PreferredBackBufferWidth / (float) BASE_WINDOW_WIDTH,
+                this.Graphics.PreferredBackBufferHeight / (float) BASE_WINDOW_HEIGHT
+            );
             this.ClientSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);

@@ -92,7 +92,7 @@ namespace Hex.Helpers
             this.Position = this.CenteredPosition(hex, clamp: true);
         protected Vector2 CenteredPosition(Hexagon hex, bool clamp = false)
         {
-            var cameraPosition = new Vector2(hex.X * 25, hex.Y * 29);
+            var cameraPosition = new Vector2(hex.Q * 25, hex.R * 29);
             var cameraCenteredOnTilePosition = new Vector2(cameraPosition.X + 25 / 2, cameraPosition.Y + 29 / 2);
             if (clamp)
                 return this.MapClampedPosition(cameraCenteredOnTilePosition);

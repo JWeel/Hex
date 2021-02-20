@@ -4,15 +4,17 @@ namespace Hex.Models
 {
     public class Hexagon
     {
-        public Hexagon(int x, int y, Color color)
+        public Hexagon(int q, int r, Color color)
         {
-            this.X = x;
-            this.Y = y;
+            this.Q = q;
+            this.R = r;
+            this.Cube = new Cube(q, -q-r, r);
             this.Color = color;
         }
 
-        public int X { get; }
-        public int Y { get; }
+        public int Q { get; }
+        public int R { get; }
+        public Cube Cube { get; }
         public Color Color { get; }
         public Vector2 PositionPointyTop { get; set; }
         public Vector2 PositionFlattyTop { get; set; }
