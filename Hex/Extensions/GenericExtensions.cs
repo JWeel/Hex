@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Hex.Extensions
 {
@@ -93,6 +94,24 @@ namespace Hex.Extensions
         public static void Case(this bool condition, Action action)
         {
             if (condition) action?.Invoke();
+        }
+
+        #endregion
+
+        #region Select Multi
+
+        /// <summary> Projects each element of a sequence into multiple new forms. </summary>
+        /// <param name="source"> A sequence of values to invoke a transform function on. </param>
+        /// <param name="selectors"> A sequence of transform functions to apply sequentially to each source element. </param>
+        /// <typeparam name="TSource"> The type of the elements of source. </typeparam>
+        /// <typeparam name="TResult"> The type of the value returned by selector. </typeparam>
+        /// <returns> An <see cref="IEnumerable{TResult}"/> whose elements are the result of invoking each transform function of <paramref name="selectors"/> on each element of <paramref name="source"/>. </returns>
+        public static IEnumerable<TResult> SelectMulti<TSource, TResult>(this IEnumerable<TSource> source,
+            params Func<TSource, TResult>[] selectors)
+        {
+            foreach (var element in source)
+                foreach (var selector in selectors)
+                    yield return selector(element);
         }
 
         #endregion

@@ -45,5 +45,11 @@ namespace Hex.Extensions
 
         public static int IfOddSubtractOne(this int value) =>
             value % 2 == 0 ? value : value - 1;
+
+        public static bool IsEven(this int value) =>
+            (value % 2 == 0);
+
+        public static bool IsOdd(this int value) =>
+            (value % 2 != 0);
     }
 }

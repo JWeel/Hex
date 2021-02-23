@@ -42,7 +42,7 @@ namespace Hex.Helpers
         protected Vector2 MapCenter => this.MapSizeGetter() / 2f;
 
         public Matrix TranslationMatrix =>
-            Matrix.CreateTranslation(-(int) this.Position.X, -(int) this.Position.Y, 0) *
+            Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
             Matrix.CreateTranslation(new Vector3(this.MapCenter, 0));
@@ -51,8 +51,8 @@ namespace Hex.Helpers
         {
             get
             {
-                var viewPortTopLeftCorner = this.ScreenToCamera(Vector2.Zero);
-                var viewPortBottomRightCorner = this.ScreenToCamera(this.MapSizeGetter());
+                var viewPortTopLeftCorner = this.FromScreen(Vector2.Zero);
+                var viewPortBottomRightCorner = this.FromScreen(this.MapSizeGetter());
                 return new Rectangle((int) viewPortTopLeftCorner.X, (int) viewPortTopLeftCorner.Y,
                     (int) (viewPortBottomRightCorner.X - viewPortTopLeftCorner.X),
                     (int) (viewPortBottomRightCorner.Y - viewPortTopLeftCorner.Y));
@@ -79,41 +79,50 @@ namespace Hex.Helpers
             this.Position = this.MapClampedPosition(this.Position + amount);
         }
 
-        public Vector2 CameraToScreen(Vector2 worldPosition) =>
+        public Vector2 ToScreen(Vector2 worldPosition) =>
             Vector2.Transform(worldPosition, this.TranslationMatrix);
 
-        public Vector2 ScreenToCamera(Vector2 screenPosition) =>
+        public Vector2 FromScreen(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
 
         // this stuff all broken
         public void CenterOn(Vector2 position) =>
             this.Position = position;
-        public void CenterOn(Hexagon hex) =>
-            this.Position = this.CenteredPosition(hex, clamp: true);
-        protected Vector2 CenteredPosition(Hexagon hex, bool clamp = false)
-        {
-            var cameraPosition = new Vector2(hex.Q * 25, hex.R * 29);
-            var cameraCenteredOnTilePosition = new Vector2(cameraPosition.X + 25 / 2, cameraPosition.Y + 29 / 2);
-            if (clamp)
-                return this.MapClampedPosition(cameraCenteredOnTilePosition);
-            return cameraCenteredOnTilePosition;
-        }
+        // public void CenterOn(Hexagon hex) =>
+        //     this.Position = this.CenteredPosition(hex, clamp: true);
+        // protected Vector2 CenteredPosition(Hexagon hex, bool clamp = false)
+        // {
+        //     var cameraPosition = new Vector2(hex.Q * 25, hex.R * 29);
+        //     var cameraCenteredOnTilePosition = new Vector2(cameraPosition.X + 25 / 2, cameraPosition.Y + 29 / 2);
+        //     if (clamp)
+        //         return this.MapClampedPosition(cameraCenteredOnTilePosition);
+        //     return cameraCenteredOnTilePosition;
+        // }
 
         protected Vector2 MapClampedPosition(Vector2 position)
         {
             var mapSize = this.MapSizeGetter();
             var viewportSize = this.ViewportSizeGetter();
-
             var viewportCorner = viewportSize / this.ZoomScaleFactor / 2f;
-
             var offset = new Vector2(
                 (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
                 (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
-
             var cameraMin = viewportCorner + offset;
             var cameraMax = mapSize - viewportCorner + offset;
-            
             return Vector2.Clamp(position, Vector2.Floor(cameraMin), Vector2.Floor(cameraMax));
+        }
+
+        public void Center()
+        {
+            var mapSize = this.MapSizeGetter();
+            var viewportSize = this.ViewportSizeGetter();
+            var viewportCorner = viewportSize / this.ZoomScaleFactor / 2f;
+            var offset = new Vector2(
+                (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
+                (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
+            var cameraMin = viewportCorner + offset;
+            var cameraMax = mapSize - viewportCorner + offset;
+            this.Position = Vector2.Floor((cameraMax + cameraMin) / 2);
         }
 
         public void HandleInput(InputHelper input)
