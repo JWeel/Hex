@@ -13,7 +13,7 @@ namespace Hex.Models
                 throw new ArgumentException("Arrays must have length 12.");
             this.Coordinates = coordinates;
             this.Positions = positions;
-            this.Color = Color.WhiteSmoke;
+            this.Color = Color.LightYellow;
         }
 
         #endregion

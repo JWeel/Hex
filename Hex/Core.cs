@@ -1,4 +1,5 @@
-﻿using Hex.Auxiliary;
+﻿using System.Runtime.CompilerServices;
+using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
@@ -43,7 +44,7 @@ namespace Hex
         private const double LONG_OVERLAP_DIVISOR = 2.07137; // but this one no idea, doesn't seem to match any offset
 
         // no idea why this works, but without it mouse to hexagon conversion is off and gets worse as it moves further from origin
-        private const int MAGIC_SCREEN_POSITION_TO_HEX_OFFSET = 169;
+        private const int SCREEN_TO_HEX_OFFSET = 169;
 
         #endregion
 
@@ -77,11 +78,18 @@ namespace Hex
         protected Texture2D HexInnerFlattyTop { get; set; }
         protected Texture2D BlankTexture { get; set; }
 
+        protected Vector2 HexagonPointySize { get; set; }
+        protected Vector2 HexagonFlattySize { get; set; }
+        protected (double X, double Y) HexagonPointySizeAdjusted { get; set; }
+        protected (double X, double Y) HexagonFlattySizeAdjusted { get; set; }
+
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
         protected Vector2 ClientSizeTranslation { get; set; }
         protected Vector2 AspectRatio { get; set; }
         protected Vector2 ScaledWindowSize { get; set; }
+        protected Vector2 ScaledMapSize { get; set; }
         protected Vector2 ScaledMapPanelSize { get; set; }
+        protected Rectangle ScaledMapRectangle { get; set; }
         protected Rectangle ScaledMapPanelRectangle { get; set; }
 
         /// <summary> Mouse position relative to window. </summary>
@@ -109,10 +117,12 @@ namespace Hex
             Vector2.Max(BASE_MAP_PANEL_SIZE,
                 (this.GridSizes[this.Orientation] + new Vector2(BASE_MAP_PADDING)).IfOddAddOne());
 
-        protected Vector2 HexSize => this.HexagonsArePointy
-            ? new Vector2(this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height)
-            : new Vector2(this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
+        protected Vector2 HexSize => this.HexagonsArePointy ? this.HexagonPointySize : this.HexagonFlattySize;
+        protected (double X, double Y) HexSizeAdjusted => this.HexagonsArePointy ? this.HexagonPointySizeAdjusted : this.HexagonFlattySizeAdjusted;
+        protected Texture2D HexOuterTexture => this.HexagonsArePointy ? this.HexOuterPointyTop : this.HexOuterFlattyTop;
+        protected Texture2D HexInnerTexture => this.HexagonsArePointy ? this.HexInnerPointyTop : this.HexInnerFlattyTop;
 
+        protected bool PrintCoords { get; set; }
         protected string CalculatedDebug;
 
         #endregion
@@ -126,7 +136,7 @@ namespace Hex
             // then the factory looks at the CTOR, calls
             this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
-            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE);
+            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
@@ -165,12 +175,16 @@ namespace Hex
 
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
+            this.HexagonPointySize = new Vector2(this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height);
+            this.HexagonFlattySize = new Vector2(this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
+            this.HexagonPointySizeAdjusted = (this.HexOuterPointyTop.Width / SHORT_OVERLAP_DIVISOR, this.HexOuterPointyTop.Height / LONG_OVERLAP_DIVISOR);
+            this.HexagonFlattySizeAdjusted = (this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR, this.HexOuterFlattyTop.Height / SHORT_OVERLAP_DIVISOR);
 
             var random = new Random();
-            var n = 20;
+            var n = 14;
             var m = 30;
             var axials = new List<(int Q, int R)>();
-            if (false)
+            if (true)
             {
                 for (var q = -n; q <= n; q++)
                 {
@@ -281,11 +295,6 @@ namespace Hex
 
             if (this.Input.KeyPressed(Keys.C))
             {
-                // this.PointyTop = !this.PointyTop;
-
-                // probably what we want instead is to have two GridCenters, one for pointy one for flatty
-                // same with map size?
-                // then simply swapping the PointyTop flag is enough
                 this.RecalculateMapSize();
                 this.RecenterGrid();
                 this.Camera.Center();
@@ -321,23 +330,10 @@ namespace Hex
 
             this.Camera.HandleInput(this.Input);
 
-            if (this.Camera.IsMoving)
-            {
-                this.Camera.MouseMove(this.Input.CurrentMouseState.ToVector2());
-                if (this.Input.MouseReleased(MouseButton.Right))
-                    this.Camera.StopMouseMove();
-            }
-            if (this.ScaledMapPanelRectangle.Contains(this.Input.CurrentMouseState))
-            {
-                if (this.Input.MouseScrolled())
-                    this.Camera.Zoom(this.Input.MouseScrolledUp() ? .25f : -.25f
-                        );//, zoomOrigin: this.Input.CurrentMouseState.ToVector2());
-
-                if (!this.Camera.IsMoving && this.Input.MousePressed(MouseButton.Right))
-                    this.Camera.StartMouseMove(this.Input.CurrentMouseState.ToVector2());
-            }
-
             if (this.Input.KeyPressed(Keys.P))
+                this.PrintCoords = !this.PrintCoords;
+
+            if (this.Input.KeyPressed(Keys.B))
                 this.RecalculateDebug();
 
             if (this.Input.KeyPressed(Keys.O))
@@ -349,32 +345,8 @@ namespace Hex
                 this.ClientSizeTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.AspectRatio;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ClientSizeTranslatedMouseVector);
 
-                var width = this.HexagonsArePointy ? this.HexOuterPointyTop.Width : this.HexOuterFlattyTop.Width;
-                var height = this.HexagonsArePointy ? this.HexOuterPointyTop.Height : this.HexOuterFlattyTop.Height;
-                var adjustedWidth = width / (this.HexagonsArePointy ? SHORT_OVERLAP_DIVISOR : LONG_OVERLAP_DIVISOR);
-                var adjustedHeight = height / (this.HexagonsArePointy ? LONG_OVERLAP_DIVISOR : SHORT_OVERLAP_DIVISOR);
-                var (mx, my) = this.CameraTranslatedMouseVector - this.GridOrigin - this.HexSize / 2;
-
-                // no idea why this works but without it the coordinates are off
-                if (this.HexagonsArePointy)
-                    mx += my / MAGIC_SCREEN_POSITION_TO_HEX_OFFSET;
-                else
-                    my += mx / MAGIC_SCREEN_POSITION_TO_HEX_OFFSET;
-
-                double q, r;
-                if (this.HexagonsArePointy)
-                {
-                    q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / adjustedWidth;
-                    r = (2.0 / 3.0 * my) / adjustedHeight;
-                }
-                else
-                {
-                    q = (2.0 / 3.0 * mx) / adjustedWidth;
-                    r = (-1.0 / 3.0 * mx + Math.Sqrt(3) / 3.0 * my) / adjustedHeight;
-                }
-
-                var cube = Cube.Round(q, (-q - r), r);
-                this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cube));
+                var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
+                this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cubeAtMouse));
             }
 
             if (this.Input.KeyPressed(Keys.Z))
@@ -394,24 +366,34 @@ namespace Hex
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
             // this.SpriteBatch.End();
 
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Camera.TranslationMatrix);
             this.OnDrawMap?.Invoke(this.SpriteBatch);
 
-            var hexTextureOuter = this.HexagonsArePointy ? this.HexOuterPointyTop : this.HexOuterFlattyTop;
-            var hexTextureInner = this.HexagonsArePointy ? this.HexInnerPointyTop : this.HexInnerFlattyTop;
             foreach (var hex in this.Hexagons)
             {
                 var position = this.GridOrigin + hex.Positions[this.Orientation];
-                this.SpriteBatch.DrawAt(hexTextureOuter, position, 1f, Color.Black, depth: 0.6f);
+                this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
                 var color = (hex == this.CursorHexagon) ? Color.YellowGreen : hex.Color;
-                this.SpriteBatch.DrawAt(hexTextureInner, position, 1f, color, depth: 0.5f);
-                var (q, r) = hex.Coordinates[this.Orientation].ToAxial();
-                var hexLog = $"{q},{r}";
-                // this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
+                this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
             }
 
-            // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapRectangle, Color.DarkSlateGray, depth: 0.1f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.Orange, depth: 0.15f);
             this.SpriteBatch.End();
+
+            if (this.PrintCoords)
+            {
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicWrap, transformMatrix: this.Camera.TranslationMatrix);
+                foreach (var hex in this.Hexagons)
+                {
+                    var position = this.GridOrigin + hex.Positions[this.Orientation];
+                    var (q, r) = hex.Coordinates[this.Orientation].ToAxial();
+                    var hexLog = $"{q},{r}";
+                    this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
+                }
+                this.SpriteBatch.End();
+            }
+
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             this.OnDrawPanel?.Invoke(this.SpriteBatch);
@@ -438,7 +420,7 @@ namespace Hex
                 + Environment.NewLine + "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-                + Environment.NewLine + "SM:" + this.ScaledMapPanelSize.Print()
+                + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
                 + Environment.NewLine + "GC:" + this.GridOrigin.Print()
                 + Environment.NewLine + "CP:" + this.Camera.Position.Print()
                 + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
@@ -447,7 +429,8 @@ namespace Hex
                 + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
                 + Environment.NewLine + "AR:" + this.AspectRatio.Print()
                 + Environment.NewLine + "OR:" + this.Orientation.Value
-                + Environment.NewLine + "WB:" + this.Camera.ViewportWorldBoundry
+                + Environment.NewLine + "HC:" + this.Hexagons.Length
+                + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
                 + Environment.NewLine + this.CalculatedDebug;
 
             this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
@@ -458,7 +441,6 @@ namespace Hex
             else
                 info = /*                */ "Hex:" + this.CursorHexagon.Coordinates[this.Orientation]
                     + Environment.NewLine + "Position:" + this.CursorHexagon.Positions[this.Orientation].Print();
-
 
             this.SpriteBatch.DrawText(this.Font, info, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT));
 
@@ -504,22 +486,22 @@ namespace Hex
             // offsets are for 20x30 grid only. need to find the math           
             var offsets = new[]
             {
-                new Vector2(-5.5f, 11f),
-                new Vector2(-10f, 6.5f),
-                new Vector2(-11.5f, 0.5f),
-                new Vector2(-10f, -5.5f),
-                new Vector2(-5.5f, -10f),
-                new Vector2(0.5f, -11.5f),
-                new Vector2(6.5f, -10f),
-                new Vector2(11f, -5.5f),
-                new Vector2(12.5f, 0.5f),
-                new Vector2(11f, 6.5f),
-                new Vector2(6.5f, 11f),
-                new Vector2(0.5f, 8.5f)
+                new Vector2(-5.5f, 11f),    // A
+                new Vector2(-10f, 6.5f),    // B
+                new Vector2(-11.5f, 0.5f),  // C
+                new Vector2(-10f, -5.5f),   // D
+                new Vector2(-5.5f, -10f),   // D
+                new Vector2(0.5f, -11.5f),  // C
+                new Vector2(6.5f, -10f),    // B
+                new Vector2(11f, -5.5f),    // A
+                new Vector2(12.5f, 0.5f),   // E
+                new Vector2(11f, 6.5f),     // F
+                new Vector2(6.5f, 11f),     // F
+                new Vector2(0.5f, 8.5f)     // G
             };
-            var centerPosition = this.CenterHexagon.Positions[this.Orientation];
-            var trueCenterHexPosition = (this.MapSize - this.HexSize) / 2;
-            this.GridOrigin = Vector2.Floor(trueCenterHexPosition - centerPosition + offsets[this.Orientation]);
+            var centerHexagonPositionRelativeToOrigin = this.CenterHexagon.Positions[this.Orientation];
+            var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
+            this.GridOrigin = Vector2.Floor(positionForCenterHexagon - centerHexagonPositionRelativeToOrigin);
         }
 
         // move to somewhere else?
@@ -532,10 +514,35 @@ namespace Hex
             this.RecalculateMapSize();
             this.RecenterGrid();
 
-            // todo fix the CenterOn method
+            // todo fix the CameraHelper.CenterOn method
             // then calculate what is hexagon in center of screen before rotate
             // then after rotate center on that hexagon
             this.Camera.Center();
+        }
+
+        // move to somewhere else?
+        protected Cube ToCubeCoordinates(Vector2 position)
+        {
+            var (mx, my) = position - this.GridOrigin - this.HexSize / 2;
+
+            // no idea why this works but without it the coordinates are off
+            if (this.HexagonsArePointy)
+                mx += my / SCREEN_TO_HEX_OFFSET;
+            else
+                my += mx / SCREEN_TO_HEX_OFFSET;
+
+            double q, r;
+            if (this.HexagonsArePointy)
+            {
+                q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / this.HexSizeAdjusted.X;
+                r = (2.0 / 3.0 * my) / this.HexSizeAdjusted.Y;
+            }
+            else
+            {
+                q = (2.0 / 3.0 * mx) / this.HexSizeAdjusted.X;
+                r = (-1.0 / 3.0 * mx + Math.Sqrt(3) / 3.0 * my) / this.HexSizeAdjusted.Y;
+            }
+            return Cube.Round(q, (-q - r), r);
         }
 
         protected void RecalculateDebug()
@@ -587,13 +594,15 @@ namespace Hex
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
             this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+            this.ScaledMapPanelSize = BASE_MAP_PANEL_SIZE / this.ClientSizeTranslation * this.AspectRatio;
+            this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
             this.RecalculateMapSize();
         }
 
         protected void RecalculateMapSize()
         {
-            this.ScaledMapPanelSize = this.MapSize / this.ClientSizeTranslation;
-            this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
+            this.ScaledMapSize = this.MapSize / this.ClientSizeTranslation;
+            this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
         protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
@@ -605,5 +614,8 @@ namespace Hex
         protected void SubscribeToDrawPanel(Action<SpriteBatch> handler) => this.OnDrawPanel += handler;
 
         #endregion
+
+        // some ideas:
+        // add mutable settings for stuff like SamplerState, maybe BlendState, panel color. Can affect different SpriteBatch scopes
     }
 }
