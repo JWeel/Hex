@@ -57,6 +57,9 @@ namespace Hex.Models
             return new Cube((int) rx, (int) ry, (int) rz);
         }
 
+        public static double Distance(Cube left, Cube right) =>
+            (Math.Abs(left.X - right.X) + Math.Abs(left.Y - right.Y) + Math.Abs(left.Z - right.Z)) / 2d;
+
         #endregion
 
         #region Overridden Methods

@@ -347,7 +347,15 @@ namespace Hex
 
                 var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
                 this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cubeAtMouse));
+
+                if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                    this.DrawLine(this.SourceHexagon, this.CursorHexagon);
             }
+            if (this.Input.MousePressed(MouseButton.Left))
+                this.SourceHexagon = this.CursorHexagon;
+
+            if (this.Line.Any() && this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt))
+                this.Line.Clear();
 
             if (this.Input.KeyPressed(Keys.Z))
                 this.Rotate(advance: true);
@@ -373,7 +381,10 @@ namespace Hex
             {
                 var position = this.GridOrigin + hex.Positions[this.Orientation];
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
-                var color = (hex == this.CursorHexagon) ? Color.YellowGreen : hex.Color;
+                var color = (hex == this.CursorHexagon) ? Color.YellowGreen
+                    : (hex == this.SourceHexagon) ? Color.Coral
+                    : this.Line.Contains(hex) ? Color.BurlyWood
+                    : hex.Color;
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
             }
 
@@ -466,6 +477,14 @@ namespace Hex
 
         #region Helper Methods
 
+        // move to somewhere else? if only extension methods could be added statefully somehow
+        protected Cube ToCoordinates(Hexagon hexagon) =>
+            hexagon.Coordinates[this.Orientation];
+
+        // move to somewhere else? if only extension methods could be added statefully somehow
+        protected Vector2 ToPosition(Hexagon hexagon) =>
+            hexagon.Positions[this.Orientation];
+
         // move to somewhere else?
         protected void RecenterGrid()
         {
@@ -543,6 +562,57 @@ namespace Hex
                 r = (-1.0 / 3.0 * mx + Math.Sqrt(3) / 3.0 * my) / this.HexSizeAdjusted.Y;
             }
             return Cube.Round(q, (-q - r), r);
+        }
+
+        // move to somewhere else?
+        static float Lerp(float a, float b, float t) =>
+            a + (b - a) * t;
+        static Vector3 Lerp(Vector3 a, Vector3 b, float t) =>
+            new Vector3(Lerp(a.X, b.X, t), Lerp(a.Y, b.Y, t), Lerp(a.Z, b.Z, t));
+        static Vector3 Lerp(Cube a, Cube b, float t) =>
+            Lerp(a.ToVector3(), b.ToVector3(), t);
+        static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
+        protected HashSet<Hexagon> Line = new HashSet<Hexagon>();
+        protected Hexagon SourceHexagon;
+        protected void DrawLine(Hexagon from, Hexagon to)
+        {
+            bool HasObstruction(Hexagon hexagon) =>
+                false;
+
+            if ((from == null) || (to == null))
+                return;
+
+            var cubeFrom = this.ToCoordinates(from);
+            var cubeTo = this.ToCoordinates(to);
+            var distance = (int) Cube.Distance(cubeFrom, cubeTo);
+            Line.Clear();
+            var obscured = false;
+            for (int i = distance; i >= 0; i--)
+            {
+                var lerp = Lerp(cubeFrom, cubeTo, (float) (1d / distance * i));
+                var epsilonPositive = lerp + EPSILON;
+                var epsilonNegative = lerp - EPSILON;
+                var cubePositive = Cube.Round(epsilonPositive.X, epsilonPositive.Y, epsilonPositive.Z);
+                var cubeNegative = Cube.Round(epsilonNegative.X, epsilonNegative.Y, epsilonNegative.Z);
+                var hexagonPositive = this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == cubePositive));
+                var hexagonNegative = this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == cubeNegative));
+                if (!obscured && (HasObstruction(hexagonPositive) || HasObstruction(hexagonNegative)))
+                {
+                    if (HasObstruction(hexagonPositive) && HasObstruction(hexagonNegative))
+                        obscured = true;
+                    else
+                    {
+                        if (HasObstruction(hexagonPositive))
+                            Line.Add(hexagonNegative);
+                        if (HasObstruction(hexagonNegative))
+                            Line.Add(hexagonPositive);
+                        continue;
+                    }
+                }
+                if (obscured)
+                    ;//obscured in line
+                Line.Add(hexagonPositive);
+            }
         }
 
         protected void RecalculateDebug()
