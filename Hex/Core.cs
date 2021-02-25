@@ -78,6 +78,8 @@ namespace Hex
         protected Texture2D HexInnerPointyTop { get; set; }
         protected Texture2D HexOuterFlattyTop { get; set; }
         protected Texture2D HexInnerFlattyTop { get; set; }
+        protected Texture2D HexBorderPointyTop { get; set; }
+        protected Texture2D HexBorderFlattyTop { get; set; }
         protected Texture2D BlankTexture { get; set; }
 
         protected Vector2 HexagonPointySize { get; set; }
@@ -129,6 +131,7 @@ namespace Hex
         protected (double X, double Y) HexSizeAdjusted => this.HexagonsArePointy ? this.HexagonPointySizeAdjusted : this.HexagonFlattySizeAdjusted;
         protected Texture2D HexOuterTexture => this.HexagonsArePointy ? this.HexOuterPointyTop : this.HexOuterFlattyTop;
         protected Texture2D HexInnerTexture => this.HexagonsArePointy ? this.HexInnerPointyTop : this.HexInnerFlattyTop;
+        protected Texture2D HexBorderTexture => this.HexagonsArePointy ? this.HexBorderPointyTop : this.HexBorderFlattyTop;
 
         protected bool PrintCoords { get; set; }
         protected string CalculatedDebug;
@@ -177,6 +180,8 @@ namespace Hex
             this.HexInnerPointyTop = this.Content.Load<Texture2D>("xip");
             this.HexOuterFlattyTop = this.Content.Load<Texture2D>("xof");
             this.HexInnerFlattyTop = this.Content.Load<Texture2D>("xif");
+            this.HexBorderPointyTop = this.Content.Load<Texture2D>("xbp");
+            this.HexBorderFlattyTop = this.Content.Load<Texture2D>("xbf");
 
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
@@ -361,7 +366,7 @@ namespace Hex
                 {
                     if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
                     {
-                        Predicate<Cube> determineIsVisible = x => (x.X != x.Y);
+                        Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
                         this.VisibilityByHexagonMap.Clear();
                         this.DefineLineVisibility(this.ToCoordinates(this.SourceHexagon), cubeAtMouse, determineIsVisible)
                             .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Visible))
@@ -374,7 +379,7 @@ namespace Hex
             if (!this.CalculatedVisibility && (this.SourceHexagon != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
             {
                 this.CalculatedVisibility = true;
-                Predicate<Cube> determineIsVisible = x => (x.X != x.Y);
+                Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
                 this.VisibilityByHexagonMap.Clear();
                 var sourceCoordinates = this.ToCoordinates(this.SourceHexagon);
                 this.Hexagons
@@ -423,9 +428,15 @@ namespace Hex
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.YellowGreen
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
-                    : this.ToCoordinates(hex).Into(c => (c.X == c.Y)) ? Color.DarkKhaki
+                    : this.ToCoordinates(hex).Into(c => (c.X % 7 == c.Y)) ? Color.Tan
                     : hex.Color;
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
+
+                // TODO calculate border hexagons and only draw for them, note it changes by orientation!
+                this.SpriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna, depth: 0.4f);
+
+                if (this.ToCoordinates(hex).Into(c => (c.X % 7 == c.Y)))
+                    this.SpriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, depth: 0.55f);
             }
 
             this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapRectangle, Color.DarkSlateGray, depth: 0.1f);
