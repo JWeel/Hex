@@ -114,9 +114,11 @@ namespace Hex
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
         protected Hexagon CursorHexagon { get; set; }
-        protected Hexagon LastCursorHexagon{get;set;}
+        protected Hexagon LastCursorHexagon { get; set; }
         protected Hexagon SourceHexagon { get; set; }
-        protected IDictionary<Hexagon, bool> ObstructedLineByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
+        protected Hexagon LastSourceHexagon { get; set; }
+        protected bool CalculatedVisibility { get; set; }
+        protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
 
         protected Vector2[] GridSizes { get; set; }
 
@@ -356,23 +358,45 @@ namespace Hex
                 this.LastCursorHexagon = this.CursorHexagon;
                 this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cubeAtMouse));
 
-                if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt) &&
-                    (this.CursorHexagon != this.LastCursorHexagon) &&
-                    (this.SourceHexagon != default))
+                if ((this.CursorHexagon != this.LastCursorHexagon) && (this.SourceHexagon != default))
                 {
-                    Predicate<Cube> determineObstruction = x => (x.X == x.Y);
-                    this.ObstructedLineByHexagonMap.Clear();
-                    this.DefineLineWithObstruction(this.ToCoordinates(this.SourceHexagon), cubeAtMouse, determineObstruction)
-                        .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Obstructed))
-                        .Where(tuple => (tuple.Hexagon != default))
-                        .Each(this.ObstructedLineByHexagonMap.Add);
+                    if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                    {
+                        Predicate<Cube> determineIsVisible = x => (x.X != x.Y);
+                        this.VisibilityByHexagonMap.Clear();
+                        this.DefineLineVisibility(this.ToCoordinates(this.SourceHexagon), cubeAtMouse, determineIsVisible)
+                            .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Visible))
+                            .Where(tuple => (tuple.Hexagon != default))
+                            .Each(this.VisibilityByHexagonMap.Add);
+                    }
                 }
             }
-            if (this.Input.MousePressed(MouseButton.Left))
-                this.SourceHexagon = (this.SourceHexagon != this.CursorHexagon) ? this.CursorHexagon : default;
 
-            if (this.ObstructedLineByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt) || (this.SourceHexagon == default)))
-                this.ObstructedLineByHexagonMap.Clear();
+            if (!this.CalculatedVisibility && (this.SourceHexagon != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+            {
+                this.CalculatedVisibility = true;
+                Predicate<Cube> determineIsVisible = x => (x.X != x.Y);
+                this.VisibilityByHexagonMap.Clear();
+                this.Hexagons.Select(x => this.ToCoordinates(x))
+                    .SelectMany(cube => this.DefineLineVisibility(this.ToCoordinates(this.SourceHexagon), cube, determineIsVisible))
+                    .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Visible))
+                    .Where(tuple => (tuple.Hexagon != default))
+                    .Where(tuple => !this.VisibilityByHexagonMap.ContainsKey(tuple.Hexagon))
+                    .Each(this.VisibilityByHexagonMap.Add);
+            };
+
+            if (this.Input.MousePressed(MouseButton.Left))
+            {
+                this.LastSourceHexagon = this.SourceHexagon;
+                this.SourceHexagon = (this.SourceHexagon != this.CursorHexagon) ? this.CursorHexagon : default;
+                this.CalculatedVisibility = false;
+            }
+
+            if (this.VisibilityByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt, Keys.LeftShift, Keys.RightShift) || (this.SourceHexagon == default)))
+            {
+                this.VisibilityByHexagonMap.Clear();
+                this.CalculatedVisibility = false;
+            }
 
             if (this.Input.KeyPressed(Keys.Z))
                 this.Rotate(advance: true);
@@ -400,7 +424,7 @@ namespace Hex
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
                 var color = (hex == this.CursorHexagon) ? Color.YellowGreen
                     : (hex == this.SourceHexagon) ? Color.Coral
-                    : this.ObstructedLineByHexagonMap.TryGetValue(hex, out var obstructed) ? (obstructed ? Color.DarkGoldenrod : Color.BurlyWood) 
+                    : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
                     : this.ToCoordinates(hex).Into(c => (c.X == c.Y)) ? Color.DarkKhaki
                     : hex.Color;
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
@@ -584,41 +608,45 @@ namespace Hex
         // move to somewhere else?
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
             this.Lerp(a.ToVector3(), b.ToVector3(), t);
-            
+
         // move to somewhere else?
         protected Vector3 Lerp(Vector3 a, Vector3 b, float t) =>
             new Vector3(this.Lerp(a.X, b.X, t), this.Lerp(a.Y, b.Y, t), this.Lerp(a.Z, b.Z, t));
-            
+
         // move to somewhere else?
         protected float Lerp(float a, float b, float t) =>
             a + (b - a) * t;
 
         // move to somewhere else?
-        protected IEnumerable<(Cube Coordinates, bool Obstructed)> DefineLineWithObstruction(Cube start, Cube end, Predicate<Cube> determineObstruction)
+        protected IEnumerable<(Cube Coordinates, bool Visible)> DefineLineVisibility(Cube start, Cube end, Predicate<Cube> determineIsVisible)
         {
-            var obstructed = false;
+            var restIsStillVisible = true;
             var totalDistance = (int) Cube.Distance(start, end);
-            return Generate.RangeDescending(totalDistance, 0)
+            return Generate.RangeDescending(totalDistance)
                 .Select(stepDistance =>
                 {
                     var lerp = this.Lerp(end, start, 1f / totalDistance * stepDistance);
                     var cubePositive = (lerp + EPSILON).ToRoundCube();
+                    if (!restIsStillVisible)
+                        return (cubePositive, Visible: false);
+
                     var cubeNegative = (lerp - EPSILON).ToRoundCube();
-                    var positiveIsObstructed = determineObstruction(cubePositive);
-                    var negativeIsObstructed = determineObstruction(cubeNegative);
-                    if (!obstructed && (positiveIsObstructed || negativeIsObstructed))
+                    if (cubePositive == cubeNegative)
                     {
-                        if (positiveIsObstructed && negativeIsObstructed)
-                            obstructed = true;
-                        else
-                        {
-                            if (positiveIsObstructed)
-                                return (cubeNegative, obstructed: false);
-                            else
-                                return (cubePositive, obstructed: false);
-                        }
+                        if (!determineIsVisible(cubePositive))
+                            restIsStillVisible = false;
+                        return (cubePositive, Visible: restIsStillVisible);
                     }
-                    return (cubePositive, obstructed);
+
+                    var positiveIsVisible = determineIsVisible(cubePositive);
+                    var negativeIsVisible = determineIsVisible(cubeNegative);
+                    if (!positiveIsVisible && !negativeIsVisible)
+                        restIsStillVisible = false;
+                    else if (!positiveIsVisible)
+                        return (cubeNegative, Visible: true);
+                    else if (!negativeIsVisible)
+                        return (cubePositive, Visible: true);
+                    return (cubePositive, Visible: restIsStillVisible);
                 });
         }
 

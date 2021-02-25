@@ -29,7 +29,7 @@ namespace Hex.Auxiliary
 
         public static IEnumerable<int> RangeDescending(int start, int end, int step)
         {
-            while (start > end)
+            while (start >= end)
             {
                 yield return start;
                 start -= step;
