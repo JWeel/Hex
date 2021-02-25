@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using Hex.Auxiliary;
+﻿using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
@@ -106,7 +105,7 @@ namespace Hex
         /// Hexagon rotation is supported in intervals of 30 degrees from 0° to 330°. Rotating to 360° will reset the rotation to 0°, which means there are 12 possible orientations.
         /// <br/> Even-numbered rotations use pointy-top hexagonal shapes, odd-numbered rotations use flatty-top shapes.
         /// </summary>
-        protected Cycle<int> Orientation { get; } = new Cycle<int>(Enumerable.Range(0, 12).ToArray());
+        protected Cycle<int> Orientation { get; } = new Cycle<int>(Generate.Range(12).ToArray());
         protected bool HexagonsArePointy => this.Orientation.Value.IsEven();
         // should probably be dictionary by (cube,orientation)
         protected Hexagon[] Hexagons { get; set; }
@@ -377,10 +376,9 @@ namespace Hex
                 this.CalculatedVisibility = true;
                 Predicate<Cube> determineIsVisible = x => (x.X != x.Y);
                 this.VisibilityByHexagonMap.Clear();
-                this.Hexagons.Select(x => this.ToCoordinates(x))
-                    .SelectMany(cube => this.DefineLineVisibility(this.ToCoordinates(this.SourceHexagon), cube, determineIsVisible))
-                    .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Visible))
-                    .Where(tuple => (tuple.Hexagon != default))
+                var sourceCoordinates = this.ToCoordinates(this.SourceHexagon);
+                this.Hexagons
+                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(this.ToCoordinates(hexagon), sourceCoordinates, determineIsVisible)))
                     .Where(tuple => !this.VisibilityByHexagonMap.ContainsKey(tuple.Hexagon))
                     .Each(this.VisibilityByHexagonMap.Add);
             };
@@ -422,8 +420,8 @@ namespace Hex
             {
                 var position = this.GridOrigin + hex.Positions[this.Orientation];
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
-                var color = (hex == this.CursorHexagon) ? Color.YellowGreen
-                    : (hex == this.SourceHexagon) ? Color.Coral
+                var color = (hex == this.SourceHexagon) ? Color.Coral
+                    : (hex == this.CursorHexagon) ? Color.YellowGreen
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
                     : this.ToCoordinates(hex).Into(c => (c.X == c.Y)) ? Color.DarkKhaki
                     : hex.Color;
@@ -648,6 +646,23 @@ namespace Hex
                         return (cubePositive, Visible: true);
                     return (cubePositive, Visible: restIsStillVisible);
                 });
+        }
+
+        // move to somewhere else?
+        protected bool DeterminePointIsVisibleFrom(Cube target, Cube from, Predicate<Cube> determineIsVisible)
+        {
+            var stillVisible = true;
+            var totalDistance = (int) Cube.Distance(target, from);
+            Generate.Range(totalDistance)
+                .TakeWhile(_ => stillVisible)
+                .Each(stepDistance =>
+                {
+                    var lerp = this.Lerp(target, from, 1f / totalDistance * stepDistance);
+                    var cubePositive = (lerp + EPSILON).ToRoundCube();
+                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
+                    stillVisible = (determineIsVisible(cubePositive) || determineIsVisible(cubeNegative));
+                });
+            return stillVisible;
         }
 
         protected void RecalculateDebug()
