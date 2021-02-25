@@ -46,6 +46,9 @@ namespace Hex
         // no idea why this works, but without it mouse to hexagon conversion is off and gets worse as it moves further from origin
         private const int SCREEN_TO_HEX_OFFSET = 169;
 
+        /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two points. </summary>
+        private static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
+
         #endregion
 
         #region Constructors
@@ -105,11 +108,15 @@ namespace Hex
         /// </summary>
         protected Cycle<int> Orientation { get; } = new Cycle<int>(Enumerable.Range(0, 12).ToArray());
         protected bool HexagonsArePointy => this.Orientation.Value.IsEven();
+        // should probably be dictionary by (cube,orientation)
         protected Hexagon[] Hexagons { get; set; }
+        protected Vector2 GridOrigin { get; set; }
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
         protected Hexagon CursorHexagon { get; set; }
-        protected Vector2 GridOrigin { get; set; }
+        protected Hexagon LastCursorHexagon{get;set;}
+        protected Hexagon SourceHexagon { get; set; }
+        protected IDictionary<Hexagon, bool> ObstructedLineByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
 
         protected Vector2[] GridSizes { get; set; }
 
@@ -288,7 +295,7 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.Escape))
                 Exit();
 
-            this.IsMouseVisible = true;//this.CursorHexagon == null;
+            this.IsMouseVisible = true;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
                 this.Graphics.ToggleFullScreen();
@@ -346,16 +353,26 @@ namespace Hex
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ClientSizeTranslatedMouseVector);
 
                 var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
+                this.LastCursorHexagon = this.CursorHexagon;
                 this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cubeAtMouse));
 
-                if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-                    this.DrawLine(this.SourceHexagon, this.CursorHexagon);
+                if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt) &&
+                    (this.CursorHexagon != this.LastCursorHexagon) &&
+                    (this.SourceHexagon != default))
+                {
+                    Predicate<Cube> determineObstruction = x => (x.X == x.Y);
+                    this.ObstructedLineByHexagonMap.Clear();
+                    this.DefineLineWithObstruction(this.ToCoordinates(this.SourceHexagon), cubeAtMouse, determineObstruction)
+                        .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Obstructed))
+                        .Where(tuple => (tuple.Hexagon != default))
+                        .Each(this.ObstructedLineByHexagonMap.Add);
+                }
             }
             if (this.Input.MousePressed(MouseButton.Left))
-                this.SourceHexagon = this.CursorHexagon;
+                this.SourceHexagon = (this.SourceHexagon != this.CursorHexagon) ? this.CursorHexagon : default;
 
-            if (this.Line.Any() && this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt))
-                this.Line.Clear();
+            if (this.ObstructedLineByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt) || (this.SourceHexagon == default)))
+                this.ObstructedLineByHexagonMap.Clear();
 
             if (this.Input.KeyPressed(Keys.Z))
                 this.Rotate(advance: true);
@@ -383,7 +400,8 @@ namespace Hex
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
                 var color = (hex == this.CursorHexagon) ? Color.YellowGreen
                     : (hex == this.SourceHexagon) ? Color.Coral
-                    : this.Line.Contains(hex) ? Color.BurlyWood
+                    : this.ObstructedLineByHexagonMap.TryGetValue(hex, out var obstructed) ? (obstructed ? Color.DarkGoldenrod : Color.BurlyWood) 
+                    : this.ToCoordinates(hex).Into(c => (c.X == c.Y)) ? Color.DarkKhaki
                     : hex.Color;
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
             }
@@ -404,7 +422,6 @@ namespace Hex
                 }
                 this.SpriteBatch.End();
             }
-
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             this.OnDrawPanel?.Invoke(this.SpriteBatch);
@@ -488,36 +505,36 @@ namespace Hex
         // move to somewhere else?
         protected void RecenterGrid()
         {
-            // 154 | 143     44 | 24     27 | 4      86 |66      21 |10     23 | 24        
-            //  30 | 52       9 | 22     15 | 16     119|108     25 | 5     27 | 4
-            // 149 | 149     34 | 34     15 | 16     76 |76      16 | 16    23 | 24
-            //  41 | 41      15 | 15     15 | 16     114|114     15 | 15    16 | 16
-            // -5.5| 5.5     -10|10    -11.5|11.5    -10|10     -5.5|5.5    0.5|-0.5
-            // +11 |-11      6.5|-6.5    0.5|-0.5   -5.5|5.5     -10|10  -11.5.|11.5
+            // TODO figure out why there is offset
+            // // 154 | 143     44 | 24     27 | 4      86 |66      21 |10     23 | 24        
+            // //  30 | 52       9 | 22     15 | 16     119|108     25 | 5     27 | 4
+            // // 149 | 149     34 | 34     15 | 16     76 |76      16 | 16    23 | 24
+            // //  41 | 41      15 | 15     15 | 16     114|114     15 | 15    16 | 16
+            // // -5.5| 5.5     -10|10    -11.5|11.5    -10|10     -5.5|5.5    0.5|-0.5
+            // // +11 |-11      6.5|-6.5    0.5|-0.5   -5.5|5.5     -10|10  -11.5.|11.5
 
-            // 142 | 155      23|45       3 |28       65|87        9|22     23 | 24    
-            //  51 | 31       21|10       15|16      107|120       4|26      3 | 20    
-            // 148 | 148      34|34       15|15       76|76       15|15     23 | 23    
-            //  41 | 41       16|16       15|16      113|113      15|15     11 | 11    
-            // 6.5 | -6.5     11|-11    12.5|-12.5    11|-11     6.5|-6.5   0.5|-0.5   
-            // -10 | 10     -5.5|5.5     0.5|-0.5    6.5|-6.5     11|-11    8.5|-8.5   
-
-            // offsets are for 20x30 grid only. need to find the math           
-            var offsets = new[]
-            {
-                new Vector2(-5.5f, 11f),    // A
-                new Vector2(-10f, 6.5f),    // B
-                new Vector2(-11.5f, 0.5f),  // C
-                new Vector2(-10f, -5.5f),   // D
-                new Vector2(-5.5f, -10f),   // D
-                new Vector2(0.5f, -11.5f),  // C
-                new Vector2(6.5f, -10f),    // B
-                new Vector2(11f, -5.5f),    // A
-                new Vector2(12.5f, 0.5f),   // E
-                new Vector2(11f, 6.5f),     // F
-                new Vector2(6.5f, 11f),     // F
-                new Vector2(0.5f, 8.5f)     // G
-            };
+            // // 142 | 155      23|45       3 |28       65|87        9|22     23 | 24    
+            // //  51 | 31       21|10       15|16      107|120       4|26      3 | 20    
+            // // 148 | 148      34|34       15|15       76|76       15|15     23 | 23    
+            // //  41 | 41       16|16       15|16      113|113      15|15     11 | 11    
+            // // 6.5 | -6.5     11|-11    12.5|-12.5    11|-11     6.5|-6.5   0.5|-0.5   
+            // // -10 | 10     -5.5|5.5     0.5|-0.5    6.5|-6.5     11|-11    8.5|-8.5   
+            // // these offsets are for 20x30 grid only. need to find the math           
+            // var offsets = new[]
+            // {
+            //     new Vector2(-5.5f, 11f),    // A
+            //     new Vector2(-10f, 6.5f),    // B
+            //     new Vector2(-11.5f, 0.5f),  // C
+            //     new Vector2(-10f, -5.5f),   // D
+            //     new Vector2(-5.5f, -10f),   // D
+            //     new Vector2(0.5f, -11.5f),  // C
+            //     new Vector2(6.5f, -10f),    // B
+            //     new Vector2(11f, -5.5f),    // A
+            //     new Vector2(12.5f, 0.5f),   // E
+            //     new Vector2(11f, 6.5f),     // F
+            //     new Vector2(6.5f, 11f),     // F
+            //     new Vector2(0.5f, 8.5f)     // G
+            // };
             var centerHexagonPositionRelativeToOrigin = this.CenterHexagon.Positions[this.Orientation];
             var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
             this.GridOrigin = Vector2.Floor(positionForCenterHexagon - centerHexagonPositionRelativeToOrigin);
@@ -565,54 +582,44 @@ namespace Hex
         }
 
         // move to somewhere else?
-        static float Lerp(float a, float b, float t) =>
+        protected Vector3 Lerp(Cube a, Cube b, float t) =>
+            this.Lerp(a.ToVector3(), b.ToVector3(), t);
+            
+        // move to somewhere else?
+        protected Vector3 Lerp(Vector3 a, Vector3 b, float t) =>
+            new Vector3(this.Lerp(a.X, b.X, t), this.Lerp(a.Y, b.Y, t), this.Lerp(a.Z, b.Z, t));
+            
+        // move to somewhere else?
+        protected float Lerp(float a, float b, float t) =>
             a + (b - a) * t;
-        static Vector3 Lerp(Vector3 a, Vector3 b, float t) =>
-            new Vector3(Lerp(a.X, b.X, t), Lerp(a.Y, b.Y, t), Lerp(a.Z, b.Z, t));
-        static Vector3 Lerp(Cube a, Cube b, float t) =>
-            Lerp(a.ToVector3(), b.ToVector3(), t);
-        static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
-        protected HashSet<Hexagon> Line = new HashSet<Hexagon>();
-        protected Hexagon SourceHexagon;
-        protected void DrawLine(Hexagon from, Hexagon to)
+
+        // move to somewhere else?
+        protected IEnumerable<(Cube Coordinates, bool Obstructed)> DefineLineWithObstruction(Cube start, Cube end, Predicate<Cube> determineObstruction)
         {
-            bool HasObstruction(Hexagon hexagon) =>
-                false;
-
-            if ((from == null) || (to == null))
-                return;
-
-            var cubeFrom = this.ToCoordinates(from);
-            var cubeTo = this.ToCoordinates(to);
-            var distance = (int) Cube.Distance(cubeFrom, cubeTo);
-            Line.Clear();
-            var obscured = false;
-            for (int i = distance; i >= 0; i--)
-            {
-                var lerp = Lerp(cubeFrom, cubeTo, (float) (1d / distance * i));
-                var epsilonPositive = lerp + EPSILON;
-                var epsilonNegative = lerp - EPSILON;
-                var cubePositive = Cube.Round(epsilonPositive.X, epsilonPositive.Y, epsilonPositive.Z);
-                var cubeNegative = Cube.Round(epsilonNegative.X, epsilonNegative.Y, epsilonNegative.Z);
-                var hexagonPositive = this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == cubePositive));
-                var hexagonNegative = this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == cubeNegative));
-                if (!obscured && (HasObstruction(hexagonPositive) || HasObstruction(hexagonNegative)))
+            var obstructed = false;
+            var totalDistance = (int) Cube.Distance(start, end);
+            return Generate.RangeDescending(totalDistance, 0)
+                .Select(stepDistance =>
                 {
-                    if (HasObstruction(hexagonPositive) && HasObstruction(hexagonNegative))
-                        obscured = true;
-                    else
+                    var lerp = this.Lerp(end, start, 1f / totalDistance * stepDistance);
+                    var cubePositive = (lerp + EPSILON).ToRoundCube();
+                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
+                    var positiveIsObstructed = determineObstruction(cubePositive);
+                    var negativeIsObstructed = determineObstruction(cubeNegative);
+                    if (!obstructed && (positiveIsObstructed || negativeIsObstructed))
                     {
-                        if (HasObstruction(hexagonPositive))
-                            Line.Add(hexagonNegative);
-                        if (HasObstruction(hexagonNegative))
-                            Line.Add(hexagonPositive);
-                        continue;
+                        if (positiveIsObstructed && negativeIsObstructed)
+                            obstructed = true;
+                        else
+                        {
+                            if (positiveIsObstructed)
+                                return (cubeNegative, obstructed: false);
+                            else
+                                return (cubePositive, obstructed: false);
+                        }
                     }
-                }
-                if (obscured)
-                    ;//obscured in line
-                Line.Add(hexagonPositive);
-            }
+                    return (cubePositive, obstructed);
+                });
         }
 
         protected void RecalculateDebug()
@@ -686,6 +693,8 @@ namespace Hex
         #endregion
 
         // some ideas:
-        // add mutable settings for stuff like SamplerState, maybe BlendState, panel color. Can affect different SpriteBatch scopes
+        // add mutable settings for stuff like SamplerState, maybe BlendState, panel color. 
+        //      Can affect different SpriteBatch scopes (font, map, panel)
+        //      Also in settings would be font size? May be tricky to fit it
     }
 }
