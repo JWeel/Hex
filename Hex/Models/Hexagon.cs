@@ -1,5 +1,5 @@
 using Microsoft.Xna.Framework;
-using System;
+using System.Linq;
 
 namespace Hex.Models
 {
@@ -7,12 +7,10 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Hexagon(Cube[] coordinates, Vector2[] positions)
+        public Hexagon((Cube Cube, Vector2 Position)[] coordinates)
         {
-            if ((coordinates.Length != 12) || (positions.Length != 12))
-                throw new ArgumentException("Arrays must have length 12.");
-            this.Coordinates = coordinates;
-            this.Positions = positions;
+            this.Cubes = coordinates.Select(x => x.Cube).ToArray();
+            this.Positions = coordinates.Select(x => x.Position).ToArray();
             this.Color = Color.LightYellow;
         }
 
@@ -20,7 +18,7 @@ namespace Hex.Models
 
         #region Properties
 
-        public Cube[] Coordinates { get; }
+        public Cube[] Cubes { get; }
         public Vector2[] Positions { get; }
         public Color Color { get; set; }
 

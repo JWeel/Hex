@@ -123,5 +123,12 @@ namespace Hex.Extensions
             map.Add(tuple.Key, tuple.Value);
 
         #endregion
+
+        #region Get Or Default From Dictionary
+
+        public static TValue GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> map, TKey key) =>
+            map.TryGetValue(key, out var value) ? value : default;
+            
+        #endregion
     }
 }

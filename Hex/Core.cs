@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -109,8 +110,7 @@ namespace Hex
         /// </summary>
         protected Cycle<int> Orientation { get; } = new Cycle<int>(Generate.Range(12).ToArray());
         protected bool HexagonsArePointy => this.Orientation.Value.IsEven();
-        // should probably be dictionary by (cube,orientation)
-        protected Hexagon[] Hexagons { get; set; }
+        protected HexagonMap HexagonMap { get; set; }
         protected Vector2 GridOrigin { get; set; }
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
@@ -230,7 +230,7 @@ namespace Hex
             var adjustedWidthFlattyTop = this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR;
             var adjustedHeightPointyTop = this.HexOuterPointyTop.Height / LONG_OVERLAP_DIVISOR;
             var adjustedHeightFlattyTop = this.HexOuterFlattyTop.Height / SHORT_OVERLAP_DIVISOR;
-            this.Hexagons = axials
+            this.HexagonMap = axials
                 .Select(axial =>
                 {
                     var cube = Cube.FromAxial(axial.Q, axial.R);
@@ -249,26 +249,25 @@ namespace Hex
 
                             var currentCube = cube;
                             cube = cube.Rotate();
-                            return (Coordinates: currentCube, Pointy: pointyPosition, Flatty: flattyPosition);
+                            return (Cube: currentCube, Pointy: pointyPosition, Flatty: flattyPosition);
                         })
-                        .SelectMulti(x => (x.Coordinates, Position: x.Pointy), x => (x.Coordinates, Position: x.Flatty))
-                        .Into(sequence => new Hexagon(sequence.Select(x => x.Coordinates).ToArray(), sequence.Select(x => x.Position).ToArray()));
+                        .SelectMulti(x => (x.Cube, Position: x.Pointy), x => (x.Cube, Position: x.Flatty))
+                        .Into(sequence => new Hexagon(sequence.ToArray()));
                 })
-                .ToArray();
+                .Into(sequence => new HexagonMap(sequence, 12, () => this.Orientation));
 
-            this.OriginHexagon = this.Hexagons.First(h => (h.Coordinates[this.Orientation] == default));
+            this.OriginHexagon = this.HexagonMap[default];
             this.OriginHexagon.Color = Color.Gold;
+            this.HexagonMap[new Cube(1, -2, 1)]?.Into(hex => hex.Color = Color.Silver);
 
-            this.Hexagons.FirstOrDefault(x => x.Coordinates[this.Orientation] == new Cube(1, -2, 1))?.Into(hex => hex.Color = Color.Silver);
-
-            var (minX, minY, minZ, maxX, maxY, maxZ) = this.Hexagons
-                .Select(x => x.Coordinates[this.Orientation])
+            var (minX, minY, minZ, maxX, maxY, maxZ) = this.HexagonMap.Values
+                .Select(this.GetCube)
                 .Aggregate((MinX: int.MaxValue, MinY: int.MaxValue, MinZ: int.MaxValue,
                             MaxX: int.MinValue, MaxY: int.MinValue, MaxZ: int.MaxValue),
                     (t, cube) => (Math.Min(t.MinX, cube.X), Math.Min(t.MinY, cube.Y), Math.Min(t.MinZ, cube.Z),
                         Math.Max(t.MaxX, cube.X), Math.Max(t.MaxY, cube.Y), Math.Max(t.MaxZ, cube.Z)));
             var round = Cube.Round((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
-            this.CenterHexagon = this.Hexagons.First(h => (h.Coordinates[this.Orientation] == round));
+            this.CenterHexagon = this.HexagonMap[round];
             this.CenterHexagon.Color = Color.Aquamarine;
 
             this.GridSizes = Enumerable
@@ -277,8 +276,8 @@ namespace Hex
                 {
                     var width = orientation.IsEven() ? this.HexOuterPointyTop.Width : this.HexOuterFlattyTop.Width;
                     var height = orientation.IsEven() ? this.HexOuterPointyTop.Height : this.HexOuterFlattyTop.Height;
-                    var (minX, maxX, minY, maxY) = this.Hexagons
-                        .Select(x => x.Positions[orientation])
+                    var (minX, maxX, minY, maxY) = this.HexagonMap.Values
+                        .Select(this.GetPosition)
                         .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
                             (aggregate, vector) => (
                                 Math.Min(aggregate.MinX, (int) vector.X),
@@ -339,7 +338,7 @@ namespace Hex
                 this.GridOrigin += new Vector2(0, 100);
 
             if (this.Input.KeyPressed(Keys.I))
-                this.Camera.CenterOn(this.CenterHexagon.Positions[this.Orientation]);
+                this.Camera.CenterOn(this.GetPosition(this.CenterHexagon));
 
             this.Camera.HandleInput(this.Input);
 
@@ -360,7 +359,7 @@ namespace Hex
 
                 var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
                 this.LastCursorHexagon = this.CursorHexagon;
-                this.CursorHexagon = this.Hexagons.FirstOrDefault(x => (x.Coordinates[this.Orientation] == cubeAtMouse));
+                this.CursorHexagon = this.HexagonMap[cubeAtMouse];
 
                 if ((this.CursorHexagon != this.LastCursorHexagon) && (this.SourceHexagon != default))
                 {
@@ -368,8 +367,8 @@ namespace Hex
                     {
                         Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
                         this.VisibilityByHexagonMap.Clear();
-                        this.DefineLineVisibility(this.ToCoordinates(this.SourceHexagon), cubeAtMouse, determineIsVisible)
-                            .Select(tuple => (Hexagon: this.Hexagons.FirstOrDefault(x => (this.ToCoordinates(x) == tuple.Coordinates)), tuple.Visible))
+                        this.DefineLineVisibility(this.GetCube(this.SourceHexagon), cubeAtMouse, determineIsVisible)
+                            .Select(tuple => (Hexagon: this.HexagonMap[tuple.Cube], tuple.Visible))
                             .Where(tuple => (tuple.Hexagon != default))
                             .Each(this.VisibilityByHexagonMap.Add);
                     }
@@ -381,9 +380,9 @@ namespace Hex
                 this.CalculatedVisibility = true;
                 Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
                 this.VisibilityByHexagonMap.Clear();
-                var sourceCoordinates = this.ToCoordinates(this.SourceHexagon);
-                this.Hexagons
-                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(this.ToCoordinates(hexagon), sourceCoordinates, determineIsVisible)))
+                var sourceCoordinates = this.GetCube(this.SourceHexagon);
+                this.HexagonMap.Values
+                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(this.GetCube(hexagon), sourceCoordinates, determineIsVisible)))
                     .Where(tuple => !this.VisibilityByHexagonMap.ContainsKey(tuple.Hexagon))
                     .Each(this.VisibilityByHexagonMap.Add);
             };
@@ -421,21 +420,22 @@ namespace Hex
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Camera.TranslationMatrix);
             this.OnDrawMap?.Invoke(this.SpriteBatch);
 
-            foreach (var hex in this.Hexagons)
+            foreach (var hex in this.HexagonMap.Values)
             {
-                var position = this.GridOrigin + hex.Positions[this.Orientation];
+                var cube = this.GetCube(hex);
+                var position = this.GridOrigin + this.GetPosition(hex);
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.YellowGreen
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
-                    : this.ToCoordinates(hex).Into(c => (c.X % 7 == c.Y)) ? Color.Tan
+                    : (cube.X % 7 == cube.Y) ? Color.Tan
                     : hex.Color;
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
 
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 this.SpriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna, depth: 0.4f);
 
-                if (this.ToCoordinates(hex).Into(c => (c.X % 7 == c.Y)))
+                if (this.GetCube(hex).Into(c => (c.X % 7 == c.Y)))
                     this.SpriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, depth: 0.55f);
             }
 
@@ -446,10 +446,11 @@ namespace Hex
             if (this.PrintCoords)
             {
                 this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicWrap, transformMatrix: this.Camera.TranslationMatrix);
-                foreach (var hex in this.Hexagons)
+                foreach (var hex in this.HexagonMap.Values)
                 {
-                    var position = this.GridOrigin + hex.Positions[this.Orientation];
-                    var (q, r) = hex.Coordinates[this.Orientation].ToAxial();
+                    var cube = this.GetCube(hex);
+                    var position = this.GridOrigin + this.GetPosition(hex);
+                    var (q, r) = cube.ToAxial();
                     var hexLog = $"{q},{r}";
                     this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
                 }
@@ -490,7 +491,7 @@ namespace Hex
                 + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
                 + Environment.NewLine + "AR:" + this.AspectRatio.Print()
                 + Environment.NewLine + "OR:" + this.Orientation.Value
-                + Environment.NewLine + "HC:" + this.Hexagons.Length
+                + Environment.NewLine + "HC:" + this.HexagonMap.Count
                 + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
                 + Environment.NewLine + this.CalculatedDebug;
 
@@ -500,8 +501,8 @@ namespace Hex
             if (this.CursorHexagon == null)
                 info = string.Empty;
             else
-                info = /*                */ "Hex:" + this.CursorHexagon.Coordinates[this.Orientation]
-                    + Environment.NewLine + "Position:" + this.CursorHexagon.Positions[this.Orientation].Print();
+                info = /*                */ "Hex:" + this.GetCube(this.CursorHexagon)
+                    + Environment.NewLine + "Position:" + this.GetPosition(this.CursorHexagon).Print();
 
             this.SpriteBatch.DrawText(this.Font, info, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT));
 
@@ -528,11 +529,11 @@ namespace Hex
         #region Helper Methods
 
         // move to somewhere else? if only extension methods could be added statefully somehow
-        protected Cube ToCoordinates(Hexagon hexagon) =>
-            hexagon.Coordinates[this.Orientation];
+        protected Cube GetCube(Hexagon hexagon) =>
+            hexagon.Cubes[this.Orientation];
 
         // move to somewhere else? if only extension methods could be added statefully somehow
-        protected Vector2 ToPosition(Hexagon hexagon) =>
+        protected Vector2 GetPosition(Hexagon hexagon) =>
             hexagon.Positions[this.Orientation];
 
         // move to somewhere else?
@@ -568,7 +569,7 @@ namespace Hex
             //     new Vector2(6.5f, 11f),     // F
             //     new Vector2(0.5f, 8.5f)     // G
             // };
-            var centerHexagonPositionRelativeToOrigin = this.CenterHexagon.Positions[this.Orientation];
+            var centerHexagonPositionRelativeToOrigin = this.GetPosition(this.CenterHexagon);
             var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
             this.GridOrigin = Vector2.Floor(positionForCenterHexagon - centerHexagonPositionRelativeToOrigin);
         }
@@ -627,11 +628,11 @@ namespace Hex
             a + (b - a) * t;
 
         // move to somewhere else?
-        protected IEnumerable<(Cube Coordinates, bool Visible)> DefineLineVisibility(Cube start, Cube end, Predicate<Cube> determineIsVisible)
+        protected IEnumerable<(Cube Cube, bool Visible)> DefineLineVisibility(Cube start, Cube end, Predicate<Cube> determineIsVisible)
         {
             var restIsStillVisible = true;
             var totalDistance = (int) Cube.Distance(start, end);
-            return Generate.RangeDescending(totalDistance)
+            return Generate.RangeDescending(totalDistance - 1) // -1 will exclude start tile from visibility check
                 .Select(stepDistance =>
                 {
                     var lerp = this.Lerp(end, start, 1f / totalDistance * stepDistance);
