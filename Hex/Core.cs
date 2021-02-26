@@ -8,7 +8,6 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -27,7 +26,7 @@ namespace Hex
         public const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
         public const int BASE_WINDOW_WIDTH_MAX = BASE_WINDOW_WIDTH * 2; // maximum for keyboard-based scaling (not for mouse)
         public const int BASE_WINDOW_HEIGHT = 720;
-        public const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : use 790 for even number
+        public const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
         public const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
         public const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
         public const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
@@ -445,14 +444,14 @@ namespace Hex
 
             if (this.PrintCoords)
             {
-                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicWrap, transformMatrix: this.Camera.TranslationMatrix);
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
                 foreach (var hex in this.HexagonMap.Values)
                 {
                     var cube = this.GetCube(hex);
                     var position = this.GridOrigin + this.GetPosition(hex);
                     var (q, r) = cube.ToAxial();
                     var hexLog = $"{q},{r}";
-                    this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.IndianRed, scale: 0.5f);
+                    this.SpriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.MistyRose, scale: 0.5f);
                 }
                 this.SpriteBatch.End();
             }
@@ -472,39 +471,44 @@ namespace Hex
             // var leftRectangle = new Rectangle(0, 0, 1, BASE_WINDOW_HEIGHT - 1);
             // var rightRectangle = new Rectangle(BASE_WINDOW_WIDTH - 1, 0, 1, BASE_WINDOW_HEIGHT - 1);
             // var middleRectangle = new Rectangle(BASE_WINDOW_WIDTH / 2 - 1, 0, 2, BASE_WINDOW_HEIGHT - 1);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, topRectangle, Color.Maroon);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, bottomRectangle, Color.Maroon);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, leftRectangle, Color.Maroon);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, topRectangle, Color.Maroon, depth: 1f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, bottomRectangle, Color.Maroon, depth: 1f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, leftRectangle, Color.Maroon, depth: 1f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon, depth: 1f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon, depth: 1f);
 
-            var log = /*             */ "M1:" + this.BaseMouseVector.Print()
-                + Environment.NewLine + "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
-                + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
-                + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-                + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
-                + Environment.NewLine + "GC:" + this.GridOrigin.Print()
-                + Environment.NewLine + "CP:" + this.Camera.Position.Print()
-                + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
-                + Environment.NewLine + "MS:" + this.MapSize.Print()
-                + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
-                + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
-                + Environment.NewLine + "AR:" + this.AspectRatio.Print()
-                + Environment.NewLine + "OR:" + this.Orientation.Value
-                + Environment.NewLine + "HC:" + this.HexagonMap.Count
-                + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
-                + Environment.NewLine + this.CalculatedDebug;
+            // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
+            //     + Environment.NewLine + "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
+            //     + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
+            //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
+            //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
+            //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
+            //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
+            //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
+            //     + Environment.NewLine + "MS:" + this.MapSize.Print()
+            //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
+            //     + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
+            //     + Environment.NewLine + "AR:" + this.AspectRatio.Print()
+            //     + Environment.NewLine + "OR:" + this.Orientation.Value
+            //     + Environment.NewLine + "HC:" + this.HexagonMap.Count
+            //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
+            //     + Environment.NewLine + this.CalculatedDebug;
+            // this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
 
-            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
+            var cursorInfo = "Cursor:" + Environment.NewLine +
+                ((this.CursorHexagon == null) ? "-none-" :
+                    "Hex:" + this.GetCube(this.CursorHexagon) + Environment.NewLine +
+                    "Position:" + this.GetPosition(this.CursorHexagon).Print()
+                );
 
-            string info;
-            if (this.CursorHexagon == null)
-                info = string.Empty;
-            else
-                info = /*                */ "Hex:" + this.GetCube(this.CursorHexagon)
-                    + Environment.NewLine + "Position:" + this.GetPosition(this.CursorHexagon).Print();
+            var sourceInfo = "Selected:" + Environment.NewLine +
+                ((this.SourceHexagon == null) ? "-none-" :
+                    "Hex:" + this.GetCube(this.SourceHexagon) + Environment.NewLine +
+                    "Position:" + this.GetPosition(this.SourceHexagon).Print()
+                );
 
-            this.SpriteBatch.DrawText(this.Font, info, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT));
+            this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.25f);
+            this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.25f);
 
             this.SpriteBatch.End();
         }
@@ -751,5 +755,7 @@ namespace Hex
         // add mutable settings for stuff like SamplerState, maybe BlendState, panel color. 
         //      Can affect different SpriteBatch scopes (font, map, panel)
         //      Also in settings would be font size? May be tricky to fit it
+        //      And whether to start in fullscreen -> meaning global settings should be stored in config file
+        // add <> and {} to font
     }
 }
