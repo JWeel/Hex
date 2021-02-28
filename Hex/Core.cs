@@ -1,4 +1,5 @@
 ﻿using Hex.Auxiliary;
+using Hex.Controls;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
@@ -407,6 +408,7 @@ namespace Hex
             this.OnUpdate?.Invoke(gameTime);
         }
 
+        Button button = new Button(new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
@@ -466,6 +468,10 @@ namespace Hex
             this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
             this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
 
+            this.SpriteBatch.End();
+
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicClamp);
+
             // var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
             // var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
             // var leftRectangle = new Rectangle(0, 0, 1, BASE_WINDOW_HEIGHT - 1);
@@ -477,9 +483,17 @@ namespace Hex
             // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon, depth: 1f);
             // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon, depth: 1f);
 
+            // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
+
+            this.button.EnumerateDrawInfo()
+                .Each(info => this.SpriteBatch.DrawTo(this.BlankTexture, info.Rectangle, info.Color, depth: .9f));
+
+
+
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
-            //     + Environment.NewLine + "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
-            //     + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
+            var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded() 
+                + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
             //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
             //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
             //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
@@ -489,11 +503,11 @@ namespace Hex
             //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
             //     + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
             //     + Environment.NewLine + "AR:" + this.AspectRatio.Print()
-            //     + Environment.NewLine + "OR:" + this.Orientation.Value
-            //     + Environment.NewLine + "HC:" + this.HexagonMap.Count
+                + Environment.NewLine + "Orientation: " + this.Orientation.Value
+                + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
             //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
-            //     + Environment.NewLine + this.CalculatedDebug;
-            // this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10));
+                + Environment.NewLine + this.CalculatedDebug;
+            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT * 1.25f).Floored(), scale: 1.5f);
 
             var cursorInfo = "Cursor:" + Environment.NewLine +
                 ((this.CursorHexagon == null) ? "-none-" :
@@ -507,8 +521,8 @@ namespace Hex
                     "Position:" + this.GetPosition(this.SourceHexagon).Print()
                 );
 
-            this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.25f);
-            this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.25f);
+            this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
+            this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
             this.SpriteBatch.End();
         }
