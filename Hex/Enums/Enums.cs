@@ -9,4 +9,19 @@ namespace Hex.Enums
         Four = 4,
         Five = 5
     }
+
+    public enum ControlState
+    {
+        Normal,
+        Hover,
+        Click,
+        Disabled,
+        Hidden
+    }
+
+    public enum TileType
+    {
+        Grass,
+        Mountain
+    }
 }

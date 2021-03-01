@@ -298,7 +298,9 @@ namespace Hex
         protected override void Update(GameTime gameTime)
         {
             if (this.Input.KeyPressed(Keys.Escape))
-                Exit();
+                this.Exit();
+
+            this.OnUpdate?.Invoke(gameTime);
 
             this.IsMouseVisible = true;
 
@@ -365,7 +367,7 @@ namespace Hex
                 {
                     if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
                     {
-                        Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
+                        Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x].TileType != TileType.Mountain);
                         this.VisibilityByHexagonMap.Clear();
                         this.DefineLineVisibility(this.GetCube(this.SourceHexagon), cubeAtMouse, determineIsVisible)
                             .Select(tuple => (Hexagon: this.HexagonMap[tuple.Cube], tuple.Visible))
@@ -378,7 +380,7 @@ namespace Hex
             if (!this.CalculatedVisibility && (this.SourceHexagon != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
             {
                 this.CalculatedVisibility = true;
-                Predicate<Cube> determineIsVisible = x => (x.X % 7 != x.Y);
+                Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x].TileType != TileType.Mountain);
                 this.VisibilityByHexagonMap.Clear();
                 var sourceCoordinates = this.GetCube(this.SourceHexagon);
                 this.HexagonMap.Values
@@ -404,11 +406,9 @@ namespace Hex
                 this.Rotate(advance: true);
             if (this.Input.KeyPressed(Keys.X))
                 this.Rotate(advance: false);
-
-            this.OnUpdate?.Invoke(gameTime);
         }
 
-        Button button = new Button(new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
+        Button Button = new Button(new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
@@ -429,14 +429,17 @@ namespace Hex
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.YellowGreen
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
-                    : (cube.X % 7 == cube.Y) ? Color.Tan
-                    : hex.Color;
+                    : hex.TileType switch
+                    {
+                        TileType.Mountain => Color.Tan,
+                        _ => hex.Color
+                    };
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
 
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 this.SpriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna, depth: 0.4f);
 
-                if (this.GetCube(hex).Into(c => (c.X % 7 == c.Y)))
+                if (hex.TileType == TileType.Mountain)
                     this.SpriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, depth: 0.55f);
             }
 
@@ -486,13 +489,12 @@ namespace Hex
             // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
-            this.button.EnumerateDrawInfo()
+            this.Button.EnumerateDrawInfo()
                 .Each(info => this.SpriteBatch.DrawTo(this.BlankTexture, info.Rectangle, info.Color, depth: .9f));
 
 
-
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
-            var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded() 
+            var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
             //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
             //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()

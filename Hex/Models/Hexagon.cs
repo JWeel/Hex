@@ -1,3 +1,5 @@
+using Hex.Enums;
+using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using System.Linq;
 
@@ -11,6 +13,8 @@ namespace Hex.Models
         {
             this.Cubes = coordinates.Select(x => x.Cube).ToArray();
             this.Positions = coordinates.Select(x => x.Position).ToArray();
+
+            this.TileType = this.Cubes[0].Into(x => (x.X % 7 == x.Y)) ? TileType.Mountain : TileType.Grass;
             this.Color = Color.LightYellow;
         }
 
@@ -20,6 +24,7 @@ namespace Hex.Models
 
         public Cube[] Cubes { get; }
         public Vector2[] Positions { get; }
+        public TileType TileType { get; }
         public Color Color { get; set; }
 
         #endregion

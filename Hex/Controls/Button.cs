@@ -57,13 +57,4 @@ namespace Hex.Controls
 
         #endregion
     }
-
-    public enum ButtonState
-    {
-        Normal,
-        Hover,
-        Click,
-        Disabled,
-        Hidden
-    }
 }
