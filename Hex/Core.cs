@@ -292,13 +292,21 @@ namespace Hex
             this.RecenterGrid();
             this.Camera.Center();
 
+            this.Button = new Button(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
+            this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
+            this.Orientation.Advance();
+
             this.OnLoad?.Invoke(this.Content);
         }
+        Button Button;
 
         protected override void Update(GameTime gameTime)
         {
             if (this.Input.KeyPressed(Keys.Escape))
+            {
                 this.Exit();
+                return;
+            }
 
             this.OnUpdate?.Invoke(gameTime);
 
@@ -367,7 +375,7 @@ namespace Hex
                 {
                     if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
                     {
-                        Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x].TileType != TileType.Mountain);
+                        Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x]?.TileType == TileType.Grass);
                         this.VisibilityByHexagonMap.Clear();
                         this.DefineLineVisibility(this.GetCube(this.SourceHexagon), cubeAtMouse, determineIsVisible)
                             .Select(tuple => (Hexagon: this.HexagonMap[tuple.Cube], tuple.Visible))
@@ -380,7 +388,7 @@ namespace Hex
             if (!this.CalculatedVisibility && (this.SourceHexagon != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
             {
                 this.CalculatedVisibility = true;
-                Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x].TileType != TileType.Mountain);
+                Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x]?.TileType == TileType.Grass);
                 this.VisibilityByHexagonMap.Clear();
                 var sourceCoordinates = this.GetCube(this.SourceHexagon);
                 this.HexagonMap.Values
@@ -406,9 +414,10 @@ namespace Hex
                 this.Rotate(advance: true);
             if (this.Input.KeyPressed(Keys.X))
                 this.Rotate(advance: false);
+
+            this.Button.Update(this.ClientSizeTranslatedMouseVector);
         }
 
-        Button Button = new Button(new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
@@ -489,8 +498,7 @@ namespace Hex
             // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
-            this.Button.EnumerateDrawInfo()
-                .Each(info => this.SpriteBatch.DrawTo(this.BlankTexture, info.Rectangle, info.Color, depth: .9f));
+            this.Button.Draw(this.SpriteBatch, depth: .5f);
 
 
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
