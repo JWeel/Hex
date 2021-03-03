@@ -264,7 +264,7 @@ namespace GeonBit.UI
             InitialiseCharStringDict();
 
             // set resources root path and store content manager
-            _root = "GeonBit.UI/themes/" + theme + "/";
+            _root = "Content/GeonBit.UI/themes/" + theme + "/";
             _content = content;
 
             // set Texture2D static fields

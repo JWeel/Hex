@@ -1,4 +1,6 @@
-﻿using Hex.Auxiliary;
+﻿using System.Globalization;
+using System.Runtime.CompilerServices;
+using Hex.Auxiliary;
 using Hex.Controls;
 using Hex.Enums;
 using Hex.Extensions;
@@ -167,7 +169,6 @@ namespace Hex
             this.Graphics.ApplyChanges();
 
             // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
-            
             GeonBit.UI.UserInterface.Initialize(Content, GeonBit.UI.BuiltinThemes.hd);
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
@@ -314,7 +315,7 @@ namespace Hex
 
             this.OnUpdate?.Invoke(gameTime);
 
-            this.IsMouseVisible = true;
+            this.IsMouseVisible = false;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
                 this.Graphics.ToggleFullScreen();
@@ -432,6 +433,8 @@ namespace Hex
             }
 
             this.Button.Update(this.ClientSizeTranslatedMouseVector);
+
+            GeonBit.UI.UserInterface.Active.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
@@ -551,6 +554,8 @@ namespace Hex
             this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
             this.SpriteBatch.End();
+
+            GeonBit.UI.UserInterface.Active.Draw(this.SpriteBatch);
         }
 
         protected override bool BeginDraw()
