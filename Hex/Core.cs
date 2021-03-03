@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using System.Runtime.CompilerServices;
-using Hex.Auxiliary;
+﻿using Hex.Auxiliary;
 using Hex.Controls;
 using Hex.Enums;
 using Hex.Extensions;
@@ -168,8 +166,7 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
-            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
-            GeonBit.UI.UserInterface.Initialize(Content, GeonBit.UI.BuiltinThemes.hd);
+            new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -433,8 +430,6 @@ namespace Hex
             }
 
             this.Button.Update(this.ClientSizeTranslatedMouseVector);
-
-            GeonBit.UI.UserInterface.Active.Update(gameTime);
         }
 
         protected override void Draw(GameTime gameTime)
@@ -554,8 +549,6 @@ namespace Hex
             this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
             this.SpriteBatch.End();
-
-            GeonBit.UI.UserInterface.Active.Draw(this.SpriteBatch);
         }
 
         protected override bool BeginDraw()
