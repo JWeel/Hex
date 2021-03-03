@@ -5,11 +5,11 @@ using System;
 
 namespace Hex.Controls
 {
-    public class Button : IControl
+    public class HexButton : IControl
     {
         #region Constructors
 
-        public Button(Texture2D texture, Rectangle rectangle, Color color, string label = null, int borderSize = 2, Action onClickAction = null)
+        public HexButton(Texture2D texture, Rectangle rectangle, Color color, string label = null, int borderSize = 2, Action onClickAction = null)
         {
             this.Label = label ?? string.Empty;
 

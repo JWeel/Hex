@@ -166,6 +166,10 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
+            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
+            
+            GeonBit.UI.UserInterface.Initialize(Content, GeonBit.UI.BuiltinThemes.hd);
+
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
         }
@@ -292,13 +296,13 @@ namespace Hex
             this.RecenterGrid();
             this.Camera.Center();
 
-            this.Button = new Button(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
+            this.Button = new HexButton(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
 
             this.OnLoad?.Invoke(this.Content);
         }
-        Button Button;
+        HexButton Button;
 
         protected override void Update(GameTime gameTime)
         {
@@ -414,6 +418,18 @@ namespace Hex
                 this.Rotate(advance: true);
             if (this.Input.KeyPressed(Keys.X))
                 this.Rotate(advance: false);
+
+            if (this.Input.KeyPressed(Keys.J))
+            {
+                // TODO: clearing the events will allow GC to collect instances that subscribed to these events
+                // -- of course only if they are not referenced by this instance of Core.
+                // For InputHelper and CameraHelper this reference is still needed, but FrameratHelper does not need to be referenced.
+                // However, it means there should be a way to unload which essentially just unsubscribes from the events
+                this.OnDrawPanel = null;
+                this.OnUpdate = null;
+                this.OnLoad = null;
+                GC.Collect();
+            }
 
             this.Button.Update(this.ClientSizeTranslatedMouseVector);
         }
