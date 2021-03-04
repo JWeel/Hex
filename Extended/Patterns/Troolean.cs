@@ -1,4 +1,4 @@
-namespace Hex.Auxiliary
+namespace Extended.Patterns
 {
     /// <summary> Represents a boolean that defaults to <see langword="true"/>. </summary>
     public readonly struct Troolean
@@ -22,7 +22,6 @@ namespace Hex.Auxiliary
         /// <summary> Implicitly casts the <see cref="Troolean"/> to <see cref="bool"/>. If it has no value, it will default to <see langword="true"/>.</summary>
         public static implicit operator bool(Troolean value) => !value._hasValue || value._value;
 
-        // should this be explicit?
         /// <summary> Implicitly casts the <see cref="bool"/> to <see cref="Troolean"/>. </summary>
         public static implicit operator Troolean(bool value) => new Troolean(value);
     }

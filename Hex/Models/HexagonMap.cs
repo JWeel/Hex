@@ -1,5 +1,5 @@
+using Extended.Extensions;
 using Hex.Auxiliary;
-using Hex.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;

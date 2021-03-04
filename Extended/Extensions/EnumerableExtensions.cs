@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 
-namespace Hex.Extensions
+namespace Extended.Extensions
 {
-    public static class GenericExtensions
+    public static class EnumerableExtensions
     {
-        #region Enumeration Each/Defer/Enumerate
+        #region Each
 
         /// <summary> Performs a specified action for each element in a sequence. </summary>
         public static void Each<T>(this IEnumerable<T> enumerable, Action<T> action)
@@ -22,11 +20,14 @@ namespace Hex.Extensions
             int index = -1;
             foreach (var element in enumerable)
             {
-                checked
-                { index++; }
+                checked { index++; }
                 action(element, index);
             }
         }
+
+        #endregion
+
+        #region Defer
 
         /// <summary> Defers an action to be performed for each enumerated element in a sequence. </summary>
         public static IEnumerable<T> Defer<T>(this IEnumerable<T> enumerable, Action<T> action)
@@ -47,6 +48,10 @@ namespace Hex.Extensions
             }
         }
 
+        #endregion
+
+        #region Iterate
+
         /// <summary> Moves through each element in a sequence without the overhead of storing them in a different data structure. </summary>
         public static void Iterate<T>(this IEnumerable<T> enumerable)
         {
@@ -55,45 +60,12 @@ namespace Hex.Extensions
         }
 
         /// <summary> Moves through a specified number of elements in a sequence. </summary>
-        /// <param name="iterations"> The number of elements to iterate over. If this exceeds the number of elements in the sequence, the remaining enumerations are ignored. </param>
+        /// <param name="iterations"> The number of elements to iterate over. If this exceeds the number of elements in the sequence, the remaining enumerations are skipped. </param>
         public static void Iterate<T>(this IEnumerable<T> enumerable, int iterations)
         {
             var enumerations = 0;
             var enumerator = enumerable.GetEnumerator();
             while ((enumerations++ < iterations) && (enumerator.MoveNext())) ;
-        }
-
-        #endregion   
-
-        #region With Side Effect
-
-        // maybe rename to Side or SideEffect
-        /// <summary> Returns this instance after passing it as argument to the invocation of a given <paramref name="action"/>. </summary>
-        /// <remarks> The instance will be returned even if <paramref name="action"/> is null (in which case the action is ignored). </remarks>
-        [DebuggerStepThrough]
-        public static T With<T>(this T value, Action<T> action)
-        {
-            action?.Invoke(value);
-            return value;
-        }
-
-        #endregion
-
-        #region Into
-
-        /// <summary> Passes this value into the invocation of a <see cref="Func{,}"/> and returns the result. </summary>
-        [DebuggerStepThrough]
-        public static TResult Into<TValue, TResult>(this TValue value, Func<TValue, TResult> func) =>
-            func(value);
-
-        #endregion
-
-        #region Case
-
-        /// <summary> Invokes a given action only if this <paramref name="condition"/> is <see langword="true"/>. </summary>
-        public static void Case(this bool condition, Action action)
-        {
-            if (condition) action?.Invoke();
         }
 
         #endregion
@@ -114,21 +86,6 @@ namespace Hex.Extensions
                     yield return selector(element);
         }
 
-        #endregion
-
-        #region Add To Dictionary
-
-        /// <summary> Adds an element with the provided key and value from a tuple to the dictionary. </summary>
-        public static void Add<TKey, TValue>(this IDictionary<TKey, TValue> map, (TKey Key, TValue Value) tuple) =>
-            map.Add(tuple.Key, tuple.Value);
-
-        #endregion
-
-        #region Get Or Default From Dictionary
-
-        public static TValue GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> map, TKey key) =>
-            map.TryGetValue(key, out var value) ? value : default;
-            
         #endregion
     }
 }

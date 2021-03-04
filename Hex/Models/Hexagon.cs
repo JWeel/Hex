@@ -1,5 +1,5 @@
+using Extended.Extensions;
 using Hex.Enums;
-using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using System.Linq;
 

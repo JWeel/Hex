@@ -1,4 +1,4 @@
-namespace Hex.Auxiliary
+namespace Extended.Collections
 {
     public class Cycle<T>
     {
@@ -41,7 +41,7 @@ namespace Hex.Auxiliary
             this.Index = index;
         }
 
-        public void Reset() =>
+        public void Restart() =>
             this.Index = 0;
             
         public static implicit operator T (Cycle<T> cycle) =>

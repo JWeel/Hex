@@ -1,7 +1,7 @@
-using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using MonoGui.Extensions;
 using System;
 
 namespace Hex.Helpers

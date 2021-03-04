@@ -1,4 +1,6 @@
-﻿using Hex.Auxiliary;
+﻿using Extended.Collections;
+using Extended.Extensions;
+using Hex.Auxiliary;
 using Hex.Controls;
 using Hex.Enums;
 using Hex.Extensions;
@@ -8,6 +10,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGui.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -294,6 +297,7 @@ namespace Hex
             this.RecenterGrid();
             this.Camera.Center();
 
+            this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.Button = new HexButton(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
@@ -301,6 +305,7 @@ namespace Hex
             this.OnLoad?.Invoke(this.Content);
         }
         HexButton Button;
+        Texture2D PanelTexture;
 
         protected override void Update(GameTime gameTime)
         {
@@ -421,7 +426,7 @@ namespace Hex
             {
                 // TODO: clearing the events will allow GC to collect instances that subscribed to these events
                 // -- of course only if they are not referenced by this instance of Core.
-                // For InputHelper and CameraHelper this reference is still needed, but FrameratHelper does not need to be referenced.
+                // For InputHelper and CameraHelper this reference is still needed, but FramerateHelper does not need to be referenced.
                 // However, it means there should be a way to unload which essentially just unsubscribes from the events
                 this.OnDrawPanel = null;
                 this.OnUpdate = null;
@@ -485,7 +490,6 @@ namespace Hex
             }
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
-            this.OnDrawPanel?.Invoke(this.SpriteBatch);
 
             var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
             var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
@@ -497,6 +501,7 @@ namespace Hex
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicClamp);
+            this.OnDrawPanel?.Invoke(this.SpriteBatch);
 
             // var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
             // var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
@@ -547,6 +552,9 @@ namespace Hex
 
             this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
             this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
+
+            var rect = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH -8, BASE_SIDE_PANEL_HEIGHT);
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect, 6, Color.Red);
 
             this.SpriteBatch.End();
         }
