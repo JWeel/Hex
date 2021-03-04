@@ -312,7 +312,7 @@ namespace Hex
 
             this.OnUpdate?.Invoke(gameTime);
 
-            this.IsMouseVisible = false;
+            this.IsMouseVisible = true;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
                 this.Graphics.ToggleFullScreen();

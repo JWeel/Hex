@@ -28,7 +28,6 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.0.1641" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include = "../GeonBit.UI/GeonBit.UI.csproj" />
     <ProjectReference Include = "../Forms/Forms.csproj" />
   </ItemGroup>
 </Project>
