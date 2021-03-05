@@ -148,7 +148,7 @@ namespace Hex
             // maybe make DI:
             // here we register the classes (typeof(FramerateHelper))
             // then the factory looks at the CTOR, calls
-            this.Framerate = new FramerateHelper(new Vector2(10, 10), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
+            this.Framerate = new FramerateHelper(new Vector2(20, 20), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
             this.Input = new InputHelper(this.SubscribeToUpdate);
             this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
 
@@ -169,7 +169,7 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
-            new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
+            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -301,6 +301,10 @@ namespace Hex
             this.Button = new HexButton(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
+            this.Orientation.Advance();
+            this.ResizeWindowFromKeyboard(this.Graphics.PreferredBackBufferWidth);
+            // var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithUpperLimit(BASE_WINDOW_WIDTH_INCREMENT, upperLimit: BASE_WINDOW_WIDTH_MAX);
+            // this.ResizeWindowFromKeyboard(newBackBufferWidth);
 
             this.OnLoad?.Invoke(this.Content);
         }
@@ -374,21 +378,28 @@ namespace Hex
                 this.ClientSizeTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.AspectRatio;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ClientSizeTranslatedMouseVector);
 
-                var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
-                this.LastCursorHexagon = this.CursorHexagon;
-                this.CursorHexagon = this.HexagonMap[cubeAtMouse];
-
-                if ((this.CursorHexagon != this.LastCursorHexagon) && (this.SourceHexagon != default))
+                if (this.ScaledMapPanelRectangle.Contains(this.BaseMouseVector))
                 {
-                    if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                    var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
+                    this.LastCursorHexagon = this.CursorHexagon;
+                    this.CursorHexagon = this.HexagonMap[cubeAtMouse];
+
+                    if ((this.CursorHexagon != this.LastCursorHexagon) && (this.SourceHexagon != default))
                     {
-                        Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x]?.TileType == TileType.Grass);
-                        this.VisibilityByHexagonMap.Clear();
-                        this.DefineLineVisibility(this.GetCube(this.SourceHexagon), cubeAtMouse, determineIsVisible)
-                            .Select(tuple => (Hexagon: this.HexagonMap[tuple.Cube], tuple.Visible))
-                            .Where(tuple => (tuple.Hexagon != default))
-                            .Each(this.VisibilityByHexagonMap.Add);
+                        if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                        {
+                            Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x]?.TileType == TileType.Grass);
+                            this.VisibilityByHexagonMap.Clear();
+                            this.DefineLineVisibility(this.GetCube(this.SourceHexagon), cubeAtMouse, determineIsVisible)
+                                .Select(tuple => (Hexagon: this.HexagonMap[tuple.Cube], tuple.Visible))
+                                .Where(tuple => (tuple.Hexagon != default))
+                                .Each(this.VisibilityByHexagonMap.Add);
+                        }
                     }
+                }
+                else if (this.CursorHexagon != default)
+                {
+                    this.CursorHexagon = default;
                 }
             }
 
@@ -455,18 +466,19 @@ namespace Hex
                 var position = this.GridOrigin + this.GetPosition(hex);
                 this.SpriteBatch.DrawAt(this.HexOuterTexture, position, 1f, Color.Black, depth: 0.6f);
                 var color = (hex == this.SourceHexagon) ? Color.Coral
-                    : (hex == this.CursorHexagon) ? Color.YellowGreen
-                    : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? Color.BurlyWood : Color.DarkGoldenrod)
+                    : (hex == this.CursorHexagon) ? Color.LightYellow
+                    : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
                     : hex.TileType switch
                     {
                         TileType.Mountain => Color.Tan,
-                        _ => hex.Color
+                        _ => new Color(190, 230, 160)
                     };
                 this.SpriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, depth: 0.5f);
 
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 this.SpriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna, depth: 0.4f);
 
+                // TODO if mountain tiles are on top of each other it looks bad, calculate
                 if (hex.TileType == TileType.Mountain)
                     this.SpriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, depth: 0.55f);
             }
@@ -517,7 +529,7 @@ namespace Hex
             // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
-            this.Button.Draw(this.SpriteBatch, depth: .5f);
+            this.Button.Draw(this.SpriteBatch, depth: .95f);
 
 
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
@@ -534,7 +546,8 @@ namespace Hex
             //     + Environment.NewLine + "AR:" + this.AspectRatio.Print()
                 + Environment.NewLine + "Orientation: " + this.Orientation.Value
                 + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
-            //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
+                //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
+                // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
                 + Environment.NewLine + this.CalculatedDebug;
             this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT * 1.25f).Floored(), scale: 1.5f);
 
@@ -553,8 +566,20 @@ namespace Hex
             this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
             this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
-            var rect = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH -8, BASE_SIDE_PANEL_HEIGHT);
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect, 6, Color.Red);
+            var rect1 = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
+            var rect2 = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect1, 13, new Color(150, 200, 170, 255));
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect2, 13, new Color(150, 200, 170, 255));
+
+            var marginsize = 4;
+            var rect3 = new Rectangle(0, 0, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
+            var rect4 = new Rectangle(0, BASE_MAP_PANEL_HEIGHT - marginsize, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
+            var rect5 = new Rectangle(0, 0, marginsize, BASE_MAP_PANEL_HEIGHT);
+            var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize*2, BASE_MAP_PANEL_HEIGHT);
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect3, 4, new Color(150, 200, 170, 255), depth: 0.8f);
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect4, 4, new Color(150, 200, 170, 255), depth: 0.8f);
+            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect5, 2, new Color(150, 200, 170, 255), depth: 0.85f);
+            // this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect6, 4, new Color(150, 200, 170, 255), depth: 0.95f);
 
             this.SpriteBatch.End();
         }

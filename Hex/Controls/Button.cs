@@ -52,13 +52,13 @@ namespace Hex.Controls
         {
             if (this.HasMouse)
             {
-                this.Outer.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, 1.1f));
-                this.Inner.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, .9f));
+                this.Outer.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, 1.1f), depth-0.01f);
+                this.Inner.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, .9f), depth);
             }
             else
             {
-                this.Outer.Draw(spriteBatch, Color.PapayaWhip);
-                this.Inner.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, .8f));
+                this.Outer.Draw(spriteBatch, Color.PapayaWhip, depth-0.01f);
+                this.Inner.Draw(spriteBatch, Color.Multiply(Color.PapayaWhip, .8f), depth);
             }
         }
 

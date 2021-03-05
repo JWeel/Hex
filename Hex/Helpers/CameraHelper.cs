@@ -101,7 +101,6 @@ namespace Hex.Helpers
                 this.LastMovePosition = mousePosition;
                 this.IsMoving = !input.MouseReleased(MouseButton.Right);
             }
-            // TBD calculate and store PanelGetter.Contains when MouseMoved so it does not need to happen each time (is that even worth it?)
             if (this.PanelGetter().Contains(input.CurrentMouseState))
             {
                 if (input.MouseScrolled())

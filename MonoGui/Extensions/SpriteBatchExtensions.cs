@@ -44,70 +44,106 @@ namespace MonoGui.Extensions
         }
 
         public static void DrawRoundedRectangle(this SpriteBatch spriteBatch, Texture2D texture,
-            Rectangle destinationRectangle, int distanceToMiddle, Color color)
+            Rectangle destinationRectangle, int distanceToMiddle, Color color, float depth = .9f)
         {
             // Top left
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location, new Point(distanceToMiddle)),
                 new Rectangle(0, 0, distanceToMiddle, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Top
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(distanceToMiddle, 0), new Point(destinationRectangle.Width - distanceToMiddle * 2, distanceToMiddle)),
                 new Rectangle(distanceToMiddle, 0, texture.Width - distanceToMiddle * 2, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Top right
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(destinationRectangle.Width - distanceToMiddle, 0), new Point(distanceToMiddle)),
                 new Rectangle(texture.Width - distanceToMiddle, 0, distanceToMiddle, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Middle left
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(0, distanceToMiddle), new Point(distanceToMiddle, destinationRectangle.Height - distanceToMiddle * 2)),
                 new Rectangle(0, distanceToMiddle, distanceToMiddle, texture.Height - distanceToMiddle * 2),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Middle
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(distanceToMiddle), destinationRectangle.Size - new Point(distanceToMiddle * 2)),
                 new Rectangle(distanceToMiddle, distanceToMiddle, texture.Width - distanceToMiddle * 2, texture.Height - distanceToMiddle * 2),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Middle right
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(destinationRectangle.Width - distanceToMiddle, distanceToMiddle), new Point(distanceToMiddle, destinationRectangle.Height - distanceToMiddle * 2)),
                 new Rectangle(texture.Width - distanceToMiddle, distanceToMiddle, distanceToMiddle, texture.Height - distanceToMiddle * 2),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Bottom left
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(0, destinationRectangle.Height - distanceToMiddle), new Point(distanceToMiddle)),
                 new Rectangle(0, texture.Height - distanceToMiddle, distanceToMiddle, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Bottom
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + new Point(distanceToMiddle, destinationRectangle.Height - distanceToMiddle), new Point(destinationRectangle.Width - distanceToMiddle * 2, distanceToMiddle)),
                 new Rectangle(distanceToMiddle, texture.Height - distanceToMiddle, texture.Width - distanceToMiddle * 2, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
 
             // Bottom right
             spriteBatch.Draw(
                 texture,
                 new Rectangle(destinationRectangle.Location + destinationRectangle.Size - new Point(distanceToMiddle), new Point(distanceToMiddle)),
                 new Rectangle(texture.Width - distanceToMiddle, texture.Height - distanceToMiddle, distanceToMiddle, distanceToMiddle),
-                color);
+                color,
+                rotation: 0f,
+                origin: Vector2.Zero,
+                SpriteEffects.None,
+                depth);
         }
 
         #endregion
