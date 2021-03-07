@@ -1,4 +1,5 @@
-﻿using Extended.Collections;
+﻿using System.Globalization;
+using Extended.Collections;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Controls;
@@ -10,6 +11,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGui.Controls;
+using MonoGui.Enums;
 using MonoGui.Extensions;
 using System;
 using System.Collections.Generic;
@@ -66,7 +69,8 @@ namespace Hex
         #region Data Members
 
         protected event Action<ContentManager> OnLoad;
-        protected event Action<GameTime> OnUpdate;
+        protected event Action<GameTime> OnUpdateCritical;
+        protected event Action<GameTime> OnUpdateRegular;
         protected event Action<SpriteBatch> OnDrawMap;
         protected event Action<SpriteBatch> OnDrawPanel;
 
@@ -148,8 +152,8 @@ namespace Hex
             // maybe make DI:
             // here we register the classes (typeof(FramerateHelper))
             // then the factory looks at the CTOR, calls
-            this.Framerate = new FramerateHelper(new Vector2(20, 20), this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
-            this.Input = new InputHelper(this.SubscribeToUpdate);
+            this.Framerate = new FramerateHelper(new Vector2(20, 20), this.SubscribeToLoad, this.SubscribeToUpdateCritical, this.SubscribeToDrawPanel);
+            this.Input = new InputHelper(this.SubscribeToUpdateCritical);
             this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
@@ -169,7 +173,7 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
-            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdate, this.SubscribeToDrawPanel);
+            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdateRegular, this.SubscribeToDrawPanel);
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -298,6 +302,9 @@ namespace Hex
             this.Camera.Center();
 
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
+            this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
+            this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
+            this.ExitTexture = this.Content.Load<Texture2D>("exit");
             this.Button = new HexButton(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
@@ -305,22 +312,38 @@ namespace Hex
             this.ResizeWindowFromKeyboard(this.Graphics.PreferredBackBufferWidth);
             // var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithUpperLimit(BASE_WINDOW_WIDTH_INCREMENT, upperLimit: BASE_WINDOW_WIDTH_MAX);
             // this.ResizeWindowFromKeyboard(newBackBufferWidth);
+            this.ExitConfirmation = new Panel();
+            this.ExitConfirmation.Add(new Box(new Rectangle(BASE_WINDOW_WIDTH / 2 - 50, BASE_WINDOW_HEIGHT / 2 - 50, 100, 100), this.PanelTexture, 13, .98f));
+            this.ExitConfirmation.Add(new Box(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2 - 40, 80, 40), this.ExitTexture, 0, .99f));
+
+            var noButton = new Button(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2, 40, 40), this.NoTexture, 0, .99f);
+            noButton.OnClick += button => this.ExitConfirmation.IsActive = false;
+            this.ExitConfirmation.Add(noButton);
+
+            var yesButton = new Button(new Rectangle(BASE_WINDOW_WIDTH / 2 + 0, BASE_WINDOW_HEIGHT / 2, 40, 40), this.YesTexture, 0, .99f);
+            yesButton.OnClick += button => this.Exit();
+            this.ExitConfirmation.Add(yesButton);
 
             this.OnLoad?.Invoke(this.Content);
         }
         HexButton Button;
         Texture2D PanelTexture;
+        Texture2D YesTexture;
+        Texture2D NoTexture;
+        Texture2D ExitTexture;
+        Panel ExitConfirmation;
 
         protected override void Update(GameTime gameTime)
         {
+            this.OnUpdateCritical?.Invoke(gameTime);
+
+            this.ExitConfirmation.Update(gameTime);
             if (this.Input.KeyPressed(Keys.Escape))
-            {
-                this.Exit();
+                this.ExitConfirmation.Toggle();
+            if (this.ExitConfirmation.IsActive)
                 return;
-            }
 
-            this.OnUpdate?.Invoke(gameTime);
-
+            this.OnUpdateRegular?.Invoke(gameTime);
             this.IsMouseVisible = true;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
@@ -440,7 +463,7 @@ namespace Hex
                 // For InputHelper and CameraHelper this reference is still needed, but FramerateHelper does not need to be referenced.
                 // However, it means there should be a way to unload which essentially just unsubscribes from the events
                 this.OnDrawPanel = null;
-                this.OnUpdate = null;
+                this.OnUpdateRegular = null;
                 this.OnLoad = null;
                 GC.Collect();
             }
@@ -530,6 +553,7 @@ namespace Hex
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
             this.Button.Draw(this.SpriteBatch, depth: .95f);
+            this.ExitConfirmation.Draw(this.SpriteBatch);
 
 
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
@@ -575,11 +599,16 @@ namespace Hex
             var rect3 = new Rectangle(0, 0, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
             var rect4 = new Rectangle(0, BASE_MAP_PANEL_HEIGHT - marginsize, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
             var rect5 = new Rectangle(0, 0, marginsize, BASE_MAP_PANEL_HEIGHT);
-            var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize*2, BASE_MAP_PANEL_HEIGHT);
+            var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize * 2, BASE_MAP_PANEL_HEIGHT);
             this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect3, 4, new Color(150, 200, 170, 255), depth: 0.8f);
             this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect4, 4, new Color(150, 200, 170, 255), depth: 0.8f);
             this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect5, 2, new Color(150, 200, 170, 255), depth: 0.85f);
             // this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect6, 4, new Color(150, 200, 170, 255), depth: 0.95f);
+
+            if (this.ExitConfirmation.IsActive)
+            {
+                this.SpriteBatch.DrawTo(this.BlankTexture, new Rectangle(0,0, BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT), new Color(100, 100, 100, 100), depth: .97f);
+            }
 
             this.SpriteBatch.End();
         }
@@ -814,7 +843,9 @@ namespace Hex
 
         protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
 
-        protected void SubscribeToUpdate(Action<GameTime> handler) => this.OnUpdate += handler;
+        protected void SubscribeToUpdateCritical(Action<GameTime> handler) => this.OnUpdateCritical += handler;
+
+        protected void SubscribeToUpdateRegular(Action<GameTime> handler) => this.OnUpdateRegular += handler;
 
         protected void SubscribeToDrawMap(Action<SpriteBatch> handler) => this.OnDrawMap += handler;
 

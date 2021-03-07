@@ -1,9 +1,9 @@
-using Hex.Enums;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using MonoGui.Enums;
 using System;
 
-namespace Hex.Extensions
+namespace MonoGui.Extensions
 {
     public static class MouseStateExtensions
     {

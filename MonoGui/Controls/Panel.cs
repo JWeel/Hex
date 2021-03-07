@@ -11,14 +11,16 @@ namespace MonoGui.Controls
 
         public Panel()
         {
-            this.Controls = new OrderedSet<IControl>();
+            this.Controls = new InsertionSet<IControl>();
         }
 
         #endregion
 
         #region Properties
 
-        public OrderedSet<IControl> Controls { get; }
+        public InsertionSet<IControl> Controls { get; }
+
+        public bool IsActive { get; set; }
 
         #endregion
 
@@ -34,26 +36,22 @@ namespace MonoGui.Controls
             this.Controls.Insert(control);
         }
 
+        public void Toggle() =>
+            this.IsActive = !this.IsActive;
+
         public override void Update(GameTime gameTime)
         {
+            if (!this.IsActive)
+                return;
             this.Controls.Each(control => control.Update(gameTime));
         }
 
         public override void Draw(SpriteBatch spriteBatch)
         {
+            if (!this.IsActive)
+                return;
             this.Controls.Each(control => control.Draw(spriteBatch));
         }
-
-        // void a()
-        // {
-        //     var points = new (float, float)[pointsCount];
-        //     for (int i = 0; i < pointsCount; ++i)
-        //     {
-        //         points[i] = new PointF(
-        //             circleRadius.x + Math.Cos(startAngle + i * sweepAngle / pointsCount) * radius,
-        //             circleRadius.y + Math.Sin(startAngle + i * sweepAngle / pointsCount) * radius);
-        //     }
-        // }
 
         #endregion
     }

@@ -5,17 +5,17 @@ namespace Extended.Collections
 {
     /// <summary> Represents a set of elements that preserves insertion ordering. </summary>
     /// <typeparam name="T"> The element type of the set. </typeparam>
-    public class OrderedSet<T> : ICollection<T>
+    public class InsertionSet<T> : ICollection<T>
     {
         #region Constructors
 
         /// <summary> Initializes a new instance that uses the default equality comparer of type <typeparamref name="T"/>. </summary>
-        public OrderedSet() : this(EqualityComparer<T>.Default)
+        public InsertionSet() : this(EqualityComparer<T>.Default)
         {
         }
 
         /// <summary> Initializes a new instance that uses a specified equality comparer. </summary>
-        public OrderedSet(IEqualityComparer<T> comparer)
+        public InsertionSet(IEqualityComparer<T> comparer)
         {
             this.InternalList = new LinkedList<T>();
             this.InternalMap = new Dictionary<T, LinkedListNode<T>>(comparer);

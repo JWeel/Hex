@@ -2,6 +2,8 @@ using Hex.Enums;
 using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using MonoGui.Enums;
+using MonoGui.Extensions;
 using System;
 
 namespace Hex.Helpers
