@@ -43,8 +43,8 @@ namespace MonoGui.Extensions
                 rotation: 0f, origin: default, scale, SpriteEffects.None, depth);
         }
 
-        public static void DrawRoundedRectangle(this SpriteBatch spriteBatch, Texture2D texture,
-            Rectangle destinationRectangle, int distanceToMiddle, Color color, float depth = .9f)
+        public static void DrawNinePatchRectangle(this SpriteBatch spriteBatch, Texture2D texture,
+            Rectangle destinationRectangle, int distanceToMiddle, Color color, float depth = 0f)
         {
             // Top left
             spriteBatch.Draw(

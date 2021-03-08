@@ -1,8 +1,6 @@
-﻿using System.Globalization;
-using Extended.Collections;
+﻿using Extended.Collections;
 using Extended.Extensions;
 using Hex.Auxiliary;
-using Hex.Controls;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
@@ -40,6 +38,8 @@ namespace Hex
         private const float BASE_ASPECT_RATIO = BASE_WINDOW_WIDTH / (float) BASE_WINDOW_HEIGHT;
         private const float GOLDEN_RATIO = 1.618f;
 
+        private static readonly Vector2 BASE_WINDOW_SIZE = new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
+        private static readonly Rectangle BASE_WINDOW_RECTANGLE = new Rectangle(Point.Zero, BASE_WINDOW_SIZE.ToPoint());
         private static readonly Vector2 BASE_MAP_PANEL_SIZE = new Vector2(BASE_MAP_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT);
         private const int BASE_MAP_PADDING = 30;
 
@@ -305,28 +305,40 @@ namespace Hex
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
             this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
             this.ExitTexture = this.Content.Load<Texture2D>("exit");
-            this.Button = new HexButton(this.BlankTexture, new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64), Color.PapayaWhip, "Button", borderSize: 3);
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
             this.Orientation.Advance();
             this.ResizeWindowFromKeyboard(this.Graphics.PreferredBackBufferWidth);
             // var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithUpperLimit(BASE_WINDOW_WIDTH_INCREMENT, upperLimit: BASE_WINDOW_WIDTH_MAX);
             // this.ResizeWindowFromKeyboard(newBackBufferWidth);
-            this.ExitConfirmation = new Panel();
-            this.ExitConfirmation.Add(new Box(new Rectangle(BASE_WINDOW_WIDTH / 2 - 50, BASE_WINDOW_HEIGHT / 2 - 50, 100, 100), this.PanelTexture, 13, .98f));
-            this.ExitConfirmation.Add(new Box(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2 - 40, 80, 40), this.ExitTexture, 0, .99f));
 
-            var noButton = new Button(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2, 40, 40), this.NoTexture, 0, .99f);
-            noButton.OnClick += button => this.ExitConfirmation.IsActive = false;
-            this.ExitConfirmation.Add(noButton);
+            // var exitConfirmationPanelSize = new Vector2(256, 144);
+            var exitConfirmationPanelSize = new Vector2(400, 100);
+            var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
+            var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
+            this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
+            this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
-            var yesButton = new Button(new Rectangle(BASE_WINDOW_WIDTH / 2 + 0, BASE_WINDOW_HEIGHT / 2, 40, 40), this.YesTexture, 0, .99f);
+            // this.ExitConfirmation.Append(new Basic(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2 - 40, 80, 40), this.ExitTexture));
+            var exitConfirmationText = "Are you sure you want to quit?";
+            var exitConformationTextScale = 2f;
+            var exitCOnformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
+            var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitCOnformationTextSize / 2) - new Vector2(0, 30);
+            this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitCOnformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
+
+            var noYesButtonSize = new Vector2(40);
+            var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
+            var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
+            noButton.OnClick += button => this.ExitConfirmation.Toggle();
+            this.ExitConfirmation.Append(noButton);
+
+            var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
+            var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
             yesButton.OnClick += button => this.Exit();
-            this.ExitConfirmation.Add(yesButton);
+            this.ExitConfirmation.Append(yesButton);
 
             this.OnLoad?.Invoke(this.Content);
         }
-        HexButton Button;
         Texture2D PanelTexture;
         Texture2D YesTexture;
         Texture2D NoTexture;
@@ -372,14 +384,14 @@ namespace Hex
                 }
             }
 
-            if (this.Input.KeyPressed(Keys.Left))
-                this.GridOrigin -= new Vector2(100, 0);
-            if (this.Input.KeyPressed(Keys.Right))
-                this.GridOrigin += new Vector2(100, 0);
-            if (this.Input.KeyPressed(Keys.Up))
-                this.GridOrigin -= new Vector2(0, 100);
-            if (this.Input.KeyPressed(Keys.Down))
-                this.GridOrigin += new Vector2(0, 100);
+            // if (this.Input.KeyPressed(Keys.Left))
+            //     this.GridOrigin -= new Vector2(100, 0);
+            // if (this.Input.KeyPressed(Keys.Right))
+            //     this.GridOrigin += new Vector2(100, 0);
+            // if (this.Input.KeyPressed(Keys.Up))
+            //     this.GridOrigin -= new Vector2(0, 100);
+            // if (this.Input.KeyPressed(Keys.Down))
+            //     this.GridOrigin += new Vector2(0, 100);
 
             if (this.Input.KeyPressed(Keys.I))
                 this.Camera.CenterOn(this.GetPosition(this.CenterHexagon));
@@ -459,16 +471,14 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.J))
             {
                 // TODO: clearing the events will allow GC to collect instances that subscribed to these events
-                // -- of course only if they are not referenced by this instance of Core.
-                // For InputHelper and CameraHelper this reference is still needed, but FramerateHelper does not need to be referenced.
+                // -- of course only if they are not referenced to by a member or property.
+                // For InputHelper and CameraHelper a reference is needed (unless refactored), but FramerateHelper does not need to be referenced.
                 // However, it means there should be a way to unload which essentially just unsubscribes from the events
                 this.OnDrawPanel = null;
                 this.OnUpdateRegular = null;
                 this.OnLoad = null;
                 GC.Collect();
             }
-
-            this.Button.Update(this.ClientSizeTranslatedMouseVector);
         }
 
         protected override void Draw(GameTime gameTime)
@@ -552,10 +562,6 @@ namespace Hex
             // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
-            this.Button.Draw(this.SpriteBatch, depth: .95f);
-            this.ExitConfirmation.Draw(this.SpriteBatch);
-
-
             // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
             var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
@@ -590,25 +596,29 @@ namespace Hex
             this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
             this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
-            var rect1 = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
-            var rect2 = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect1, 13, new Color(150, 200, 170, 255));
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect2, 13, new Color(150, 200, 170, 255));
+            // var rect1 = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
+            // var rect2 = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);
+            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect1, 13, new Color(150, 200, 170, 255));
+            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect2, 13, new Color(150, 200, 170, 255));
 
-            var marginsize = 4;
-            var rect3 = new Rectangle(0, 0, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
-            var rect4 = new Rectangle(0, BASE_MAP_PANEL_HEIGHT - marginsize, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
-            var rect5 = new Rectangle(0, 0, marginsize, BASE_MAP_PANEL_HEIGHT);
-            var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize * 2, BASE_MAP_PANEL_HEIGHT);
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect3, 4, new Color(150, 200, 170, 255), depth: 0.8f);
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect4, 4, new Color(150, 200, 170, 255), depth: 0.8f);
-            this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect5, 2, new Color(150, 200, 170, 255), depth: 0.85f);
+            // var marginsize = 4;
+            // var rect3 = new Rectangle(0, 0, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
+            // var rect4 = new Rectangle(0, BASE_MAP_PANEL_HEIGHT - marginsize, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
+            // var rect5 = new Rectangle(0, 0, marginsize, BASE_MAP_PANEL_HEIGHT);
+            // var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize * 2, BASE_MAP_PANEL_HEIGHT);
+            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect3, 4, new Color(150, 200, 170, 255), depth: 0.8f);
+            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect4, 4, new Color(150, 200, 170, 255), depth: 0.8f);
+            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect5, 2, new Color(150, 200, 170, 255), depth: 0.85f);
             // this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect6, 4, new Color(150, 200, 170, 255), depth: 0.95f);
 
+            this.SpriteBatch.End();
+
+            this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
             if (this.ExitConfirmation.IsActive)
             {
-                this.SpriteBatch.DrawTo(this.BlankTexture, new Rectangle(0,0, BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT), new Color(100, 100, 100, 100), depth: .97f);
+                this.SpriteBatch.DrawTo(this.BlankTexture, BASE_WINDOW_RECTANGLE, new Color(100, 100, 100, 100));
             }
+            this.ExitConfirmation.Draw(this.SpriteBatch);
 
             this.SpriteBatch.End();
         }
