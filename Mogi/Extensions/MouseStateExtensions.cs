@@ -1,9 +1,9 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using MonoGui.Enums;
+using Mogi.Enums;
 using System;
 
-namespace MonoGui.Extensions
+namespace Mogi.Extensions
 {
     public static class MouseStateExtensions
     {

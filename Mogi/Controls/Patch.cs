@@ -1,8 +1,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGui.Extensions;
+using Mogi.Extensions;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that uses 9-patch drawing. </summary>
     public class Patch : Control<Patch>

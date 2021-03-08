@@ -30,6 +30,6 @@
   <ItemGroup>
     <ProjectReference Include = "../Extended/Extended.csproj" />
     <ProjectReference Include = "../Forms/Forms.csproj" />
-    <ProjectReference Include = "../MonoGui/MonoGui.csproj" />
+    <ProjectReference Include = "../Mogi/Mogi.csproj" />
   </ItemGroup>
 </Project>

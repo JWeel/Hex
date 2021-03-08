@@ -1,12 +1,10 @@
-using Hex.Enums;
-using Hex.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using MonoGui.Enums;
-using MonoGui.Extensions;
+using Mogi.Enums;
+using Mogi.Extensions;
 using System;
 
-namespace Hex.Helpers
+namespace Mogi.Helpers
 {
     public class CameraHelper
     {
@@ -96,14 +94,14 @@ namespace Hex.Helpers
 
         protected void HandleMouse(InputHelper input)
         {
-            var mousePosition = input.CurrentMouseState.ToVector2();
+            var mousePosition = input.CurrentMouseVector;
             if (this.IsMoving && this.ZoomScaleFactor >= 1f)
             {
                 this.Move(-(mousePosition - this.LastMovePosition), clamp: true);
                 this.LastMovePosition = mousePosition;
                 this.IsMoving = !input.MouseReleased(MouseButton.Right);
             }
-            if (this.PanelGetter().Contains(input.CurrentMouseState))
+            if (this.PanelGetter().Contains(input.CurrentMousePoint))
             {
                 if (input.MouseScrolled())
                 {
@@ -168,7 +166,7 @@ namespace Hex.Helpers
 
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
-            this.ZoomScaleFactor = this.ZoomScaleFactor.AddWithLimits(amount, minAmount, maxAmount);
+            this.ZoomScaleFactor = Math.Clamp(amount, minAmount, maxAmount);
             this.Move(Vector2.Zero, clamp: true);
         }
 

@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace MonoGui.Extensions
+namespace Mogi.Extensions
 {
     public static class SpriteBatchExtensions
     {

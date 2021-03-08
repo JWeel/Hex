@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Represents a basic graphical element with no special logic. </summary>
     public class Basic : Control<Patch>

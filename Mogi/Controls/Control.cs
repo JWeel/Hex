@@ -1,10 +1,10 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using MonoGui.Extensions;
+using Mogi.Extensions;
 using System;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Base class for defining a graphical user interface element. </summary>
     public abstract class Control<T> : IControl

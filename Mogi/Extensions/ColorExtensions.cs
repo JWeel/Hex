@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 
-namespace MonoGui.Extensions
+namespace Mogi.Extensions
 {
     public static class ColorExtensions
     {

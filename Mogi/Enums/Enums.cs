@@ -1,4 +1,4 @@
-namespace MonoGui.Enums
+namespace Mogi.Enums
 {
     public enum MouseButton
     {

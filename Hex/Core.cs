@@ -3,15 +3,15 @@ using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
-using Hex.Helpers;
 using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using MonoGui.Controls;
-using MonoGui.Enums;
-using MonoGui.Extensions;
+using Mogi.Controls;
+using Mogi.Enums;
+using Mogi.Extensions;
+using Mogi.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -409,7 +409,7 @@ namespace Hex
 
             if (this.Input.MouseMoved())
             {
-                this.BaseMouseVector = this.Input.CurrentMouseState.ToVector2();
+                this.BaseMouseVector = this.Input.CurrentMouseVector;
                 this.ClientSizeTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.AspectRatio;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ClientSizeTranslatedMouseVector);
 
@@ -562,8 +562,9 @@ namespace Hex
             // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
             // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
 
-            // var log = /*             */ "M1:" + this.BaseMouseVector.Print()
-            var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
+            var log = /*             */ "M1:" + this.BaseMouseVector.Print()
+            // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
+                + Environment.NewLine + "M2:" + this.BaseMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
             //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
             //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
@@ -573,9 +574,13 @@ namespace Hex
             //     + Environment.NewLine + "MS:" + this.MapSize.Print()
             //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
             //     + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
-            //     + Environment.NewLine + "AR:" + this.AspectRatio.Print()
-                + Environment.NewLine + "Orientation: " + this.Orientation.Value
-                + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
+                + Environment.NewLine + "AR1:" + this.AspectRatio.Print()
+                + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
+                + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
+                + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
+                + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
+                // + Environment.NewLine + "Orientation: " + this.Orientation.Value
+                // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
                 //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
                 // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
                 + Environment.NewLine + this.CalculatedDebug;

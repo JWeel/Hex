@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Defines a graphical user interface element. </summary>
     public interface IControl

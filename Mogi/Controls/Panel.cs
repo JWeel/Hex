@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Represents a control that contains other controls. </summary>
     public class Panel : Control<Panel>, IEnumerable<IControl>

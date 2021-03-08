@@ -1,10 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using MonoGui.Extensions;
+using Mogi.Extensions;
 using System;
 
-namespace MonoGui.Controls
+namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that can be interacted with by clicking. </summary>
     public class Button : Control<Button>

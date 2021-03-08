@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGui.Extensions;
+using Mogi.Extensions;
 
 namespace Hex.Models
 {

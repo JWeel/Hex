@@ -1,10 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGui.Extensions;
+using Mogi.Extensions;
 using System;
 
-namespace Hex.Helpers
+namespace Mogi.Helpers
 {
     /// <summary> Keeps track of application framerate. </summary>
     public class FramerateHelper
