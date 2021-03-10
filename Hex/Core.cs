@@ -3,22 +3,25 @@ using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
+using Hex.Helpers;
 using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Mogi;
 using Mogi.Controls;
 using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
+using Mogi.Inversion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Hex
 {
-    public class Core : Game
+    public class Core : Game, IRoot
     {
         #region Constants
 
@@ -68,6 +71,10 @@ namespace Hex
 
         #region Data Members
 
+        public event Action<GameTime> OnUpdate;
+        public event Action<SpriteBatch> OnDraw;
+        public event Action<GraphicsDevice, GameWindow> OnResize;
+
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdateCritical;
         protected event Action<GameTime> OnUpdateRegular;
@@ -80,6 +87,8 @@ namespace Hex
         protected FramerateHelper Framerate { get; set; }
         protected InputHelper Input { get; set; }
         protected CameraHelper Camera { get; set; }
+
+        protected Architect Architect { get; set; }
 
         protected SpriteFont Font { get; set; }
         protected Texture2D HexOuterPointyTop { get; set; }
@@ -97,7 +106,7 @@ namespace Hex
 
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
         protected Vector2 ClientSizeTranslation { get; set; }
-        protected Vector2 AspectRatio { get; set; }
+        protected Vector2 VirtualSizeTranslation { get; set; }
         protected Vector2 ScaledWindowSize { get; set; }
         protected Vector2 ScaledMapSize { get; set; }
         protected Vector2 ScaledMapPanelSize { get; set; }
@@ -106,9 +115,11 @@ namespace Hex
 
         /// <summary> Mouse position relative to window. </summary>
         protected Vector2 BaseMouseVector { get; set; }
-        /// <summary> Client size translation is needed for fullscreen mode (in windowed mode ClientBounds == BackBuffer size). </summary>
-        protected Vector2 ClientSizeTranslatedMouseVector { get; set; }
-        /// <summary> camera translation is needed when camera is zoomed in. </summary>
+
+        /// <summary> Resolution translation is needed only when in windowed mode client resolution does not match virtual resolution (in fullscreen mode they always match). </summary>
+        protected Vector2 ResolutionTranslatedMouseVector { get; set; }
+
+        /// <summary> Camera translation is needed when camera is zoomed. </summary>
         protected Vector2 CameraTranslatedMouseVector { get; set; }
 
         /// <summary>
@@ -116,6 +127,7 @@ namespace Hex
         /// <br/> Even-numbered rotations use pointy-top hexagonal shapes, odd-numbered rotations use flatty-top shapes.
         /// </summary>
         protected Cycle<int> Orientation { get; } = new Cycle<int>(Generate.Range(12).ToArray());
+
         protected bool HexagonsArePointy => this.Orientation.Value.IsEven();
         protected HexagonMap HexagonMap { get; set; }
         protected Vector2 GridOrigin { get; set; }
@@ -131,7 +143,7 @@ namespace Hex
         protected Vector2[] GridSizes { get; set; }
 
         protected Vector2 MapSize =>
-            Vector2.Max(BASE_MAP_PANEL_SIZE,
+            Vector2.Max(BASE_MAP_PANEL_SIZE, 
                 (this.GridSizes[this.Orientation] + new Vector2(BASE_MAP_PADDING)).IfOddAddOne());
 
         protected Vector2 HexSize => this.HexagonsArePointy ? this.HexagonPointySize : this.HexagonFlattySize;
@@ -149,13 +161,6 @@ namespace Hex
 
         protected override void Initialize()
         {
-            // maybe make DI:
-            // here we register the classes (typeof(FramerateHelper))
-            // then the factory looks at the CTOR, calls
-            this.Framerate = new FramerateHelper(new Vector2(20, 20), this.SubscribeToLoad, this.SubscribeToUpdateCritical, this.SubscribeToDrawPanel);
-            this.Input = new InputHelper(this.SubscribeToUpdateCritical);
-            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
-
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             this.Window.AllowUserResizing = true;
             this.Window.ClientSizeChanged += this.OnWindowResize;
@@ -173,8 +178,6 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
-            // new FormsUI(this.GraphicsDevice, this.SubscribeToLoad, this.SubscribeToUpdateRegular, this.SubscribeToDrawPanel);
-
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
         }
@@ -184,16 +187,28 @@ namespace Hex
             this.Content.RootDirectory = CONTENT_ROOT_DIRECTORY;
             this.SpriteBatch = new SpriteBatch(this.GraphicsDevice);
 
+            this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
+            this.BlankTexture.SetData(new[] { Color.White });
+
             this.Font = this.Content.Load<SpriteFont>("Alphabet/alphabet");
+
+            var dependency = DependencyHelper.Create(this);
+            dependency.Register(this.SpriteBatch);
+            dependency.Register(this.Content);
+            dependency.Register(this.Graphics);
+            dependency.Register(this.BlankTexture);
+            dependency.Register(this.Font);
+            this.Input = dependency.Register<InputHelper>();
+            this.Architect = dependency.Register<Architect>();
+
+            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
+
             this.HexOuterPointyTop = this.Content.Load<Texture2D>("xop");
             this.HexInnerPointyTop = this.Content.Load<Texture2D>("xip");
             this.HexOuterFlattyTop = this.Content.Load<Texture2D>("xof");
             this.HexInnerFlattyTop = this.Content.Load<Texture2D>("xif");
             this.HexBorderPointyTop = this.Content.Load<Texture2D>("xbp");
             this.HexBorderFlattyTop = this.Content.Load<Texture2D>("xbf");
-
-            this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
-            this.BlankTexture.SetData(new[] { Color.White });
 
             this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
@@ -336,8 +351,6 @@ namespace Hex
             var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
             yesButton.OnClick += button => this.Exit();
             this.ExitConfirmation.Append(yesButton);
-
-            this.OnLoad?.Invoke(this.Content);
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
@@ -347,7 +360,7 @@ namespace Hex
 
         protected override void Update(GameTime gameTime)
         {
-            this.OnUpdateCritical?.Invoke(gameTime);
+            this.OnUpdate?.Invoke(gameTime);
 
             this.ExitConfirmation.Update(gameTime);
             if (this.Input.KeyPressed(Keys.Escape))
@@ -355,7 +368,6 @@ namespace Hex
             if (this.ExitConfirmation.IsActive)
                 return;
 
-            this.OnUpdateRegular?.Invoke(gameTime);
             this.IsMouseVisible = true;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
@@ -374,12 +386,12 @@ namespace Hex
                     this.ResizeWindowFromKeyboard(newBackBufferWidth: BASE_WINDOW_WIDTH);
                 if (this.Input.KeyPressed(Keys.OemPlus))
                 {
-                    var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithUpperLimit(BASE_WINDOW_WIDTH_INCREMENT, upperLimit: BASE_WINDOW_WIDTH_MAX);
+                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth + BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, BASE_WINDOW_WIDTH_MAX);
                     this.ResizeWindowFromKeyboard(newBackBufferWidth);
                 }
                 if (this.Input.KeyPressed(Keys.OemMinus))
                 {
-                    var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithLowerLimit(-BASE_WINDOW_WIDTH_INCREMENT, lowerLimit: BASE_WINDOW_WIDTH_MIN);
+                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth - BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, BASE_WINDOW_WIDTH_MAX);
                     this.ResizeWindowFromKeyboard(newBackBufferWidth);
                 }
             }
@@ -410,8 +422,8 @@ namespace Hex
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentMouseVector;
-                this.ClientSizeTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.AspectRatio;
-                this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ClientSizeTranslatedMouseVector);
+                this.ResolutionTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.VirtualSizeTranslation;
+                this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ResolutionTranslatedMouseVector);
 
                 if (this.ScaledMapPanelRectangle.Contains(this.BaseMouseVector))
                 {
@@ -467,18 +479,6 @@ namespace Hex
                 this.Rotate(advance: true);
             if (this.Input.KeyPressed(Keys.X))
                 this.Rotate(advance: false);
-
-            if (this.Input.KeyPressed(Keys.J))
-            {
-                // TODO: clearing the events will allow GC to collect instances that subscribed to these events
-                // -- of course only if they are not referenced to by a member or property.
-                // For InputHelper and CameraHelper a reference is needed (unless refactored), but FramerateHelper does not need to be referenced.
-                // However, it means there should be a way to unload which essentially just unsubscribes from the events
-                this.OnDrawPanel = null;
-                this.OnUpdateRegular = null;
-                this.OnLoad = null;
-                GC.Collect();
-            }
         }
 
         protected override void Draw(GameTime gameTime)
@@ -564,21 +564,22 @@ namespace Hex
 
             var log = /*             */ "M1:" + this.BaseMouseVector.Print()
             // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
-                + Environment.NewLine + "M2:" + this.BaseMouseVector.PrintRounded()
+                + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
-            //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-            //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
-            //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
-            //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
-            //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
-            //     + Environment.NewLine + "MS:" + this.MapSize.Print()
-            //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
-            //     + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
-                + Environment.NewLine + "AR1:" + this.AspectRatio.Print()
-                + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
-                + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
-                + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
-                + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
+                //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
+                //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
+                // + Environment.NewLine + "SMP:" + this.ScaledMapPanelSize.Print()
+                //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
+                //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
+                //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
+                //     + Environment.NewLine + "MS:" + this.MapSize.Print()
+                //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
+                // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
+                // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
+                // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
+                // + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
+                // + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
+                // + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
                 // + Environment.NewLine + "Orientation: " + this.Orientation.Value
                 // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
                 //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
@@ -619,6 +620,9 @@ namespace Hex
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
+
+            this.OnDraw?.Invoke(this.SpriteBatch);
+
             if (this.ExitConfirmation.IsActive)
             {
                 this.SpriteBatch.DrawTo(this.BlankTexture, BASE_WINDOW_RECTANGLE, new Color(100, 100, 100, 100));
@@ -833,19 +837,20 @@ namespace Hex
                 this.Graphics.ApplyChanges();
                 this.Window.ClientSizeChanged += this.OnWindowResize;
             }
+            // Note: this event gets raised twice when going to fullscreen, but not when going back
             this.RecalculateClientSize();
         }
 
         protected void RecalculateClientSize()
         {
-            this.AspectRatio = new Vector2(
+            this.VirtualSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) BASE_WINDOW_WIDTH,
                 this.Graphics.PreferredBackBufferHeight / (float) BASE_WINDOW_HEIGHT);
             this.ClientSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
             this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-            this.ScaledMapPanelSize = BASE_MAP_PANEL_SIZE / this.ClientSizeTranslation * this.AspectRatio;
+            this.ScaledMapPanelSize = BASE_MAP_PANEL_SIZE / this.ClientSizeTranslation * this.VirtualSizeTranslation;
             this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
             this.RecalculateMapSize();
         }
@@ -856,16 +861,6 @@ namespace Hex
             this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
-        protected void SubscribeToLoad(Action<ContentManager> handler) => this.OnLoad += handler;
-
-        protected void SubscribeToUpdateCritical(Action<GameTime> handler) => this.OnUpdateCritical += handler;
-
-        protected void SubscribeToUpdateRegular(Action<GameTime> handler) => this.OnUpdateRegular += handler;
-
-        protected void SubscribeToDrawMap(Action<SpriteBatch> handler) => this.OnDrawMap += handler;
-
-        protected void SubscribeToDrawPanel(Action<SpriteBatch> handler) => this.OnDrawPanel += handler;
-
         #endregion
 
         // some ideas:
@@ -874,5 +869,6 @@ namespace Hex
         //      Also in settings would be font size? May be tricky to fit it
         //      And whether to start in fullscreen -> meaning global settings should be stored in config file
         // add <> and {} to font
+        // all form controls need keyboard support, like the blinking selector from pan engine
     }
 }

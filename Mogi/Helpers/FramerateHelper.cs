@@ -1,29 +1,27 @@
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Extensions;
+using Mogi.Inversion;
 using System;
 
 namespace Mogi.Helpers
 {
     /// <summary> Keeps track of application framerate. </summary>
-    public class FramerateHelper
+    public class FramerateHelper : IUpdate, IDraw
     {
         #region Constants
 
+        private static readonly Vector2 DEFAULT_POSITION = new Vector2(20, 20);
         private static readonly TimeSpan ONE_SECOND = TimeSpan.FromSeconds(1);
 
         #endregion
 
         #region Constructors
 
-        public FramerateHelper(Vector2 position, Action<Action<ContentManager>> subscribeToLoad, Action<Action<GameTime>> subscribeToUpdate, Action<Action<SpriteBatch>> subscribeToDraw)
+        public FramerateHelper(SpriteFont spriteFont)
         {
-            subscribeToLoad(this.LoadContent);
-            subscribeToUpdate(this.UpdateState);
-            subscribeToDraw(this.DrawState);
-
-            this.Position = position;
+            this.Font = spriteFont;
+            this.Position = DEFAULT_POSITION;
             this.Framerate = 0;
             this.FrameCounter = 0;
             this.ElapsedTime = TimeSpan.Zero;
@@ -33,24 +31,17 @@ namespace Mogi.Helpers
 
         #region Properties
 
+        protected SpriteFont Font { get; set; }
         protected Vector2 Position { get; }
-
         protected int Framerate { get; set; }
         protected int FrameCounter { get; set; }
         protected TimeSpan ElapsedTime { get; set; }
-
-        protected SpriteFont Font { get; set; }
 
         #endregion
 
         #region Methods
 
-        protected void LoadContent(ContentManager content)
-        {
-            this.Font = content.Load<SpriteFont>("Alphabet/alphabet");
-        }
-
-        protected void UpdateState(GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
             this.ElapsedTime += gameTime.ElapsedGameTime;
             if (this.ElapsedTime < ONE_SECOND)
@@ -61,7 +52,7 @@ namespace Mogi.Helpers
             this.FrameCounter = 0;
         }
 
-        protected void DrawState(SpriteBatch spriteBatch)
+        public void Draw(SpriteBatch spriteBatch)
         {
             this.FrameCounter++;
             string text = this.Framerate.ToString();

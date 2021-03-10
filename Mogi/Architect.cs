@@ -1,28 +1,26 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
+using Mogi.Inversion;
+using System;
 
 namespace Mogi
 {
-    public class Architect
+    public class Architect : IRoot, ILoad, IUpdate, IDraw
     {
         #region Constructors
 
-        public Architect(Vector2 virtualWindowSize)
+        public Architect()
         {
-            this.VirtualWindowSize = virtualWindowSize;
+            // this.VirtualWindowSize = virtualWindowSize;
+
         }
 
         #endregion
 
         #region Properties
 
-        protected InputHelper Input { get; }
-        protected FramerateHelper Framerate { get; }
+        protected InputHelper Input { get; set; }
 
         protected Vector2 VirtualWindowSize { get; }
         protected Vector2 AspectRatio { get; set; }
@@ -32,14 +30,31 @@ namespace Mogi
 
         #endregion
 
+        #region Events
+
+        public event Action<GameTime> OnUpdate;
+        public event Action<SpriteBatch> OnDraw;
+        public event Action<GraphicsDevice, GameWindow> OnResize;
+
+        #endregion
+
         #region Methods
 
-        public void UpdateCritical()
+        public void Load(DependencyMap dependencyMap)
         {
+            var dependency = DependencyHelper.Create(this, dependencyMap);
+            this.Input = dependency.Register<InputHelper>();
+            dependency.Register<FramerateHelper>();
         }
 
-        public void UpdateOrdinary()
+        public void Update(GameTime gameTime)
         {
+            this.OnUpdate?.Invoke(gameTime);
+        }
+
+        public void Draw(SpriteBatch spriteBatch)
+        {
+            this.OnDraw?.Invoke(spriteBatch);
         }
 
         protected void HandleClientSizeChange()
@@ -53,47 +68,6 @@ namespace Mogi
             // this.ClientSizeTranslation = new Vector2(
             //     this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
             //     this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
-        }
-
-        protected void Register<T>()
-            where T : class
-        {
-            var constructors = typeof(T).GetConstructors(BindingFlags.Public);
-            if (constructors.Length != 1)
-            {
-                throw new InvalidOperationException($"Cannot register type '{typeof(T).Name}' because it does not have exactly one public constructor.");
-            }
-            var constructor = constructors.First();
-
-            var parameters = constructor.GetParameters();
-            var arguments = parameters
-                .Select(parameter => this.RegisteredTypes.TryGetValue(parameter.ParameterType, out var instance)
-                    ? instance : throw new InvalidOperationException($"Cannot register type '{typeof(T).Name}' because dependency type '{parameter.ParameterType}' is not registered."))
-                .ToArray();
-
-            var instance = constructor.Invoke(arguments);
-            if (instance is IUpdateEarly updateEarly)
-                this.OnUpdateEarly += updateEarly.UpdateEarly;
-        }
-
-        protected void Unregister<T>()
-        {
-            if (!this.RegisteredTypes.TryGetValue(typeof(T), out var instance))
-                return;
-            if (instance is IUpdateEarly updateEarly)
-                this.OnUpdateEarly -= updateEarly.UpdateEarly;
-        }
-
-        IDictionary<Type, object> RegisteredTypes = new Dictionary<Type, object>();
-        event Action<GameTime> OnUpdateEarly;
-
-        private interface IUpdateEarly
-        {
-            void UpdateEarly(GameTime gameTime);
-        }
-
-        private interface IUpdateLater
-        {
         }
 
         #endregion

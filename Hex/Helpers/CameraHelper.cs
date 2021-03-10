@@ -1,10 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
-using Mogi.Extensions;
+using Mogi.Helpers;
 using System;
 
-namespace Mogi.Helpers
+namespace Hex.Helpers
 {
     public class CameraHelper
     {
@@ -166,7 +166,7 @@ namespace Mogi.Helpers
 
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
-            this.ZoomScaleFactor = Math.Clamp(amount, minAmount, maxAmount);
+            this.ZoomScaleFactor = Math.Clamp(this.ZoomScaleFactor + amount, minAmount, maxAmount);
             this.Move(Vector2.Zero, clamp: true);
         }
 

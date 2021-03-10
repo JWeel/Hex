@@ -2,20 +2,24 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
-using System;
+using Mogi.Inversion;
 using System.Linq;
 
 namespace Mogi.Helpers
 {
     /// <summary> Provides methods to determine keyboard and mouse state. </summary>
-    public class InputHelper
+    public class InputHelper : IUpdate
     {
         #region Constructors
 
-        /// <summary> Initializes a new instance with an action that can be used to subscribe <see cref="InputHelper.Update"/> to an event. </summary>
-        public InputHelper(Action<Action<GameTime>> subscribeToUpdate)
+        // public InputHelper(Action<Action<GameTime>> subscribeToUpdate)
+        // {
+        //     subscribeToUpdate(this.Update);
+        // }
+        
+        /// <summary> Initializes a new instance. </summary>
+        public InputHelper()
         {
-            subscribeToUpdate(this.Update);
         }
 
         #endregion
@@ -118,7 +122,7 @@ namespace Mogi.Helpers
 
         #region Protected Methods
 
-        protected void Update(GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
             this.PreviousKeyboard = this.CurrentKeyboard;
             this.CurrentKeyboard = Keyboard.GetState();

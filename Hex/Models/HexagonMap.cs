@@ -27,7 +27,7 @@ namespace Hex.Models
 
         #region Members
 
-        /// <summary> Gets the hexagon with the specfied cube in the current orientation, or <see langword="default"/> if one is not found. </summary>
+        /// <summary> Gets the hexagon with the specfied cube in the current orientation, or <see langword="default"/> if none is found. </summary>
         public Hexagon this[Cube cube] =>
             this.HexagonByOrientedCubeMap.TryGetValue((cube, this.OrientationGetter()), out var hexagon) ? hexagon : default;
 
