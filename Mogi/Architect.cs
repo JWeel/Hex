@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using Mogi.State;
 using System;
 
 namespace Mogi
@@ -34,7 +35,7 @@ namespace Mogi
 
         public event Action<GameTime> OnUpdate;
         public event Action<SpriteBatch> OnDraw;
-        public event Action<GraphicsDevice, GameWindow> OnResize;
+        public event Action<WindowState> OnResize;
 
         #endregion
 

@@ -15,6 +15,7 @@ using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using Mogi.State;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -73,7 +74,7 @@ namespace Hex
 
         public event Action<GameTime> OnUpdate;
         public event Action<SpriteBatch> OnDraw;
-        public event Action<GraphicsDevice, GameWindow> OnResize;
+        public event Action<WindowState> OnResize;
 
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdateCritical;
@@ -82,6 +83,7 @@ namespace Hex
         protected event Action<SpriteBatch> OnDrawPanel;
 
         protected GraphicsDeviceManager Graphics { get; set; }
+        protected WindowState WindowState { get; set; }
         protected SpriteBatch SpriteBatch { get; set; }
 
         protected FramerateHelper Framerate { get; set; }
@@ -143,7 +145,7 @@ namespace Hex
         protected Vector2[] GridSizes { get; set; }
 
         protected Vector2 MapSize =>
-            Vector2.Max(BASE_MAP_PANEL_SIZE, 
+            Vector2.Max(BASE_MAP_PANEL_SIZE,
                 (this.GridSizes[this.Orientation] + new Vector2(BASE_MAP_PADDING)).IfOddAddOne());
 
         protected Vector2 HexSize => this.HexagonsArePointy ? this.HexagonPointySize : this.HexagonFlattySize;
@@ -178,6 +180,8 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
+            this.WindowState = new WindowState(this.Window, this.Graphics, new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT));
+
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
         }
@@ -193,9 +197,10 @@ namespace Hex
             this.Font = this.Content.Load<SpriteFont>("Alphabet/alphabet");
 
             var dependency = DependencyHelper.Create(this);
+            dependency.Register(this.WindowState);
             dependency.Register(this.SpriteBatch);
-            dependency.Register(this.Content);
-            dependency.Register(this.Graphics);
+            // dependency.Register(this.Content);
+            // dependency.Register(this.Graphics);
             dependency.Register(this.BlankTexture);
             dependency.Register(this.Font);
             this.Input = dependency.Register<InputHelper>();
@@ -565,6 +570,7 @@ namespace Hex
             var log = /*             */ "M1:" + this.BaseMouseVector.Print()
             // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
+                + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
                 //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
                 //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
@@ -820,7 +826,7 @@ namespace Hex
             // because doing that makes it impossible to go back to windowed mode (might be a bug in Monogame?).
             if (!this.Graphics.IsFullScreen)
             {
-                // This event would be triggered again by GraphicsDeviceManager.ApplyChanges
+                // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
                 this.Window.ClientSizeChanged -= this.OnWindowResize;
 
                 if (this.Window.ClientBounds.Width != this.ScaledWindowSize.X)
@@ -837,7 +843,7 @@ namespace Hex
                 this.Graphics.ApplyChanges();
                 this.Window.ClientSizeChanged += this.OnWindowResize;
             }
-            // Note: this event gets raised twice when going to fullscreen, but not when going back
+            // Note: OnWindowResize gets raised twice when going to fullscreen, but not when going back
             this.RecalculateClientSize();
         }
 
