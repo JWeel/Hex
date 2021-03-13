@@ -47,6 +47,9 @@ namespace Mogi.State
             this.OnResize?.Invoke(this);
         }
 
+        public Vector2 Translate(Vector2 value) =>
+            value / this.BackBufferRelativeToVirtualResolution * this.BackBufferRelativeToWindowResolution;
+
         #endregion
     }
 }

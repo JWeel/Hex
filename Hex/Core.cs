@@ -188,7 +188,7 @@ namespace Hex
             // A container of properties related to the client window: it should be updated whenever the client size changes.
             // It can provide, among other things, the necessary data to calculate resolution-indepedent mouse position.
             // It serves as an alternative to passing around the entire Game instance, to support separation of concerns.
-            this.WindowState = new WindowState(this.Window, this.Graphics, new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT));
+            this.WindowState = new WindowState(this.Window, this.Graphics, BASE_WINDOW_SIZE);
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -433,7 +433,7 @@ namespace Hex
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentMouseVector;
-                this.ResolutionTranslatedMouseVector = this.BaseMouseVector * this.ClientSizeTranslation / this.VirtualSizeTranslation;
+                this.ResolutionTranslatedMouseVector = this.WindowState.Translate(this.BaseMouseVector);// * this.ClientSizeTranslation / this.VirtualSizeTranslation;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ResolutionTranslatedMouseVector);
 
                 if (this.ScaledMapPanelRectangle.Contains(this.BaseMouseVector))
@@ -838,6 +838,8 @@ namespace Hex
                 // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
                 this.Window.ClientSizeChanged -= this.OnWindowResize;
 
+                // Set backbuffer to match client size
+                // Note: right now width is prioritized over height, should check largest diff and apply that one
                 if (this.Window.ClientBounds.Width != this.PreviousClientBounds.X)
                 {
                     this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
@@ -853,29 +855,23 @@ namespace Hex
 
                 this.Graphics.ApplyChanges();
                 this.Window.ClientSizeChanged += this.OnWindowResize;
+                this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             }
-            // Note: OnWindowResize gets raised twice when going to fullscreen, but not when going back
-            this.RecalculateClientSize();
             this.WindowState.Resize();
+            this.RecalculateClientSize();
+            // Note: ClientSizeChanged gets raised twice when going to fullscreen, but not when going back
         }
 
         protected void RecalculateClientSize()
         {
-            this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-            this.VirtualSizeTranslation = new Vector2(
-                this.Graphics.PreferredBackBufferWidth / (float) BASE_WINDOW_WIDTH,
-                this.Graphics.PreferredBackBufferHeight / (float) BASE_WINDOW_HEIGHT);
-            this.ClientSizeTranslation = new Vector2(
-                this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
-                this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
-            this.ScaledMapPanelSize = BASE_MAP_PANEL_SIZE / this.ClientSizeTranslation * this.VirtualSizeTranslation;
+            this.ScaledMapPanelSize = this.WindowState.Translate(BASE_MAP_PANEL_SIZE);
             this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
             this.RecalculateMapSize();
         }
 
         protected void RecalculateMapSize()
         {
-            this.ScaledMapSize = this.MapSize / this.ClientSizeTranslation;
+            this.ScaledMapSize = this.WindowState.Translate(this.MapSize);
             this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
