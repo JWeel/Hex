@@ -30,15 +30,14 @@ namespace Hex
         private const float BASE_GLOBAL_SCALE = 1.5f;
         private const float MAX_GLOBAL_SCALE = 5f;
         private const float MIN_GLOBAL_SCALE = 0.25f;
-        public const int BASE_WINDOW_WIDTH = 1280;
-        public const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
-        public const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
-        public const int BASE_WINDOW_WIDTH_MAX = BASE_WINDOW_WIDTH * 2; // maximum for keyboard-based scaling (not for mouse)
-        public const int BASE_WINDOW_HEIGHT = 720;
-        public const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
-        public const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
-        public const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
-        public const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
+        private const int BASE_WINDOW_WIDTH = 1280;
+        private const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
+        private const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
+        private const int BASE_WINDOW_HEIGHT = 720;
+        private const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
+        private const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
+        private const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
+        private const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
         private const float BASE_ASPECT_RATIO = BASE_WINDOW_WIDTH / (float) BASE_WINDOW_HEIGHT;
         private const float GOLDEN_RATIO = 1.618f;
 
@@ -109,7 +108,7 @@ namespace Hex
         protected RenderTarget2D WindowScalingRenderTarget { get; set; }
         protected Vector2 ClientSizeTranslation { get; set; }
         protected Vector2 VirtualSizeTranslation { get; set; }
-        protected Vector2 ScaledWindowSize { get; set; }
+        protected Vector2 PreviousClientBounds { get; set; }
         protected Vector2 ScaledMapSize { get; set; }
         protected Vector2 ScaledMapPanelSize { get; set; }
         protected Rectangle ScaledMapRectangle { get; set; }
@@ -180,6 +179,15 @@ namespace Hex
             this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
             this.Graphics.ApplyChanges();
 
+            // This is the render target that is respectively set and unset before and after drawing. [See BeginDraw|EndDraw]
+            // Setting a render target changes the GraphicsDevice.Viewport size to match render target size.
+            // After unsetting it, the viewport returns to client size. The target can then be drawn as a texture,
+            // and everything that was drawn on it will be drawn to the client and be automatically scale to client size.
+            this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+
+            // A container of properties related to the client window: it should be updated whenever the client size changes.
+            // It can provide, among other things, the necessary data to calculate resolution-indepedent mouse position.
+            // It serves as an alternative to passing around the entire Game instance, to support separation of concerns.
             this.WindowState = new WindowState(this.Window, this.Graphics, new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT));
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
@@ -214,8 +222,6 @@ namespace Hex
             this.HexInnerFlattyTop = this.Content.Load<Texture2D>("xif");
             this.HexBorderPointyTop = this.Content.Load<Texture2D>("xbp");
             this.HexBorderFlattyTop = this.Content.Load<Texture2D>("xbf");
-
-            this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
 
             this.HexagonPointySize = new Vector2(this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height);
             this.HexagonFlattySize = new Vector2(this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
@@ -391,12 +397,12 @@ namespace Hex
                     this.ResizeWindowFromKeyboard(newBackBufferWidth: BASE_WINDOW_WIDTH);
                 if (this.Input.KeyPressed(Keys.OemPlus))
                 {
-                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth + BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, BASE_WINDOW_WIDTH_MAX);
+                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth + BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width);
                     this.ResizeWindowFromKeyboard(newBackBufferWidth);
                 }
                 if (this.Input.KeyPressed(Keys.OemMinus))
                 {
-                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth - BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, BASE_WINDOW_WIDTH_MAX);
+                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth - BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width);
                     this.ResizeWindowFromKeyboard(newBackBufferWidth);
                 }
             }
@@ -570,7 +576,7 @@ namespace Hex
             var log = /*             */ "M1:" + this.BaseMouseVector.Print()
             // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
-                + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
+                // + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
                 //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
                 //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
@@ -583,9 +589,9 @@ namespace Hex
                 // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
                 // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
                 // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
-                // + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
-                // + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
-                // + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
+                + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
+                + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
+                + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
                 // + Environment.NewLine + "Orientation: " + this.Orientation.Value
                 // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
                 //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
@@ -822,22 +828,27 @@ namespace Hex
 
         protected void OnWindowResize(object sender, EventArgs e)
         {
-            // When going to fullscreen, it is important not to change the backbuffer size,
-            // because doing that makes it impossible to go back to windowed mode (might be a bug in Monogame?).
+            // In earlier version: when going to fullscreen, it is important not to change the backbuffer size,
+            // because doing that makes it impossible to go back to windowed mode.
+            // In current version: there is no bug with going back to windowed mode.
+            // Still, with this logic there is no need to store windowed backbuffer size, 
+            // so going back to windowed keeps old state without having to preserve it manually.
             if (!this.Graphics.IsFullScreen)
             {
                 // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
                 this.Window.ClientSizeChanged -= this.OnWindowResize;
 
-                if (this.Window.ClientBounds.Width != this.ScaledWindowSize.X)
+                if (this.Window.ClientBounds.Width != this.PreviousClientBounds.X)
                 {
                     this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
+                    // Preserve aspect ratio
                     this.Graphics.PreferredBackBufferHeight = (int) (this.Window.ClientBounds.Width / BASE_ASPECT_RATIO);
                 }
-                else if (this.Window.ClientBounds.Height != this.ScaledWindowSize.Y)
+                else if (this.Window.ClientBounds.Height != this.PreviousClientBounds.Y)
                 {
-                    this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
                     this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
+                    // Preserve aspect ratio
+                    this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
                 }
 
                 this.Graphics.ApplyChanges();
@@ -845,17 +856,18 @@ namespace Hex
             }
             // Note: OnWindowResize gets raised twice when going to fullscreen, but not when going back
             this.RecalculateClientSize();
+            this.WindowState.Resize();
         }
 
         protected void RecalculateClientSize()
         {
+            this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             this.VirtualSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) BASE_WINDOW_WIDTH,
                 this.Graphics.PreferredBackBufferHeight / (float) BASE_WINDOW_HEIGHT);
             this.ClientSizeTranslation = new Vector2(
                 this.Graphics.PreferredBackBufferWidth / (float) this.Window.ClientBounds.Width,
                 this.Graphics.PreferredBackBufferHeight / (float) this.Window.ClientBounds.Height);
-            this.ScaledWindowSize = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             this.ScaledMapPanelSize = BASE_MAP_PANEL_SIZE / this.ClientSizeTranslation * this.VirtualSizeTranslation;
             this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
             this.RecalculateMapSize();

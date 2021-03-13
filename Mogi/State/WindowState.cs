@@ -10,20 +10,26 @@ namespace Mogi.State
 
         public WindowState(GameWindow window, GraphicsDeviceManager graphics, Vector2 virtualResolution)
         {
-            this.Window = window;
-            this.Graphics = graphics;
+            this.BackBufferGetter = () => new Vector2(graphics.PreferredBackBufferWidth, graphics.PreferredBackBufferHeight);
+            this.ClientWindowGetter = () => window.ClientBounds.Size.ToVector2();
+
             this.VirtualResolution = virtualResolution;
-            this.CurrentResolution = window.ClientBounds.Size.ToVector2();
         }
 
         #endregion
 
         #region Data Members
 
-        protected GameWindow Window { get; }
-        protected GraphicsDeviceManager Graphics { get; }
         protected Vector2 VirtualResolution { get; set; }
-        protected Vector2 CurrentResolution { get; set; }
+
+        protected Func<Vector2> BackBufferGetter { get; set; }
+        public Vector2 BackBuffer => this.BackBufferGetter();
+
+        protected Func<Vector2> ClientWindowGetter { get; set; }
+        public Vector2 ClientWindow => this.ClientWindowGetter();
+
+        protected Vector2 BackBufferRelativeToVirtualResolution { get; set; }
+        protected Vector2 BackBufferRelativeToWindowResolution { get; set; }
 
         // possibly expose a mutable collection of 'regions' which can be used as subwindows for other classes (CameraHelper)
 
@@ -35,6 +41,8 @@ namespace Mogi.State
 
         public void Resize()
         {
+            this.BackBufferRelativeToVirtualResolution = this.BackBuffer / this.VirtualResolution;
+            this.BackBufferRelativeToWindowResolution = this.BackBuffer / this.ClientWindow;
 
             this.OnResize?.Invoke(this);
         }
