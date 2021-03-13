@@ -42,7 +42,7 @@ namespace Hex
         private const float GOLDEN_RATIO = 1.618f;
 
         private static readonly Vector2 BASE_WINDOW_SIZE = new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
-        private static readonly Rectangle BASE_WINDOW_RECTANGLE = new Rectangle(Point.Zero, BASE_WINDOW_SIZE.ToPoint());
+        private static readonly Rectangle BASE_WINDOW_RECTANGLE = BASE_WINDOW_SIZE.ToRectangle();
         private static readonly Vector2 BASE_MAP_PANEL_SIZE = new Vector2(BASE_MAP_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT);
         private const int BASE_MAP_PADDING = 30;
 
@@ -109,8 +109,6 @@ namespace Hex
         protected Vector2 ClientSizeTranslation { get; set; }
         protected Vector2 VirtualSizeTranslation { get; set; }
         protected Vector2 PreviousClientBounds { get; set; }
-        protected Vector2 ScaledMapSize { get; set; }
-        protected Vector2 ScaledMapPanelSize { get; set; }
         protected Rectangle ScaledMapRectangle { get; set; }
         protected Rectangle ScaledMapPanelRectangle { get; set; }
 
@@ -144,8 +142,8 @@ namespace Hex
         protected Vector2[] GridSizes { get; set; }
 
         protected Vector2 MapSize =>
-            Vector2.Max(BASE_MAP_PANEL_SIZE,
-                (this.GridSizes[this.Orientation] + new Vector2(BASE_MAP_PADDING)).IfOddAddOne());
+            Vector2.Max(BASE_MAP_PANEL_SIZE, (this.GridSizes[this.Orientation] + new Vector2(BASE_MAP_PADDING)))
+                .IfOddAddOne();
 
         protected Vector2 HexSize => this.HexagonsArePointy ? this.HexagonPointySize : this.HexagonFlattySize;
         protected (double X, double Y) HexSizeAdjusted => this.HexagonsArePointy ? this.HexagonPointySizeAdjusted : this.HexagonFlattySizeAdjusted;
@@ -232,7 +230,7 @@ namespace Hex
             var n = 14;
             var m = 30;
             var axials = new List<(int Q, int R)>();
-            if (true)
+            if (false)
             {
                 for (var q = -n; q <= n; q++)
                 {
@@ -323,10 +321,6 @@ namespace Hex
                 })
                 .ToArray();
 
-            this.RecalculateClientSize();
-            this.RecenterGrid();
-            this.Camera.Center();
-
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
             this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
@@ -335,8 +329,9 @@ namespace Hex
             this.Orientation.Advance();
             this.Orientation.Advance();
             this.ResizeWindowFromKeyboard(this.Graphics.PreferredBackBufferWidth);
-            // var newBackBufferWidth = this.Graphics.PreferredBackBufferWidth.AddWithUpperLimit(BASE_WINDOW_WIDTH_INCREMENT, upperLimit: BASE_WINDOW_WIDTH_MAX);
-            // this.ResizeWindowFromKeyboard(newBackBufferWidth);
+
+            this.RecenterGrid();
+            this.Camera.Center();
 
             // var exitConfirmationPanelSize = new Vector2(256, 144);
             var exitConfirmationPanelSize = new Vector2(400, 100);
@@ -386,7 +381,6 @@ namespace Hex
 
             if (this.Input.KeyPressed(Keys.C))
             {
-                this.RecalculateMapSize();
                 this.RecenterGrid();
                 this.Camera.Center();
             }
@@ -527,7 +521,8 @@ namespace Hex
                     this.SpriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, depth: 0.55f);
             }
 
-            this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapRectangle, Color.DarkSlateGray, depth: 0.1f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.MapSize.ToRectangle(), Color.DarkSlateGray, depth: 0.15f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, this.WindowState.Translate(this.MapSize).ToRectangle(), Color.DarkSlateGray, depth: 0.15f);
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.Orange, depth: 0.15f);
             this.SpriteBatch.End();
 
@@ -579,8 +574,6 @@ namespace Hex
                 // + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
                 //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-                //     + Environment.NewLine + "SM:" + this.ScaledMapSize.Print()
-                // + Environment.NewLine + "SMP:" + this.ScaledMapPanelSize.Print()
                 //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
                 //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
                 //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
@@ -716,7 +709,6 @@ namespace Hex
                 this.Orientation.Advance();
             else
                 this.Orientation.Reverse();
-            this.RecalculateMapSize();
             this.RecenterGrid();
 
             // todo fix the CameraHelper.CenterOn method
@@ -858,21 +850,8 @@ namespace Hex
                 this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             }
             this.WindowState.Resize();
-            this.RecalculateClientSize();
+            this.ScaledMapPanelRectangle = this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle();
             // Note: ClientSizeChanged gets raised twice when going to fullscreen, but not when going back
-        }
-
-        protected void RecalculateClientSize()
-        {
-            this.ScaledMapPanelSize = this.WindowState.Translate(BASE_MAP_PANEL_SIZE);
-            this.ScaledMapPanelRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapPanelSize.ToPoint());
-            this.RecalculateMapSize();
-        }
-
-        protected void RecalculateMapSize()
-        {
-            this.ScaledMapSize = this.WindowState.Translate(this.MapSize);
-            this.ScaledMapRectangle = new Rectangle(Vector2.Zero.ToPoint(), this.ScaledMapSize.ToPoint());
         }
 
         #endregion
