@@ -14,6 +14,7 @@ namespace Mogi.State
             this.ClientWindowGetter = () => window.ClientBounds.Size.ToVector2();
 
             this.VirtualResolution = virtualResolution;
+            // window.ClientSizeChanged += (_, _) => this.Resize();
         }
 
         #endregion

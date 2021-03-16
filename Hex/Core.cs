@@ -820,6 +820,7 @@ namespace Hex
             this.Graphics.PreferredBackBufferWidth = newBackBufferWidth;
             this.Graphics.ApplyChanges();
             this.OnWindowResize(this, default);
+            // this.WindowState.Resize();
             this.Window.Position = new Point(
                 (this.GraphicsDevice.Adapter.CurrentDisplayMode.Width / 2) - (this.Graphics.PreferredBackBufferWidth / 2),
                 (this.GraphicsDevice.Adapter.CurrentDisplayMode.Height / 2) - (this.Graphics.PreferredBackBufferHeight / 2));
@@ -839,6 +840,7 @@ namespace Hex
 
                 // Set backbuffer to match client size
                 // Note: right now width is prioritized over height, should check largest diff and apply that one
+                // can use: var primary = x ? this.Window.ClientBounds.Width:Height < problem is need setter/getter
                 if (this.Window.ClientBounds.Width != this.PreviousClientBounds.X)
                 {
                     this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
@@ -854,8 +856,17 @@ namespace Hex
 
                 this.Graphics.ApplyChanges();
                 this.Window.ClientSizeChanged += this.OnWindowResize;
-                this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+                this.PreviousClientBounds = this.Window.ClientBounds.Size.ToVector2();
             }
+            // TODO: figure out way to make this.WindowState.Resize automatic
+            // cannot subscribe it to Window.OnWindowResize because order of subscriber invocations is unreliable,
+            // especially given in this method this class unsubscribes and resubscribes, making its invocation last.
+            // Likely want a custom event that windowstate subscribes to (see Mogi inversion)
+            // but it is not really elegant because ideally the OnResize event gets the already resized windowstate
+            // so that other dependencies can use it, and it would be ugly to have two events?
+            // It is also not nice to pass the GraphicsDeviceManager and GameWindow in the custom event
+            // Potentially the OnResize could be used also for the WindowState, meaning it gets a reference to itself
+            // It is a bit hackish - it also relies again on event invocation order: it should be first to get called
             this.WindowState.Resize();
             // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
         }
