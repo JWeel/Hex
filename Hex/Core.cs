@@ -109,8 +109,6 @@ namespace Hex
         protected Vector2 ClientSizeTranslation { get; set; }
         protected Vector2 VirtualSizeTranslation { get; set; }
         protected Vector2 PreviousClientBounds { get; set; }
-        protected Rectangle ScaledMapRectangle { get; set; }
-        protected Rectangle ScaledMapPanelRectangle { get; set; }
 
         /// <summary> Mouse position relative to window. </summary>
         protected Vector2 BaseMouseVector { get; set; }
@@ -212,7 +210,7 @@ namespace Hex
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
 
-            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, () => this.ScaledMapPanelRectangle);
+            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, this.Input, this.WindowState);
 
             this.HexOuterPointyTop = this.Content.Load<Texture2D>("xop");
             this.HexInnerPointyTop = this.Content.Load<Texture2D>("xip");
@@ -430,7 +428,7 @@ namespace Hex
                 this.ResolutionTranslatedMouseVector = this.WindowState.Translate(this.BaseMouseVector);// * this.ClientSizeTranslation / this.VirtualSizeTranslation;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ResolutionTranslatedMouseVector);
 
-                if (this.ScaledMapPanelRectangle.Contains(this.BaseMouseVector))
+                if (BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector))
                 {
                     var cubeAtMouse = this.ToCubeCoordinates(this.CameraTranslatedMouseVector);
                     this.LastCursorHexagon = this.CursorHexagon;
@@ -579,6 +577,15 @@ namespace Hex
                 //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
                 //     + Environment.NewLine + "MS:" + this.MapSize.Print()
                 //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
+                    // + Environment.NewLine + "RECT1:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.BaseMouseVector)
+                    // + Environment.NewLine + "RECT2:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
+                    // + Environment.NewLine + "RECT3:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
+                    + Environment.NewLine + "RECT4:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT5:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT6:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT7:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                    // + Environment.NewLine + "RECT8:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                    // + Environment.NewLine + "RECT9:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
                 // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
                 // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
                 // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
@@ -850,8 +857,7 @@ namespace Hex
                 this.PreviousClientBounds = new Vector2(this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
             }
             this.WindowState.Resize();
-            this.ScaledMapPanelRectangle = this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle();
-            // Note: ClientSizeChanged gets raised twice when going to fullscreen, but not when going back
+            // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
         }
 
         #endregion

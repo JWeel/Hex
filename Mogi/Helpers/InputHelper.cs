@@ -12,11 +12,6 @@ namespace Mogi.Helpers
     {
         #region Constructors
 
-        // public InputHelper(Action<Action<GameTime>> subscribeToUpdate)
-        // {
-        //     subscribeToUpdate(this.Update);
-        // }
-        
         /// <summary> Initializes a new instance. </summary>
         public InputHelper()
         {

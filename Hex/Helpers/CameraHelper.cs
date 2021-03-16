@@ -1,12 +1,15 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
+using Mogi.Extensions;
 using Mogi.Helpers;
+using Mogi.Inversion;
+using Mogi.State;
 using System;
 
 namespace Hex.Helpers
 {
-    public class CameraHelper
+    public class CameraHelper : IUpdate
     {
         #region Constants
 
@@ -20,11 +23,12 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, Func<Rectangle> panelGetter)
+        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input, WindowState window)
         {
             this.MapSizeGetter = mapSizeGetter;
             this.ViewportSizeGetter = viewportSizeGetter;
-            this.PanelGetter = panelGetter;
+            this.Input = input;
+            this.Window = window;
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
             this.Rotation = 0.0f;
@@ -36,7 +40,8 @@ namespace Hex.Helpers
 
         protected Func<Vector2> MapSizeGetter { get; }
         protected Func<Vector2> ViewportSizeGetter { get; }
-        protected Func<Rectangle> PanelGetter { get; }
+        protected InputHelper Input { get; }
+        protected WindowState Window { get; }
 
         protected bool IsMoving { get; set; }
         protected Vector2 LastMovePosition { get; set; }
@@ -61,6 +66,11 @@ namespace Hex.Helpers
 
         public Vector2 FromScreen(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
+
+        public void Update(GameTime gameTime)
+        {
+            this.HandleInput(this.Input);
+        }
 
         public void HandleInput(InputHelper input)
         {
@@ -94,20 +104,20 @@ namespace Hex.Helpers
 
         protected void HandleMouse(InputHelper input)
         {
-            var mousePosition = input.CurrentMouseVector;
+            var mousePosition = this.Input.CurrentMouseVector;
             if (this.IsMoving && this.ZoomScaleFactor >= 1f)
             {
                 this.Move(-(mousePosition - this.LastMovePosition), clamp: true);
                 this.LastMovePosition = mousePosition;
-                this.IsMoving = !input.MouseReleased(MouseButton.Right);
+                this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
             }
-            if (this.PanelGetter().Contains(input.CurrentMousePoint))
+            if (this.ViewportSizeGetter().ToRectangle().Contains(this.Window.Translate(this.Input.CurrentMouseVector)))
             {
-                if (input.MouseScrolled())
+                if (this.Input.MouseScrolled())
                 {
-                    var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (input.MouseScrolledUp() ? 2 : -2);
+                    var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (this.Input.MouseScrolledUp() ? 2 : -2);
                     // TODO add zoomOrigin to zoom
-                    if (input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                         this.Zoom(zoomAmount, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
                     else
                         this.Zoom(zoomAmount);
@@ -115,7 +125,7 @@ namespace Hex.Helpers
                     if (this.ZoomScaleFactor < 1f)
                         this.Center();
                 }
-                if (!this.IsMoving && input.MousePressed(MouseButton.Right))
+                if (!this.IsMoving && this.Input.MousePressed(MouseButton.Right))
                 {
                     this.IsMoving = true;
                     this.LastMovePosition = mousePosition;

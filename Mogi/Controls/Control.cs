@@ -74,6 +74,7 @@ namespace Mogi.Controls
         public virtual void Update(GameTime gameTime)
         {
             this.ContainedMouse = this.ContainsMouse;
+            // TBD how to get client resolution translated mouse location
             this.ContainsMouse = this.Destination.Contains(Mouse.GetState().Position);
 
             if (!this.ContainedMouse && this.ContainsMouse)

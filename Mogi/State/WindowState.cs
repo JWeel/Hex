@@ -50,7 +50,7 @@ namespace Mogi.State
         public Vector2 Translate(Vector2 value) =>
             value / this.BackBufferRelativeToVirtualResolution * this.BackBufferRelativeToWindowResolution;
 
-        public Vector2 Translate2(Vector2 value) =>
+        public Vector2 Inverse(Vector2 value) =>
             value * this.BackBufferRelativeToVirtualResolution / this.BackBufferRelativeToWindowResolution;
 
         #endregion
