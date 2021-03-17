@@ -8,8 +8,8 @@ namespace Mogi.Extensions
         public static Rectangle ToRectangle(this Vector2 value) =>
             new Rectangle(Point.Zero, value.ToPoint());
 
-        /// <summary> Gets a new vector with the X and Y values of this vector swapped. </summary>
+        /// <summary> Creates a new vector that contains the X and Y values of this vector swapped. </summary>
         public static Vector2 Swap(this Vector2 value) =>
-            new Vector2(value.Y, value.X); 
+            new Vector2(value.Y, value.X);
     }
 }

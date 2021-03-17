@@ -833,7 +833,7 @@ namespace Hex
             // In current version: there is no bug with going back to windowed mode.
             // Still, with this logic there is no need to store windowed backbuffer size, 
             // so going back to windowed keeps old state without having to preserve it manually.
-            if (!this.Graphics.IsFullScreen)
+            if (true||!this.Graphics.IsFullScreen)
             {
                 // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
                 this.Window.ClientSizeChanged -= this.OnWindowResize;
