@@ -1,7 +1,9 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Mogi.Enums;
 using Mogi.Extensions;
+using Mogi.Helpers;
 using System;
 
 namespace Mogi.Controls
@@ -66,6 +68,20 @@ namespace Mogi.Controls
 
         protected bool PressedMouse { get; set; }
         protected bool PressingMouse { get; set; }
+        
+        private Func<bool> _mouseLeftClickGetter;
+        protected Func<bool> MouseLeftClickedGetter
+        {
+            get
+            {
+                if (_mouseLeftClickGetter == null)
+                {
+                    _mouseLeftClickGetter = () => Mouse.GetState().LeftButton.IsPressed();
+                }
+                return _mouseLeftClickGetter;
+            }
+            set => _mouseLeftClickGetter = value;
+        }
 
         #endregion
 
@@ -82,7 +98,7 @@ namespace Mogi.Controls
             base.Update(gameTime);
 
             this.PressedMouse = this.PressingMouse;
-            this.PressingMouse = (this.ContainsMouse && Mouse.GetState().LeftButton.IsPressed());
+            this.PressingMouse = (this.ContainsMouse && this.MouseLeftClickedGetter());
 
             if (this.PressedMouse && !this.PressingMouse && this.ContainsMouse)
                 this.OnClick?.Invoke(this);
@@ -96,6 +112,12 @@ namespace Mogi.Controls
                 base.Draw(spriteBatch, this.ColorWhenHovering);
             else
                 base.Draw(spriteBatch);
+        }
+
+        public override void UseInput(InputHelper input)
+        {
+            base.UseInput(input);
+            _mouseLeftClickGetter = () => input.MousePressed(MouseButton.Left);
         }
 
         #endregion

@@ -99,6 +99,9 @@ namespace Mogi.Framework
             // After unsetting it, the viewport returns to client size. The target can then be drawn as a texture,
             // and everything that was drawn on it will be drawn to the client and automatically scale to client size.
             this.RenderTarget = new RenderTarget2D(this.Graphics.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
+
+            if (this.CurrentResolution == this.MonitorResolution)
+                this.CenterWindow();
         }
 
         /// <summary> Used to toggle between fullscreen mode and windowed mode. </summary>

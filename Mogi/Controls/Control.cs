@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Extensions;
+using Mogi.Helpers;
 using System;
 
 namespace Mogi.Controls
@@ -61,6 +62,20 @@ namespace Mogi.Controls
 
         protected bool ContainedMouse { get; set; }
         protected bool ContainsMouse { get; set; }
+        
+        private Func<Vector2> _mousePositionGetter;
+        protected Func<Vector2> MousePositionGetter
+        {
+            get
+            {
+                if (_mousePositionGetter == null)
+                {
+                    _mousePositionGetter = () => Mouse.GetState().ToVector2();
+                }
+                return _mousePositionGetter;
+            }
+            set => _mousePositionGetter = value;
+        }
 
         #endregion
 
@@ -74,8 +89,7 @@ namespace Mogi.Controls
         public virtual void Update(GameTime gameTime)
         {
             this.ContainedMouse = this.ContainsMouse;
-            // TBD how to get client resolution translated mouse location
-            this.ContainsMouse = this.Destination.Contains(Mouse.GetState().Position);
+            this.ContainsMouse = this.Destination.Contains(this.MousePositionGetter());
 
             if (!this.ContainedMouse && this.ContainsMouse)
                 this.OnMouseEnter?.Invoke(this);
@@ -103,6 +117,11 @@ namespace Mogi.Controls
             }
 
             spriteBatch.DrawTo(this.Texture, this.Destination, color);
+        }
+
+        public virtual void UseInput(InputHelper input)
+        {
+            _mousePositionGetter = () => input.CurrentVirtualMouseVector;
         }
 
         #endregion

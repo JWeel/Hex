@@ -157,10 +157,16 @@ namespace Hex
 
         protected override void Initialize()
         {
+            // Client is initalized before base so that anything in LoadContent can safely rely on initialized client
             this.Client.Initialize();
 
-            // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
-            base.Initialize();
+            // base.Initialize does the following: 
+            // - call ApplyChanges on the GraphicsDevicemanager
+            // - call Initialize on all attached GameComponents
+            // - call LoadContent
+            // This project does not use GameComponents, and ClientWindow already called ApplyChanges.
+            // Therefore LoadContent can be called here directly.
+            this.LoadContent();
         }
 
         protected override void LoadContent()
@@ -316,11 +322,13 @@ namespace Hex
             var noYesButtonSize = new Vector2(40);
             var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
             var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
+            noButton.UseInput(this.Input);
             noButton.OnClick += button => this.ExitConfirmation.Toggle();
             this.ExitConfirmation.Append(noButton);
 
             var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
             var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
+            yesButton.UseInput(this.Input);
             yesButton.OnClick += button => this.Exit();
             this.ExitConfirmation.Append(yesButton);
         }

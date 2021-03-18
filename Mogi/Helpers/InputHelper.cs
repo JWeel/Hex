@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
+using Mogi.Framework;
 using Mogi.Inversion;
 using System.Linq;
 
@@ -13,13 +14,16 @@ namespace Mogi.Helpers
         #region Constructors
 
         /// <summary> Initializes a new instance. </summary>
-        public InputHelper()
+        public InputHelper(ClientWindow client)
         {
+            this.Client = client;
         }
 
         #endregion
 
         #region Properties
+
+        protected ClientWindow Client { get; }
 
         protected KeyboardState CurrentKeyboard { get; set; }
         protected KeyboardState PreviousKeyboard { get; set; }
@@ -99,7 +103,7 @@ namespace Mogi.Helpers
 
         /// <summary> Determines whether the mouse position was changed. </summary>
         public bool MouseMoved() =>
-            (this.PreviousMouse.Position != this.CurrentMouse.Position);
+            (this.PreviousMousePoint != this.CurrentMousePoint);
 
         /// <summary> Retrieves the current mouse position. </summary>
         public Point CurrentMousePoint => this.CurrentMouse.Position;
@@ -112,6 +116,12 @@ namespace Mogi.Helpers
 
         /// <summary> Retrieves the previous mouse position as a vector. </summary>
         public Vector2 PreviousMouseVector => this.PreviousMousePoint.ToVector2();
+
+        /// <summary> Retrieves the previous mouse position relative to virtual resolution as a vector. </summary>
+        public Vector2 PreviousVirtualMouseVector => this.Client.Translate(this.PreviousMouseVector);
+
+        /// <summary> Retrieves the current mouse position relative to virtual resolution as a vector. </summary>
+        public Vector2 CurrentVirtualMouseVector => this.Client.Translate(this.CurrentMouseVector);
 
         #endregion
 
