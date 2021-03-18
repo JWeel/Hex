@@ -9,13 +9,12 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Mogi;
 using Mogi.Controls;
 using Mogi.Enums;
 using Mogi.Extensions;
+using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
-using Mogi.State;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,6 +41,7 @@ namespace Hex
         private const float GOLDEN_RATIO = 1.618f;
 
         private static readonly Vector2 BASE_WINDOW_SIZE = new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
+        private static readonly Vector2 BASE_WINDOW_INCREMENT = BASE_WINDOW_SIZE / 8; // used for keyboard-based scaling
         private static readonly Rectangle BASE_WINDOW_RECTANGLE = BASE_WINDOW_SIZE.ToRectangle();
         private static readonly Vector2 BASE_MAP_PANEL_SIZE = new Vector2(BASE_MAP_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT);
         private const int BASE_MAP_PADDING = 30;
@@ -64,7 +64,7 @@ namespace Hex
 
         public Core()
         {
-            this.Graphics = new GraphicsDeviceManager(this);
+            this.Client = new ClientWindow(this.Window, new GraphicsDeviceManager(this), BASE_WINDOW_SIZE);
         }
 
         #endregion
@@ -73,7 +73,7 @@ namespace Hex
 
         public event Action<GameTime> OnUpdate;
         public event Action<SpriteBatch> OnDraw;
-        public event Action<WindowState> OnResize;
+        public event Action<ClientWindow> OnResize;
 
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdateCritical;
@@ -81,8 +81,7 @@ namespace Hex
         protected event Action<SpriteBatch> OnDrawMap;
         protected event Action<SpriteBatch> OnDrawPanel;
 
-        protected GraphicsDeviceManager Graphics { get; set; }
-        protected WindowState WindowState { get; set; }
+        protected ClientWindow Client { get; }
         protected SpriteBatch SpriteBatch { get; set; }
 
         protected FramerateHelper Framerate { get; set; }
@@ -158,33 +157,7 @@ namespace Hex
 
         protected override void Initialize()
         {
-            // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
-            this.Window.AllowUserResizing = true;
-            this.Window.ClientSizeChanged += this.OnWindowResize;
-
-            // HardwareModeSwitch: if this is set to true, fullscreen automatically scales the regular screen.
-            // However, toggling is a lot slower. Also, resizing a non-fullscreen window does not rescale.
-            // When set to false, fullscreen is not auto-scaled. By adding a render target it will still auto-scale.
-            // This render target can then also be used for non-fullscreen scaling using ClientSizeChanged event.
-            // Note that if the backbuffer size is changed in that event handler (like to preserve aspect ratio)
-            // then it is important NOT to do that when switching to fullscreen (which also calls the event),
-            // because doing so makes it impossible to go back to windowed mode. [See also OnWindowResize]
-            this.Graphics.HardwareModeSwitch = false;
-            this.Graphics.IsFullScreen = false;
-            this.Graphics.PreferredBackBufferWidth = BASE_WINDOW_WIDTH;
-            this.Graphics.PreferredBackBufferHeight = BASE_WINDOW_HEIGHT;
-            this.Graphics.ApplyChanges();
-
-            // This is the render target that is respectively set and unset before and after drawing. [See BeginDraw|EndDraw]
-            // Setting a render target changes the GraphicsDevice.Viewport size to match render target size.
-            // After unsetting it, the viewport returns to client size. The target can then be drawn as a texture,
-            // and everything that was drawn on it will be drawn to the client and be automatically scale to client size.
-            this.WindowScalingRenderTarget = new RenderTarget2D(this.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
-
-            // A container of properties related to the client window: it should be updated whenever the client size changes.
-            // It can provide, among other things, the necessary data to calculate resolution-indepedent mouse position.
-            // It serves as an alternative to passing around the entire Game instance, to support separation of concerns.
-            this.WindowState = new WindowState(this.Window, this.Graphics, BASE_WINDOW_SIZE);
+            this.Client.Initialize();
 
             // base.Initialize finalizes the GraphicsDevice (and then calls LoadContent)
             base.Initialize();
@@ -201,16 +174,14 @@ namespace Hex
             this.Font = this.Content.Load<SpriteFont>("Alphabet/alphabet");
 
             var dependency = DependencyHelper.Create(this);
-            dependency.Register(this.WindowState);
+            dependency.Register(this.Client);
             dependency.Register(this.SpriteBatch);
-            // dependency.Register(this.Content);
-            // dependency.Register(this.Graphics);
             dependency.Register(this.BlankTexture);
             dependency.Register(this.Font);
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
 
-            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, this.Input, this.WindowState);
+            this.Camera = new CameraHelper(() => this.MapSize, () => BASE_MAP_PANEL_SIZE, this.Input, this.Client);
 
             this.HexOuterPointyTop = this.Content.Load<Texture2D>("xop");
             this.HexInnerPointyTop = this.Content.Load<Texture2D>("xip");
@@ -322,11 +293,9 @@ namespace Hex
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
             this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
-            this.ExitTexture = this.Content.Load<Texture2D>("exit");
             this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Orientation.Advance();
             this.Orientation.Advance();
-            this.ResizeWindowFromKeyboard(this.Graphics.PreferredBackBufferWidth);
 
             this.RecenterGrid();
             this.Camera.Center();
@@ -338,7 +307,6 @@ namespace Hex
             this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
             this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
-            // this.ExitConfirmation.Append(new Basic(new Rectangle(BASE_WINDOW_WIDTH / 2 - 40, BASE_WINDOW_HEIGHT / 2 - 40, 80, 40), this.ExitTexture));
             var exitConfirmationText = "Are you sure you want to quit?";
             var exitConformationTextScale = 2f;
             var exitCOnformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
@@ -359,7 +327,6 @@ namespace Hex
         Texture2D PanelTexture;
         Texture2D YesTexture;
         Texture2D NoTexture;
-        Texture2D ExitTexture;
         Panel ExitConfirmation;
 
         protected override void Update(GameTime gameTime)
@@ -375,7 +342,7 @@ namespace Hex
             this.IsMouseVisible = true;
 
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
-                this.Graphics.ToggleFullScreen();
+                this.Client.ToggleFullscreen();
 
             if (this.Input.KeyPressed(Keys.C))
             {
@@ -383,20 +350,17 @@ namespace Hex
                 this.Camera.Center();
             }
 
-            if (!this.Graphics.IsFullScreen)
+            if (!this.Client.IsFullscreen)
             {
                 if (this.Input.KeyPressed(Keys.R))
-                    this.ResizeWindowFromKeyboard(newBackBufferWidth: BASE_WINDOW_WIDTH);
+                {
+                    this.Client.Resize(BASE_WINDOW_SIZE);
+                    this.Client.CenterWindow();
+                }
                 if (this.Input.KeyPressed(Keys.OemPlus))
-                {
-                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth + BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width);
-                    this.ResizeWindowFromKeyboard(newBackBufferWidth);
-                }
+                    this.Client.Resize(this.Client.CurrentResolution + BASE_WINDOW_INCREMENT);
                 if (this.Input.KeyPressed(Keys.OemMinus))
-                {
-                    var newBackBufferWidth = Math.Clamp(this.Graphics.PreferredBackBufferWidth - BASE_WINDOW_WIDTH_INCREMENT, BASE_WINDOW_WIDTH_MIN, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width);
-                    this.ResizeWindowFromKeyboard(newBackBufferWidth);
-                }
+                    this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
             }
 
             // if (this.Input.KeyPressed(Keys.Left))
@@ -425,7 +389,7 @@ namespace Hex
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentMouseVector;
-                this.ResolutionTranslatedMouseVector = this.WindowState.Translate(this.BaseMouseVector);// * this.ClientSizeTranslation / this.VirtualSizeTranslation;
+                this.ResolutionTranslatedMouseVector = this.Client.Translate(this.BaseMouseVector);// * this.ClientSizeTranslation / this.VirtualSizeTranslation;
                 this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ResolutionTranslatedMouseVector);
 
                 if (BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector))
@@ -571,29 +535,31 @@ namespace Hex
                 + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
                 // + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
                 + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
-                //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-                //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
-                //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
-                //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
-                //     + Environment.NewLine + "MS:" + this.MapSize.Print()
-                //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
+                    //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
+                    //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
+                    //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
+                    //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
+                    //     + Environment.NewLine + "MS:" + this.MapSize.Print()
+                    //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
                     // + Environment.NewLine + "RECT1:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.BaseMouseVector)
                     // + Environment.NewLine + "RECT2:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
                     // + Environment.NewLine + "RECT3:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
                     + Environment.NewLine + "RECT4:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT5:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT6:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT7:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
-                    // + Environment.NewLine + "RECT8:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
-                    // + Environment.NewLine + "RECT9:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                // + Environment.NewLine + "RECT5:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                // + Environment.NewLine + "RECT6:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                // + Environment.NewLine + "RECT7:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                // + Environment.NewLine + "RECT8:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                // + Environment.NewLine + "RECT9:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
                 // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
                 // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
                 // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
-                + Environment.NewLine + "Buffer:" + (this.Graphics.PreferredBackBufferWidth, this.Graphics.PreferredBackBufferHeight)
-                + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
+                + Environment.NewLine + "Current:" + this.Client.CurrentResolution.Print()
+                // + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
                 + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
                 // + Environment.NewLine + "Orientation: " + this.Orientation.Value
                 // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
+                + Environment.NewLine + "Fullscreen: " + this.Client.IsFullscreen
+                // + Environment.NewLine + "F11: " + this.Input.KeyDown(Keys.F11)
                 //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
                 // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
                 + Environment.NewLine + this.CalculatedDebug;
@@ -646,7 +612,7 @@ namespace Hex
 
         protected override bool BeginDraw()
         {
-            this.GraphicsDevice.SetRenderTarget(this.WindowScalingRenderTarget);
+            this.GraphicsDevice.SetRenderTarget(this.Client.RenderTarget);
             return base.BeginDraw();
         }
 
@@ -654,7 +620,7 @@ namespace Hex
         {
             this.GraphicsDevice.SetRenderTarget(null);
             this.SpriteBatch.Begin();
-            this.SpriteBatch.Draw(this.WindowScalingRenderTarget, this.GraphicsDevice.Viewport.Bounds, Color.White);
+            this.SpriteBatch.Draw(this.Client.RenderTarget, this.GraphicsDevice.Viewport.Bounds, Color.White);
             this.SpriteBatch.End();
             base.EndDraw();
         }
@@ -813,62 +779,6 @@ namespace Hex
 
         protected void RecalculateDebug()
         {
-        }
-
-        protected void ResizeWindowFromKeyboard(int newBackBufferWidth)
-        {
-            this.Graphics.PreferredBackBufferWidth = newBackBufferWidth;
-            this.Graphics.ApplyChanges();
-            this.OnWindowResize(this, default);
-            // this.WindowState.Resize();
-            this.Window.Position = new Point(
-                (this.GraphicsDevice.Adapter.CurrentDisplayMode.Width / 2) - (this.Graphics.PreferredBackBufferWidth / 2),
-                (this.GraphicsDevice.Adapter.CurrentDisplayMode.Height / 2) - (this.Graphics.PreferredBackBufferHeight / 2));
-        }
-
-        protected void OnWindowResize(object sender, EventArgs e)
-        {
-            // In earlier version: when going to fullscreen, it is important not to change the backbuffer size,
-            // because doing that makes it impossible to go back to windowed mode.
-            // In current version: there is no bug with going back to windowed mode.
-            // Still, with this logic there is no need to store windowed backbuffer size, 
-            // so going back to windowed keeps old state without having to preserve it manually.
-            if (true||!this.Graphics.IsFullScreen)
-            {
-                // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
-                this.Window.ClientSizeChanged -= this.OnWindowResize;
-
-                // Set backbuffer to match client size
-                // Note: right now width is prioritized over height, should check largest diff and apply that one
-                // can use: var primary = x ? this.Window.ClientBounds.Width:Height < problem is need setter/getter
-                if (this.Window.ClientBounds.Width != this.PreviousClientBounds.X)
-                {
-                    this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
-                    // Preserve aspect ratio
-                    this.Graphics.PreferredBackBufferHeight = (int) (this.Window.ClientBounds.Width / BASE_ASPECT_RATIO);
-                }
-                else if (this.Window.ClientBounds.Height != this.PreviousClientBounds.Y)
-                {
-                    this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
-                    // Preserve aspect ratio
-                    this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * BASE_ASPECT_RATIO);
-                }
-
-                this.Graphics.ApplyChanges();
-                this.Window.ClientSizeChanged += this.OnWindowResize;
-                this.PreviousClientBounds = this.Window.ClientBounds.Size.ToVector2();
-            }
-            // TODO: figure out way to make this.WindowState.Resize automatic
-            // cannot subscribe it to Window.OnWindowResize because order of subscriber invocations is unreliable,
-            // especially given in this method this class unsubscribes and resubscribes, making its invocation last.
-            // Likely want a custom event that windowstate subscribes to (see Mogi inversion)
-            // but it is not really elegant because ideally the OnResize event gets the already resized windowstate
-            // so that other dependencies can use it, and it would be ugly to have two events?
-            // It is also not nice to pass the GraphicsDeviceManager and GameWindow in the custom event
-            // Potentially the OnResize could be used also for the WindowState, meaning it gets a reference to itself
-            // It is a bit hackish - it also relies again on event invocation order: it should be first to get called
-            this.WindowState.Resize();
-            // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
         }
 
         #endregion

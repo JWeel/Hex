@@ -5,7 +5,7 @@ using System;
 
 namespace Mogi.Framework
 {
-    /// <summary> Merges functionality of <see cref="GameWindow"/> and <see cref="GraphicsDeviceManager"/> into a central point of access to help react to changes in window size. </summary>
+    /// <summary> Mixes the functionality of <see cref="GameWindow"/> and <see cref="GraphicsDeviceManager"/> with management of virtual resolution, providing a single point of access for methods and data related to window-scaled graphics. </summary>
     public class ClientWindow
     {
         #region Constructors
@@ -40,7 +40,7 @@ namespace Mogi.Framework
         /// <summary> Raised when the size of the window changes for any reason (including toggling fullscreen mode). </summary>
         public event Action OnResize;
 
-        /// <summary> A render target that is meant to be set and unset on the GraphicsDevice before and after drawing, respectively. It scales all graphics from virtual resolution to client size. </summary>
+        /// <summary> A render target that is meant to be set and unset on the GraphicsDevice before and after drawing, respectively. This will cause all graphics to be scaled from virtual resolution to client size. </summary>
         public RenderTarget2D RenderTarget { get; protected set; }
 
         /// <summary> The fixed base resolution that is scaled to fit the client window. </summary>
@@ -49,15 +49,27 @@ namespace Mogi.Framework
         /// <summary> The current resolution in which graphics are rendered. It will match the client window size in windowed mode. </summary>
         public Vector2 CurrentResolution { get; protected set; }
 
-        protected Vector2 PreviousResolution { get; set; }
+        /// <summary> Indicates whether fullscreen mode is on. </summary>
+        public bool IsFullscreen
+        {
+            get => this.Graphics.IsFullScreen;
+            set => this.Graphics.IsFullScreen = value;
+        }
 
         protected GameWindow Window { get; }
         protected GraphicsDeviceManager Graphics { get; }
         protected Vector2 MinimumResolution { get; }
+        protected bool WasPreviouslyFullScreen { get; set; }
+        protected Vector2 LastWindowedResolution { get; set; }
 
+        /// <summary> The aspect ratio of the virtual resolution (width / height). </summary>
         protected float VirtualAspectRatio => this.VirtualResolution.X / this.VirtualResolution.Y;
 
-        protected Vector2 ScreenResolution => this.Graphics.GraphicsDevice.Adapter.CurrentDisplayMode.ToSizeVector();
+        /// <summary> A vector that contains the screen resolution. </summary>
+        protected Vector2 MonitorResolution => this.Graphics.GraphicsDevice.Adapter.CurrentDisplayMode.ToSizeVector();
+
+        /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinate. </summary>
+        protected Vector2 RelativeResolution { get; set; }
 
         #endregion
 
@@ -68,19 +80,19 @@ namespace Mogi.Framework
         {
             // The purpose of this class is to react to user resizing.
             this.Window.AllowUserResizing = true;
-            this.Window.ClientSizeChanged += this.OnWindowResize;
 
             // HardwareModeSwitch: if this is set to true, fullscreen automatically scales the regular backbuffer.
             // However, toggling is a lot slower. Also, resizing a non-fullscreen window does not rescale.
             // When set to false, fullscreen is not auto-scaled. By adding a render target it will still auto-scale.
             // This render target can then also be used for non-fullscreen scaling using ClientSizeChanged event.
             this.Graphics.HardwareModeSwitch = false;
-            this.Graphics.IsFullScreen = false;
-            this.Graphics.PreferredBackBufferWidth = (int) this.VirtualResolution.X;
-            this.Graphics.PreferredBackBufferHeight = (int) this.VirtualResolution.Y;
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
-            this.Graphics.ApplyChanges();
+            // ResizeBackbuffer internally calls that method, after it sets the preferred backbuffer size.
+            this.ResizeBackbuffer(this.VirtualResolution);
+
+            // ClientSizeChanged is raised when user changes window or when fullscreen mode is toggled
+            this.Window.ClientSizeChanged += this.OnWindowResize;
 
             // This value is meant to be set and unset on the GraphicsDevice before and after drawing, respectively.
             // Setting a render target changes the GraphicsDevice.Viewport size to match render target size.
@@ -89,73 +101,104 @@ namespace Mogi.Framework
             this.RenderTarget = new RenderTarget2D(this.Graphics.GraphicsDevice, this.Window.ClientBounds.Width, this.Window.ClientBounds.Height);
         }
 
+        /// <summary> Used to toggle between fullscreen mode and windowed mode. </summary>
         public void ToggleFullscreen()
         {
             // GraphicsDeviceManager.ToggleFullScreen internally calls GraphicsDeviceManager.ApplyChanges
-            this.Graphics.ToggleFullScreen();
+            // It then triggers OnWindowResize. This calls ResizeBackbuffer, which calls ApplyChanges again.
+            // To avoid the double call, OnWindowResize is called here directly.
+            this.IsFullscreen = !this.IsFullscreen;
+            this.OnWindowResize(default, default);
+
+            // IDEA: Maybe instead of Monogame fullscreen toggle do it using this.Resize(this.MonitorResolution)
+            // That should stop the double triggered OnWindowResize, but may have some side effects
         }
 
-        /// <summary> Manually resizes the window to match a given width, then triggers resize events. </summary>
-        /// <param name="width"> The desired width of the window. </param>
-        /// <param name="recenterWindow"> Indicates whether or not the client window, after resizing, should be repositioned so that it sits in the center of the client screen. </param>
-        /// <remarks> Height will be automatically changed to preserve the aspect ratio of the virtual resolution. 
-        /// <br/> This method automatically clamps the resolution: the minimum is defined in the constructor, the maximum is the larger of client screen resolution and virtual resolution.
-        /// <br/> This method triggers resize events before potentially recentering the client window. Any event handlers that are subscribed to <see cref="OnResize"/> should not rely on window position.
-        /// <br/> This method should not be called when in fullscreen mode and will return immediately if it is. </remarks>
-        public void Resize(int width, bool recenterWindow)
+        /// <summary> Manually resizes the window to match a given resolution, then triggers resize events. In fullscreen mode, this method does nothing. </summary>
+        /// <remarks> The resolution will be modified to preserve aspect ratio, and is clamped if outside the following range: the minimum is defined in the constructor of this class, the maximum is the larger of client screen resolution and virtual resolution. </remarks>
+        /// <param name="resolution"> The desired window resolution. </param>
+        // Note: VirtualResolution larger than MonitorResolution is untested.
+        public void Resize(Vector2 resolution)
         {
-            if (this.Graphics.IsFullScreen)
+            if (this.IsFullscreen)
                 return;
 
-            width = Math.Max(width, (int) this.MinimumResolution.X);
-            width = Math.Min(width, (int) Math.Max(this.VirtualResolution.X, this.ScreenResolution.X));
+            var oldResolution = this.CurrentResolution;
+            var newResolution = Vector2.Clamp(resolution, min: this.MinimumResolution, max: Vector2.Max(this.VirtualResolution, this.MonitorResolution));
 
-            // Setting graphics backbuffer and calling ApplyChanges causes Window.ClientBounds to change
-            this.Graphics.PreferredBackBufferWidth = width;
-            this.Graphics.ApplyChanges();
+            // ResizeBackbuffer will be leveraged to handle preserving aspect ratio and raising ClientWindow.OnResize
+            this.ResizeBackbuffer(newResolution);
 
-            // Window.ClientBounds having changed can be leveraged to use OnWindowResize to update height
-            // This will then also raise ClientWindow.OnResize event
-            this.OnWindowResize(this, default);
-
-            if (recenterWindow)
-            {
-                this.Window.Position = (this.ScreenResolution / 2 - this.CurrentResolution / 2).ToPoint();
-            }
+            // When resolution matches screen, repositioning in the center creates a borderless fullscreen effect.
+            // This means there will be no windowbar (just like when toggling fullscreen).
+            // When resizing down from this repositioned fullscreen, the windowbar will be out of reach.
+            // So for both these scenarios the window should be repositioned. In all other cases, it is left alone.
+            if (this.CurrentResolution != this.MonitorResolution && oldResolution != this.MonitorResolution)
+                return;
+            this.CenterWindow();
         }
+
+        /// <summary> Centers the window to the middle of the screen. </summary>
+        public void CenterWindow()
+        {
+            this.Window.Position = (this.MonitorResolution / 2 - this.CurrentResolution / 2).ToPoint();
+        }
+
+        /// <summary> Translates a screen coordinate to a coordinate relative to the virtual resolution. </summary>
+        public Vector2 Translate(Vector2 value) =>
+            value / this.RelativeResolution;
 
         #endregion
 
         #region Protected Methods
 
+        // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
         protected void OnWindowResize(object sender, EventArgs e)
         {
-            // In fullscreen, backbuffer is scaled to window automatically, so there is no need to set the backbuffer.
-            // Therefore there is no need to set the backbuffer resolution.
-            // This can be leveraged to preserve the windowed resolution when going back to windowed mode.
-            // Alternatively, this class would need to keep track of WasPreviouslyFullScreen + LastWindowedResolution
-            if (!this.Graphics.IsFullScreen)
+            // GraphicsDeviceManager.ApplyChanges (called by ResizeBackBuffer) sometimes triggers this event again.
+            this.Window.ClientSizeChanged -= this.OnWindowResize;
+
+            if (!this.WasPreviouslyFullScreen && this.IsFullscreen)
+                this.LastWindowedResolution = this.CurrentResolution;
+
+            if (this.WasPreviouslyFullScreen && !this.IsFullscreen)
+                this.ResizeBackbuffer(this.LastWindowedResolution);
+            else
+                this.ResizeBackbuffer(this.Window.ClientBounds.Size.ToVector2());
+
+            this.WasPreviouslyFullScreen = this.IsFullscreen;
+
+            // It is now safe to resubscribe to the event
+            this.Window.ClientSizeChanged += this.OnWindowResize;
+        }
+
+        protected void ResizeBackbuffer(Vector2 resolution)
+        {
+            var backbufferWidthDelta = Math.Abs(this.Graphics.PreferredBackBufferWidth - resolution.X);
+            var backbufferHeightDelta = Math.Abs(this.Graphics.PreferredBackBufferHeight - resolution.Y);
+
+            // Set backbuffer to match resolution, adjusting the second coordinate to preserve aspect ratio.
+            if (backbufferWidthDelta > backbufferHeightDelta)
             {
-                // Need to unsubscribe because this event would be triggered again by GraphicsDeviceManager.ApplyChanges
-                this.Window.ClientSizeChanged -= this.OnWindowResize;
-
-                // Set backbuffer to match client size, adjusting the second coordinate to preserve aspect ratio
-                if (this.Window.ClientBounds.Width != this.CurrentResolution.X)
-                {
-                    this.Graphics.PreferredBackBufferWidth = this.Window.ClientBounds.Width;
-                    this.Graphics.PreferredBackBufferHeight = (int) (this.Window.ClientBounds.Width / this.VirtualAspectRatio);
-                }
-                else if (this.Window.ClientBounds.Height != this.CurrentResolution.Y)
-                {
-                    this.Graphics.PreferredBackBufferHeight = this.Window.ClientBounds.Height;
-                    this.Graphics.PreferredBackBufferWidth = (int) (this.Window.ClientBounds.Height * this.VirtualAspectRatio);
-                }
-
-                this.Graphics.ApplyChanges();
-                this.Window.ClientSizeChanged += this.OnWindowResize;
-                this.CurrentResolution = this.Window.ClientBounds.Size.ToVector2();
+                this.Graphics.PreferredBackBufferWidth = (int) resolution.X;
+                this.Graphics.PreferredBackBufferHeight = (int) (resolution.X / this.VirtualAspectRatio);
             }
-            // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
+            else
+            {
+                this.Graphics.PreferredBackBufferHeight = (int) resolution.Y;
+                this.Graphics.PreferredBackBufferWidth = (int) (resolution.Y * this.VirtualAspectRatio);
+            }
+
+            // Changing the Backbuffer and calling ApplyChanges will also cause the ClientBounds to be changed.
+            this.Graphics.ApplyChanges();
+
+            // Backbuffer and ClientBounds are equal now, so can construct vector from either: shortest code wins.
+            this.CurrentResolution = this.Window.ClientBounds.Size.ToVector2();
+
+            // This can be used to translate screen coordinates from actual to virtual.
+            // This could also be a calculated property.
+            this.RelativeResolution = this.CurrentResolution / this.VirtualResolution;
+
             this.OnResize?.Invoke();
         }
 

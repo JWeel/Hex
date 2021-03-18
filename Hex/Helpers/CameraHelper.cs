@@ -2,9 +2,9 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
+using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
-using Mogi.State;
 using System;
 
 namespace Hex.Helpers
@@ -23,7 +23,7 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input, WindowState window)
+        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input, ClientWindow window)
         {
             this.MapSizeGetter = mapSizeGetter;
             this.ViewportSizeGetter = viewportSizeGetter;
@@ -41,7 +41,7 @@ namespace Hex.Helpers
         protected Func<Vector2> MapSizeGetter { get; }
         protected Func<Vector2> ViewportSizeGetter { get; }
         protected InputHelper Input { get; }
-        protected WindowState Window { get; }
+        protected ClientWindow Window { get; }
 
         protected bool IsMoving { get; set; }
         protected Vector2 LastMovePosition { get; set; }

@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Mogi.State;
+using Mogi.Framework;
 using System;
 
 namespace Mogi.Inversion
@@ -10,7 +10,7 @@ namespace Mogi.Inversion
     {
         event Action<GameTime> OnUpdate;
         event Action<SpriteBatch> OnDraw;
-        event Action<WindowState> OnResize;
+        event Action<ClientWindow> OnResize;
     }
 
     /// <summary> Exposes an event that should be raised when an instance implementing this interface terminates. </summary>
@@ -40,6 +40,6 @@ namespace Mogi.Inversion
     /// <summary> Exposes a method that should react to window resizing. </summary>
     public interface IResize
     {
-        void Resize(WindowState window);
+        void Resize(ClientWindow window);
     }
 }
