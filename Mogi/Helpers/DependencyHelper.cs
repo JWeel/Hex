@@ -122,25 +122,7 @@ namespace Mogi.Helpers
             if (instance is ILoad loader)
                 loader.Load(this.DependencyMap);
 
-            if (instance is IUpdate updater)
-            {
-                this.Source.OnUpdate += updater.Update;
-                if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => this.Source.OnUpdate -= updater.Update;
-            }
-            if (instance is IDraw drawer)
-            {
-                this.Source.OnDraw += drawer.Draw;
-                if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => this.Source.OnDraw -= drawer.Draw;
-            }
-            if (instance is IResize resizer)
-            {
-                this.Source.OnResize += resizer.Resize;
-                if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => this.Source.OnResize -= resizer.Resize;
-            }
-            return instance;
+            return this.Source.Attach(instance);
         }
 
         #endregion

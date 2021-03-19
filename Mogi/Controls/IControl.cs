@@ -1,23 +1,10 @@
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using Mogi.Inversion;
 
 namespace Mogi.Controls
 {
     /// <summary> Defines a graphical user interface element. </summary>
-    public interface IControl
+    public interface IControl : IUpdate, IDraw
     {
-        #region Properties
-
         bool IsActive { get; }
-
-        #endregion 
-
-        #region Methods
-
-        void Update(GameTime gameTime);
-
-        void Draw(SpriteBatch spriteBatch);
-
-        #endregion
     }
 }

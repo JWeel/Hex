@@ -311,6 +311,7 @@ namespace Hex
             var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
             var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
             this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
+            this.ExitConfirmation.Append(new Basic(BASE_WINDOW_RECTANGLE, this.BlankTexture, new Color(100, 100, 100, 100)));
             this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
             var exitConfirmationText = "Are you sure you want to quit?";
@@ -340,6 +341,10 @@ namespace Hex
             this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, new Color(160, 140, 180));
             this.Toggle.WithInput(this.Input);
             this.Toggle.OnClick += button => this.Side.Toggle();
+
+            this.Attach(this.ExitConfirmation);
+            this.Attach(this.Side);
+            this.Attach(this.Toggle);
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
@@ -350,16 +355,18 @@ namespace Hex
 
         protected override void Update(GameTime gameTime)
         {
+            // TODO: come up with way to suspend further subscribed invocations
+            // i.e. exit confirmation is active, then dont process rest
+            // probably want multiple IUpdate and IDraw interfaces, called in order
+            // IUpdateFirst, IUpdateSecond, IUpdateThird, IDrawFirst, IDrawSecond, IDrawThird (names TBD)
+            // IUpdateCritical, IUpdateOrdinary/IUpdateStandard/IUpdate, IUpdateEventual
+            // IUpdateFirst, IUpdateMiddle, IUpdateLast
             this.OnUpdate?.Invoke(gameTime);
 
-            this.ExitConfirmation.Update(gameTime);
             if (this.Input.KeyPressed(Keys.Escape))
                 this.ExitConfirmation.Toggle();
             if (this.ExitConfirmation.IsActive)
                 return;
-
-            this.Toggle.Update(gameTime);
-            this.Side.Update(gameTime);
 
             this.IsMouseVisible = true;
 
@@ -623,13 +630,9 @@ namespace Hex
 
             this.OnDraw?.Invoke(this.SpriteBatch);
 
-            if (this.ExitConfirmation.IsActive)
-            {
-                this.SpriteBatch.DrawTo(this.BlankTexture, BASE_WINDOW_RECTANGLE, new Color(100, 100, 100, 100));
-            }
-            this.ExitConfirmation.Draw(this.SpriteBatch);
-            this.Side.Draw(this.SpriteBatch);
-            this.Toggle.Draw(this.SpriteBatch);
+            // this.ExitConfirmation.Draw(this.SpriteBatch);
+            // this.Side.Draw(this.SpriteBatch);
+            // this.Toggle.Draw(this.SpriteBatch);
 
             this.SpriteBatch.End();
         }
