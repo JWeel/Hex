@@ -119,7 +119,7 @@ namespace Mogi.Controls
             spriteBatch.DrawTo(this.Texture, this.Destination, color);
         }
 
-        public virtual void UseInput(InputHelper input)
+        public virtual void WithInput(InputHelper input)
         {
             _mousePositionGetter = () => input.CurrentVirtualMouseVector;
         }

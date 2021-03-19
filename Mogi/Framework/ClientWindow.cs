@@ -68,7 +68,7 @@ namespace Mogi.Framework
         /// <summary> A vector that contains the screen resolution. </summary>
         protected Vector2 MonitorResolution => this.Graphics.GraphicsDevice.Adapter.CurrentDisplayMode.ToSizeVector();
 
-        /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinate. </summary>
+        /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinates. </summary>
         protected Vector2 RelativeResolution { get; set; }
 
         #endregion
@@ -88,8 +88,8 @@ namespace Mogi.Framework
             this.Graphics.HardwareModeSwitch = false;
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
-            // ResizeBackbuffer internally calls that method, after it sets the preferred backbuffer size.
-            this.ResizeBackbuffer(this.VirtualResolution);
+            // ResizeBackBuffer internally calls that method, after it sets the preferred backbuffer size.
+            this.ResizeBackBuffer(this.VirtualResolution);
 
             // ClientSizeChanged is raised when user changes window or when fullscreen mode is toggled
             this.Window.ClientSizeChanged += this.OnWindowResize;
@@ -108,7 +108,7 @@ namespace Mogi.Framework
         public void ToggleFullscreen()
         {
             // GraphicsDeviceManager.ToggleFullScreen internally calls GraphicsDeviceManager.ApplyChanges
-            // It then triggers OnWindowResize. This calls ResizeBackbuffer, which calls ApplyChanges again.
+            // It then triggers OnWindowResize. This calls ResizeBackBuffer, which calls ApplyChanges again.
             // To avoid the double call, OnWindowResize is called here directly.
             this.IsFullscreen = !this.IsFullscreen;
             this.OnWindowResize(default, default);
@@ -129,8 +129,8 @@ namespace Mogi.Framework
             var oldResolution = this.CurrentResolution;
             var newResolution = Vector2.Clamp(resolution, min: this.MinimumResolution, max: Vector2.Max(this.VirtualResolution, this.MonitorResolution));
 
-            // ResizeBackbuffer will be leveraged to handle preserving aspect ratio and raising ClientWindow.OnResize
-            this.ResizeBackbuffer(newResolution);
+            // ResizeBackBuffer will be leveraged to handle preserving aspect ratio and raising ClientWindow.OnResize
+            this.ResizeBackBuffer(newResolution);
 
             // When resolution matches screen, repositioning in the center creates a borderless fullscreen effect.
             // This means there will be no windowbar (just like when toggling fullscreen).
@@ -165,9 +165,9 @@ namespace Mogi.Framework
                 this.LastWindowedResolution = this.CurrentResolution;
 
             if (this.WasPreviouslyFullScreen && !this.IsFullscreen)
-                this.ResizeBackbuffer(this.LastWindowedResolution);
+                this.ResizeBackBuffer(this.LastWindowedResolution);
             else
-                this.ResizeBackbuffer(this.Window.ClientBounds.Size.ToVector2());
+                this.ResizeBackBuffer(this.Window.ClientBounds.Size.ToVector2());
 
             this.WasPreviouslyFullScreen = this.IsFullscreen;
 
@@ -175,7 +175,7 @@ namespace Mogi.Framework
             this.Window.ClientSizeChanged += this.OnWindowResize;
         }
 
-        protected void ResizeBackbuffer(Vector2 resolution)
+        protected void ResizeBackBuffer(Vector2 resolution)
         {
             var backbufferWidthDelta = Math.Abs(this.Graphics.PreferredBackBufferWidth - resolution.X);
             var backbufferHeightDelta = Math.Abs(this.Graphics.PreferredBackBufferHeight - resolution.Y);
@@ -192,10 +192,10 @@ namespace Mogi.Framework
                 this.Graphics.PreferredBackBufferWidth = (int) (resolution.Y * this.VirtualAspectRatio);
             }
 
-            // Changing the Backbuffer and calling ApplyChanges will also cause the ClientBounds to be changed.
+            // Changing the BackBuffer and calling ApplyChanges will also cause the ClientBounds to be changed.
             this.Graphics.ApplyChanges();
 
-            // Backbuffer and ClientBounds are equal now, so can construct vector from either: shortest code wins.
+            // BackBuffer and ClientBounds are equal now, so can construct vector from either: shortest code wins.
             this.CurrentResolution = this.Window.ClientBounds.Size.ToVector2();
 
             // This can be used to translate screen coordinates from actual to virtual.

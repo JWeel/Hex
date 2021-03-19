@@ -114,9 +114,9 @@ namespace Mogi.Controls
                 base.Draw(spriteBatch);
         }
 
-        public override void UseInput(InputHelper input)
+        public override void WithInput(InputHelper input)
         {
-            base.UseInput(input);
+            base.WithInput(input);
             _mouseLeftClickGetter = () => input.MousePressed(MouseButton.Left);
         }
 

@@ -33,7 +33,7 @@ namespace Hex
         private const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
         private const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
         private const int BASE_WINDOW_HEIGHT = 720;
-        private const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
+        private const int BASE_MAP_PANEL_WIDTH = 1280;//790; // 1280 / 1.618 = 791.10 : using 790 for even number
         private const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
         private const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
         private const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
@@ -322,20 +322,31 @@ namespace Hex
             var noYesButtonSize = new Vector2(40);
             var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
             var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
-            noButton.UseInput(this.Input);
+            noButton.WithInput(this.Input);
             noButton.OnClick += button => this.ExitConfirmation.Toggle();
             this.ExitConfirmation.Append(noButton);
 
             var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
             var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
-            yesButton.UseInput(this.Input);
+            yesButton.WithInput(this.Input);
             yesButton.OnClick += button => this.Exit();
             this.ExitConfirmation.Append(yesButton);
+
+            this.Side = new Panel(new Rectangle());
+            this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.LightSlateGray));
+
+            var toggleSize = new Vector2(40);
+            var toggleLocation = new Vector2(1220, 20);
+            this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, new Color(160, 140, 180));
+            this.Toggle.WithInput(this.Input);
+            this.Toggle.OnClick += button => this.Side.Toggle();
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
         Texture2D NoTexture;
         Panel ExitConfirmation;
+        Button Toggle;
+        Panel Side;
 
         protected override void Update(GameTime gameTime)
         {
@@ -346,6 +357,9 @@ namespace Hex
                 this.ExitConfirmation.Toggle();
             if (this.ExitConfirmation.IsActive)
                 return;
+
+            this.Toggle.Update(gameTime);
+            this.Side.Update(gameTime);
 
             this.IsMouseVisible = true;
 
@@ -614,6 +628,8 @@ namespace Hex
                 this.SpriteBatch.DrawTo(this.BlankTexture, BASE_WINDOW_RECTANGLE, new Color(100, 100, 100, 100));
             }
             this.ExitConfirmation.Draw(this.SpriteBatch);
+            this.Side.Draw(this.SpriteBatch);
+            this.Toggle.Draw(this.SpriteBatch);
 
             this.SpriteBatch.End();
         }
