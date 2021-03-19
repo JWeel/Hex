@@ -50,9 +50,11 @@ namespace Mogi.Controls
 
         #region Overriden Methods
 
-        public override void Draw(SpriteBatch spriteBatch, Color color)
+        public override bool Draw(SpriteBatch spriteBatch, Color color)
         {
             spriteBatch.DrawText(this.SpriteFont, this.Text, this.Location, color, this.Scale);
+
+            return true;
         }
 
         #endregion

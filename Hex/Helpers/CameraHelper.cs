@@ -32,6 +32,7 @@ namespace Hex.Helpers
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
             this.Rotation = 0.0f;
+            this.Priority = 1;
         }
 
         #endregion
@@ -49,6 +50,7 @@ namespace Hex.Helpers
         public Vector2 Position { get; protected set; }
         public float ZoomScaleFactor { get; protected set; }
         protected float Rotation { get; set; }
+        protected int Priority { get; set; }
 
         // TODO come up with way to cache this and only recalculate when needed, e.g. use the above setters
         public Matrix TranslationMatrix =>
@@ -67,9 +69,10 @@ namespace Hex.Helpers
         public Vector2 FromScreen(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
 
-        public void Update(GameTime gameTime)
+        public bool Update(GameTime gameTime)
         {
             this.HandleInput(this.Input);
+            return true;
         }
 
         public void HandleInput(InputHelper input)
@@ -121,7 +124,7 @@ namespace Hex.Helpers
                         this.Zoom(zoomAmount, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
                     else
                         this.Zoom(zoomAmount);
-                        
+
                     if (this.ZoomScaleFactor < 1f)
                         this.Center();
                 }
@@ -212,6 +215,8 @@ namespace Hex.Helpers
         //         return this.MapClampedPosition(cameraCenteredOnTilePosition);
         //     return cameraCenteredOnTilePosition;
         // }
+
+        public int GetPriority() => this.Priority;
 
         #endregion
     }

@@ -18,6 +18,8 @@ namespace Mogi.Framework
 
         #region Properties
 
+        protected int Priority { get; set; }
+
         protected InputHelper Input { get; set; }
 
         protected Texture2D BlankTexture { get; set; }
@@ -26,13 +28,14 @@ namespace Mogi.Framework
 
         #region Events
 
-        public event Action<GameTime> OnUpdate;
-        public event Action<SpriteBatch> OnDraw;
-        public event Action<ClientWindow> OnResize;
+        public PrioritizedEvent<GameTime> OnUpdate { get; set; }
+        public PrioritizedEvent<SpriteBatch> OnDraw { get; set; }
 
         #endregion
 
         #region Methods
+
+        public int GetPriority() => this.Priority;
 
         public void Load(DependencyMap dependencyMap)
         {
@@ -41,14 +44,16 @@ namespace Mogi.Framework
             dependency.Register<FramerateHelper>();
         }
 
-        public void Update(GameTime gameTime)
+        public bool Update(GameTime gameTime)
         {
             this.OnUpdate?.Invoke(gameTime);
+            return true;
         }
 
-        public void Draw(SpriteBatch spriteBatch)
+        public bool Draw(SpriteBatch spriteBatch)
         {
             this.OnDraw?.Invoke(spriteBatch);
+            return true;
         }
 
         #endregion

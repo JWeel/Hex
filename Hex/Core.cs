@@ -71,9 +71,8 @@ namespace Hex
 
         #region Data Members
 
-        public event Action<GameTime> OnUpdate;
-        public event Action<SpriteBatch> OnDraw;
-        public event Action<ClientWindow> OnResize;
+        public PrioritizedEvent<GameTime> OnUpdate { get; set; }
+        public PrioritizedEvent<SpriteBatch> OnDraw { get; set; }
 
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdateCritical;
@@ -381,11 +380,10 @@ namespace Hex
 
             if (!this.Client.IsFullscreen)
             {
-                if (this.Input.KeyPressed(Keys.R))
-                {
-                    this.Client.Resize(BASE_WINDOW_SIZE);
+                if (this.Input.KeyPressed(Keys.D0))
                     this.Client.CenterWindow();
-                }
+                if (this.Input.KeyPressed(Keys.R))
+                    this.Client.Resize(BASE_WINDOW_SIZE);
                 if (this.Input.KeyPressed(Keys.OemPlus))
                     this.Client.Resize(this.Client.CurrentResolution + BASE_WINDOW_INCREMENT);
                 if (this.Input.KeyPressed(Keys.OemMinus))
@@ -628,7 +626,7 @@ namespace Hex
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
 
-            this.OnDraw?.Invoke(this.SpriteBatch);
+            this.OnDraw?.InvokeReverse(this.SpriteBatch);
 
             // this.ExitConfirmation.Draw(this.SpriteBatch);
             // this.Side.Draw(this.SpriteBatch);

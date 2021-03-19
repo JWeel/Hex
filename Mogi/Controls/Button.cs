@@ -68,7 +68,7 @@ namespace Mogi.Controls
 
         protected bool PressedMouse { get; set; }
         protected bool PressingMouse { get; set; }
-        
+
         private Func<bool> _mouseLeftClickGetter;
         protected Func<bool> MouseLeftClickedGetter
         {
@@ -93,25 +93,28 @@ namespace Mogi.Controls
 
         #region Overridden Methods
 
-        public override void Update(GameTime gameTime)
+        public override bool Update(GameTime gameTime)
         {
-            base.Update(gameTime);
+            if (!base.Update(gameTime))
+                return false;
 
             this.PressedMouse = this.PressingMouse;
             this.PressingMouse = (this.ContainsMouse && this.MouseLeftClickedGetter());
 
             if (this.PressedMouse && !this.PressingMouse && this.ContainsMouse)
                 this.OnClick?.Invoke(this);
+
+            return true;
         }
 
-        public override void Draw(SpriteBatch spriteBatch)
+        public override bool Draw(SpriteBatch spriteBatch)
         {
             if (this.PressingMouse)
-                base.Draw(spriteBatch, this.ColorWhenPressing);
+                return base.Draw(spriteBatch, this.ColorWhenPressing);
             else if (this.ContainsMouse)
-                base.Draw(spriteBatch, this.ColorWhenHovering);
+                return base.Draw(spriteBatch, this.ColorWhenHovering);
             else
-                base.Draw(spriteBatch);
+                return base.Draw(spriteBatch);
         }
 
         public override void WithInput(InputHelper input)

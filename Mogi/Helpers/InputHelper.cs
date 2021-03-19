@@ -127,13 +127,15 @@ namespace Mogi.Helpers
 
         #region Protected Methods
 
-        public void Update(GameTime gameTime)
+        public bool Update(GameTime gameTime)
         {
             this.PreviousKeyboard = this.CurrentKeyboard;
             this.CurrentKeyboard = Keyboard.GetState();
 
             this.PreviousMouse = this.CurrentMouse;
             this.CurrentMouse = Mouse.GetState();
+
+            return true;
         }
 
         #endregion

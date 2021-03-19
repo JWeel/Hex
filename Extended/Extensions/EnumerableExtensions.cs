@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Extended.Extensions
 {
@@ -85,6 +86,33 @@ namespace Extended.Extensions
                 foreach (var selector in selectors)
                     yield return selector(element);
         }
+
+        #endregion
+
+        #region Yield
+
+        /// <summary> Returns this <paramref name="value"/> inside an <see cref="IEnumerable{T}"/>. </summary> 
+        public static IEnumerable<T> Yield<T>(this T value) { yield return value; }
+            
+        #endregion
+        
+        #region Concat
+
+        /// <summary> Concatenates this sequence and a specified value. </summary>
+        public static IEnumerable<T> Concat<T>(this IEnumerable<T> left, T right) =>
+            left.Concat(right.Yield());
+            
+        #endregion
+
+        #region Except
+
+        /// <summary> Returns elements in the sequence that are not equal to a specified value, using default equality comparison. </summary>
+        public static IEnumerable<T> Except<T>(this IEnumerable<T> source, T except) =>
+             source.Where(x => !x.Equals(except));
+
+        /// <summary> Returns elements in the sequence that are not equal to a specified value, using specified equality comparison. </summary>
+        public static IEnumerable<T> Except<T>(this IEnumerable<T> source, T except, IEqualityComparer<T> equalityComparer) =>
+             source.Where(x => !equalityComparer.Equals(x, except));
 
         #endregion
     }

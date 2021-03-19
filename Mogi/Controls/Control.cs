@@ -60,9 +60,13 @@ namespace Mogi.Controls
         protected Texture2D Texture { get; set; }
         protected Color Color { get; set; }
 
+        /// <summary> Determines the priority of drawing this control. </summary>
+        /// <remarks> Note that out of the box this is used only when drawing standalone controls using <see cref="DependencyHelper"/>. Controls contained in a <see cref="Panel"/> are still drawn according to panel ordering. </remarks>
+        protected int Priority { get; set; }
+
         protected bool ContainedMouse { get; set; }
         protected bool ContainsMouse { get; set; }
-        
+
         private Func<Vector2> _mousePositionGetter;
         protected Func<Vector2> MousePositionGetter
         {
@@ -86,7 +90,7 @@ namespace Mogi.Controls
             this.IsActive = !this.IsActive;
 
         /// <summary> Updates the state of the control. </summary>
-        public virtual void Update(GameTime gameTime)
+        public virtual bool Update(GameTime gameTime)
         {
             this.ContainedMouse = this.ContainsMouse;
             this.ContainsMouse = this.Destination.Contains(this.MousePositionGetter());
@@ -95,17 +99,19 @@ namespace Mogi.Controls
                 this.OnMouseEnter?.Invoke(this);
             if (this.ContainedMouse && !this.ContainsMouse)
                 this.OnMouseLeave?.Invoke(this);
+
+            return true;
         }
 
         /// <summary> Draws the control using the specified spritebatch. </summary>
-        public virtual void Draw(SpriteBatch spriteBatch) =>
+        public virtual bool Draw(SpriteBatch spriteBatch) =>
             this.Draw(spriteBatch, this.Color);
 
         /// <summary> Draws the control using the specified spritebatch with a specified overlay color. </summary>
-        public virtual void Draw(SpriteBatch spriteBatch, Color color)
+        public virtual bool Draw(SpriteBatch spriteBatch, Color color)
         {
             if (color.IsTransparent())
-                return;
+                return true;
 
             if (this.Texture == default)
             {
@@ -117,12 +123,15 @@ namespace Mogi.Controls
             }
 
             spriteBatch.DrawTo(this.Texture, this.Destination, color);
+            return true;
         }
 
         public virtual void WithInput(InputHelper input)
         {
             _mousePositionGetter = () => input.CurrentVirtualMouseVector;
         }
+
+        public int GetPriority() => this.Priority;
 
         #endregion
     }

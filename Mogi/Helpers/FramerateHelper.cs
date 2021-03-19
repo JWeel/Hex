@@ -41,22 +41,24 @@ namespace Mogi.Helpers
 
         #region Methods
 
-        public void Update(GameTime gameTime)
+        public bool Update(GameTime gameTime)
         {
             this.ElapsedTime += gameTime.ElapsedGameTime;
             if (this.ElapsedTime < ONE_SECOND)
-                return;
+                return true;
 
             this.ElapsedTime -= ONE_SECOND;
             this.Framerate = this.FrameCounter;
             this.FrameCounter = 0;
+            return true;
         }
 
-        public void Draw(SpriteBatch spriteBatch)
+        public bool Draw(SpriteBatch spriteBatch)
         {
             this.FrameCounter++;
             string text = this.Framerate.ToString();
             spriteBatch.DrawText(this.Font, text, this.Position, Color.White, scale: 2f, depth: 0.9f);
+            return true;
         }
 
         #endregion
