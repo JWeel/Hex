@@ -12,6 +12,8 @@ namespace Mogi.Inversion
     {
         #region Constructors
 
+        // TODO: dont use predicate<T>, instead use action<T> and add another predicate that takes no arg
+
         /// <summary> Initializes a new instance. This should only be called by the <see cref="+"/> and <see cref="-"/> operators. </summary>
         private PrioritizedEvent(params (Predicate<T1> Delegate, Func<int> GetPriority)[] orderedDelegates)
         {
@@ -24,33 +26,38 @@ namespace Mogi.Inversion
 
         /// <summary> The comparer that determines the order in which delegates are invoked. </summary>
         private static readonly IComparer<(Predicate<T1>, Func<int>)> PRIORITY_COMPARER =
-            Comparer<(Predicate<T1> Delegate, Func<int> GetPriority)>.Create((x, y) => x.GetPriority().CompareTo(y.GetPriority()));
+            Comparer<(Predicate<T1> Delegate, Func<int> GetPriority)>.Create((x, y) =>
+            {
+                var comparison = x.GetPriority().CompareTo(y.GetPriority());
+                if (comparison != 0)
+                    return comparison;
+                return Object.ReferenceEquals(x.Delegate, y.Delegate) ? 0 : 1;
+            });
 
         /// <summary> The ordered set of delegates to invoke when the event is raised. </summary>
         protected SortedSet<(Predicate<T1> Delegate, Func<int> GetPriority)> OrderedDelegates { get; }
-        // cant use sortedset because the comparer is also the unique constraint
 
         #endregion
 
         #region Methods
 
         /// <summary> Invokes all attached delegates in order of priority. </summary>
-        /// <param name="arg"> The argument that is passed into the delegates. </param>
+        /// <param name="arg1"> The argument that is passed into the delegates. </param>
         [DebuggerStepThrough]
-        public void Invoke(T1 arg)
+        public void Invoke(T1 arg1)
         {
             this.OrderedDelegates
-                .TakeWhile(x => (x.Delegate?.Invoke(arg) ?? false))
+                .TakeWhile(x => (x.Delegate?.Invoke(arg1) ?? false))
                 .Iterate();
         }
 
         /// <summary> Invokes all attached delegates in reversed order of priority. </summary>
-        /// <param name="arg"> The argument that is passed into the delegates. </param>
-        public void InvokeReverse(T1 arg)
+        /// <param name="arg1"> The argument that is passed into the delegates. </param>
+        public void InvokeReverse(T1 arg1)
         {
             this.OrderedDelegates
                 .Reverse()
-                .TakeWhile(x => (x.Delegate?.Invoke(arg) ?? false))
+                .TakeWhile(x => (x.Delegate?.Invoke(arg1) ?? false))
                 .Iterate();
         }
 
