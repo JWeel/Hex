@@ -6,7 +6,6 @@ using Hex.Extensions;
 using Hex.Helpers;
 using Hex.Models;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Controls;
@@ -74,9 +73,6 @@ namespace Hex
         public PrioritizableEvent<GameTime> OnUpdate { get; set; }
         public PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
 
-        protected event Action<ContentManager> OnLoad;
-        protected event Action<GameTime> OnUpdateCritical;
-        protected event Action<GameTime> OnUpdateRegular;
         protected event Action<SpriteBatch> OnDrawMap;
         protected event Action<SpriteBatch> OnDrawPanel;
 
@@ -316,9 +312,9 @@ namespace Hex
 
             var exitConfirmationText = "Are you sure you want to quit?";
             var exitConformationTextScale = 2f;
-            var exitCOnformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
-            var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitCOnformationTextSize / 2) - new Vector2(0, 30);
-            this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitCOnformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
+            var exitConformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
+            var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitConformationTextSize / 2) - new Vector2(0, 30);
+            this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
 
             var noYesButtonSize = new Vector2(40);
             var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
