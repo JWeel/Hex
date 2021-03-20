@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Extensions;
 using Mogi.Helpers;
+using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
@@ -127,6 +128,10 @@ namespace Mogi.Controls
         {
             _mousePositionGetter = () => input.CurrentVirtualMouseVector;
         }
+
+        #endregion
+
+        #region IPrioritize Implementation
 
         public int GetPriority() => this.Priority;
 

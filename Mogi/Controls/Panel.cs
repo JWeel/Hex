@@ -2,13 +2,14 @@
 using Extended.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Mogi.Inversion;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a control that contains other controls. </summary>
-    public class Panel : Control<Panel>, IEnumerable<IControl>
+    public class Panel : Control<Panel>, IEnumerable<IControl>, IPrevent
     {
         #region Constructors
 
@@ -83,6 +84,16 @@ namespace Mogi.Controls
             base.Draw(spriteBatch);
             this.Controls.Each(control => control.Draw(spriteBatch));
         }
+
+        #endregion
+
+        #region IPrevent Implementation
+
+        public bool Prevent() => this.IsPreventing;
+
+        public void SetPrevent(bool value) => this.IsPreventing = value;
+
+        protected bool IsPreventing { get; set; }
 
         #endregion
 

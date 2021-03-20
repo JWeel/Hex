@@ -183,6 +183,7 @@ namespace Hex
             dependency.Register(this.SpriteBatch);
             dependency.Register(this.BlankTexture);
             dependency.Register(this.Font);
+            dependency.Register<FramerateHelper>();
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
 
@@ -323,7 +324,11 @@ namespace Hex
             var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
             var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
             noButton.WithInput(this.Input);
-            noButton.OnClick += button => this.ExitConfirmation.Toggle();
+            noButton.OnClick += button => 
+            {
+                this.ExitConfirmation.Toggle();
+                this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
+            };
             this.ExitConfirmation.Append(noButton);
 
             var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
@@ -331,6 +336,7 @@ namespace Hex
             yesButton.WithInput(this.Input);
             yesButton.OnClick += button => this.Exit();
             this.ExitConfirmation.Append(yesButton);
+            this.ExitConfirmation.SetPriority(-1);
 
             this.Side = new Panel(new Rectangle());
             this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.LightSlateGray));
@@ -354,16 +360,13 @@ namespace Hex
 
         protected override void Update(GameTime gameTime)
         {
-            // TODO: come up with way to suspend further subscribed invocations
-            // i.e. exit confirmation is active, then dont process rest
-            // probably want multiple IUpdate and IDraw interfaces, called in order
-            // IUpdateFirst, IUpdateSecond, IUpdateThird, IDrawFirst, IDrawSecond, IDrawThird (names TBD)
-            // IUpdateCritical, IUpdateOrdinary/IUpdateStandard/IUpdate, IUpdateEventual
-            // IUpdateFirst, IUpdateMiddle, IUpdateLast
             this.OnUpdate?.Invoke(gameTime);
 
             if (this.Input.KeyPressed(Keys.Escape))
+            {
                 this.ExitConfirmation.Toggle();
+                this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
+            }
             if (this.ExitConfirmation.IsActive)
                 return;
 

@@ -40,7 +40,6 @@ namespace Mogi.Framework
         {
             var dependency = DependencyHelper.Create(this, dependencyMap);
             this.Input = dependency.Register<InputHelper>();
-            dependency.Register<FramerateHelper>();
         }
 
         public void Update(GameTime gameTime)

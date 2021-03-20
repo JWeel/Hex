@@ -9,7 +9,7 @@ using System.Linq;
 namespace Mogi.Helpers
 {
     /// <summary> Provides methods to determine keyboard and mouse state. </summary>
-    public class InputHelper : IUpdate
+    public class InputHelper : IUpdate, IPrioritize
     {
         #region Constructors
 
@@ -135,6 +135,16 @@ namespace Mogi.Helpers
             this.PreviousMouse = this.CurrentMouse;
             this.CurrentMouse = Mouse.GetState();
         }
+
+        #endregion
+
+        #region IPrioritize Implementation
+
+        protected int Priority { get; set; } = -2;
+
+        public int GetPriority() => this.Priority;
+
+        public int SetPriority(int value) => this.Priority = value;
 
         #endregion
     }

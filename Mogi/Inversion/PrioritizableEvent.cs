@@ -31,7 +31,7 @@ namespace Mogi.Inversion
 
         /// <summary> Invokes all attached delegates in order of priority. </summary>
         /// <param name="arg1"> The argument that is passed into the delegates. </param>
-        [DebuggerStepThrough]
+        // [DebuggerStepThrough]
         public void Invoke(T1 arg1)
         {
             this.OrderedDelegates
@@ -42,15 +42,19 @@ namespace Mogi.Inversion
 
         /// <summary> Invokes all attached delegates in reversed order of priority. </summary>
         /// <param name="arg1"> The argument that is passed into the delegates. </param>
-        [DebuggerStepThrough]
+        // [DebuggerStepThrough]
         public void InvokeReverse(T1 arg1)
         {
             // TODO efficient reverse
             this.OrderedDelegates
-                .Reverse()
+                // .Reverse()
                 .Defer(x => x.Delegate?.Invoke(arg1))
-                .TakeWhile(x => !x.Prevent())
+                // .TakeWhile(x => !x.Prevent())
                 .Iterate();
+            // TODO - deferred is tough
+            // need to get reverse order for actual drawing but not for determining prevent
+            // TODO also it shouldnt stop the other stuff from being drawn just updated
+            // but then the wrong stuff gets put above the wrong or the highest prio dont get drawn...
         }
 
         /// <summary> Subscribes a delegate to the event with function that determines its priority. </summary>
