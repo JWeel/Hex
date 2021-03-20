@@ -69,22 +69,19 @@ namespace Mogi.Controls
 
         #region IControl Implementation
 
-        public override bool Update(GameTime gameTime)
+        public override void Update(GameTime gameTime)
         {
             if (!this.IsActive)
-                return true;
+                return;
             this.Controls.Each(control => control.Update(gameTime));
-            return true;
         }
 
-        public override bool Draw(SpriteBatch spriteBatch)
+        public override void Draw(SpriteBatch spriteBatch)
         {
             if (!this.IsActive)
-                return true;
-            if (!base.Draw(spriteBatch))
-                return false;
+                return;
+            base.Draw(spriteBatch);
             this.Controls.Each(control => control.Draw(spriteBatch));
-            return true;
         }
 
         #endregion

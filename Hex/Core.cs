@@ -71,8 +71,8 @@ namespace Hex
 
         #region Data Members
 
-        public PrioritizedEvent<GameTime> OnUpdate { get; set; }
-        public PrioritizedEvent<SpriteBatch> OnDraw { get; set; }
+        public PrioritizableEvent<GameTime> OnUpdate { get; set; }
+        public PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
 
         protected event Action<ContentManager> OnLoad;
         protected event Action<GameTime> OnUpdateCritical;

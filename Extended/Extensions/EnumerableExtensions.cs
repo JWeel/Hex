@@ -93,15 +93,15 @@ namespace Extended.Extensions
 
         /// <summary> Returns this <paramref name="value"/> inside an <see cref="IEnumerable{T}"/>. </summary> 
         public static IEnumerable<T> Yield<T>(this T value) { yield return value; }
-            
+
         #endregion
-        
+
         #region Concat
 
         /// <summary> Concatenates this sequence and a specified value. </summary>
         public static IEnumerable<T> Concat<T>(this IEnumerable<T> left, T right) =>
             left.Concat(right.Yield());
-            
+
         #endregion
 
         #region Except

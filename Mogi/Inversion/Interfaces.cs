@@ -9,10 +9,10 @@ namespace Mogi.Inversion
     public interface IRoot
     {
         /// <summary> An update event to which dependencies can subscribe. It is meant to be raised in <see cref="Game.Update(GameTime)"/>. </summary>
-        PrioritizedEvent<GameTime> OnUpdate { get; set; }
+        PrioritizableEvent<GameTime> OnUpdate { get; set; }
 
         /// <summary> A draw event to which dependencies can subscribe. It is meant to be raised in <see cref="Game.Draw(GameTime)"/>. </summary>
-        PrioritizedEvent<SpriteBatch> OnDraw { get; set; }
+        PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
 
         // /// <summary> A resize event to which dependencies can subscribe. It is meant to be raised whenever the window is resized.
         // /// <para/> Consider forwarding the client window event:
@@ -35,24 +35,29 @@ namespace Mogi.Inversion
     /// <summary> Exposes a method that should update state. </summary>
     public interface IUpdate
     {
-        bool Update(GameTime gameTime);
+        void Update(GameTime gameTime);
     }
 
     /// <summary> Exposes a method that should draw state. </summary>
     public interface IDraw
     {
-        bool Draw(SpriteBatch spriteBatch);
+        void Draw(SpriteBatch spriteBatch);
     }
 
     /// <summary> Exposes a method that should react to window resizing. </summary>
     public interface IResize
     {
-        bool Resize(ClientWindow window);
+        void Resize(ClientWindow window);
     }
 
     /// <summary> Exposes a method that determines priority of updating/drawing. </summary>
     public interface IPrioritize
     {
         int GetPriority();
+    }
+
+    public interface IPrevent
+    {
+        bool Prevent();
     }
 }

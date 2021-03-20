@@ -69,10 +69,9 @@ namespace Hex.Helpers
         public Vector2 FromScreen(Vector2 screenPosition) =>
             Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
 
-        public bool Update(GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
             this.HandleInput(this.Input);
-            return true;
         }
 
         public void HandleInput(InputHelper input)

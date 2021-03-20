@@ -90,7 +90,7 @@ namespace Mogi.Controls
             this.IsActive = !this.IsActive;
 
         /// <summary> Updates the state of the control. </summary>
-        public virtual bool Update(GameTime gameTime)
+        public virtual void Update(GameTime gameTime)
         {
             this.ContainedMouse = this.ContainsMouse;
             this.ContainsMouse = this.Destination.Contains(this.MousePositionGetter());
@@ -99,19 +99,17 @@ namespace Mogi.Controls
                 this.OnMouseEnter?.Invoke(this);
             if (this.ContainedMouse && !this.ContainsMouse)
                 this.OnMouseLeave?.Invoke(this);
-
-            return true;
         }
 
         /// <summary> Draws the control using the specified spritebatch. </summary>
-        public virtual bool Draw(SpriteBatch spriteBatch) =>
+        public virtual void Draw(SpriteBatch spriteBatch) =>
             this.Draw(spriteBatch, this.Color);
 
         /// <summary> Draws the control using the specified spritebatch with a specified overlay color. </summary>
-        public virtual bool Draw(SpriteBatch spriteBatch, Color color)
+        public virtual void Draw(SpriteBatch spriteBatch, Color color)
         {
             if (color.IsTransparent())
-                return true;
+                return;
 
             if (this.Texture == default)
             {
@@ -123,7 +121,6 @@ namespace Mogi.Controls
             }
 
             spriteBatch.DrawTo(this.Texture, this.Destination, color);
-            return true;
         }
 
         public virtual void WithInput(InputHelper input)
@@ -132,6 +129,8 @@ namespace Mogi.Controls
         }
 
         public int GetPriority() => this.Priority;
+
+        public int SetPriority(int value) => this.Priority = value;
 
         #endregion
     }

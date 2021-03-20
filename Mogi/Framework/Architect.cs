@@ -2,7 +2,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
 using Mogi.Inversion;
-using System;
 
 namespace Mogi.Framework
 {
@@ -28,8 +27,8 @@ namespace Mogi.Framework
 
         #region Events
 
-        public PrioritizedEvent<GameTime> OnUpdate { get; set; }
-        public PrioritizedEvent<SpriteBatch> OnDraw { get; set; }
+        public PrioritizableEvent<GameTime> OnUpdate { get; set; }
+        public PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
 
         #endregion
 
@@ -44,16 +43,14 @@ namespace Mogi.Framework
             dependency.Register<FramerateHelper>();
         }
 
-        public bool Update(GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
             this.OnUpdate?.Invoke(gameTime);
-            return true;
         }
 
-        public bool Draw(SpriteBatch spriteBatch)
+        public void Draw(SpriteBatch spriteBatch)
         {
             this.OnDraw?.Invoke(spriteBatch);
-            return true;
         }
 
         #endregion

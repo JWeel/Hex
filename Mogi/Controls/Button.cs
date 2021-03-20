@@ -93,28 +93,25 @@ namespace Mogi.Controls
 
         #region Overridden Methods
 
-        public override bool Update(GameTime gameTime)
+        public override void Update(GameTime gameTime)
         {
-            if (!base.Update(gameTime))
-                return false;
+            base.Update(gameTime);
 
             this.PressedMouse = this.PressingMouse;
             this.PressingMouse = (this.ContainsMouse && this.MouseLeftClickedGetter());
 
             if (this.PressedMouse && !this.PressingMouse && this.ContainsMouse)
                 this.OnClick?.Invoke(this);
-
-            return true;
         }
 
-        public override bool Draw(SpriteBatch spriteBatch)
+        public override void Draw(SpriteBatch spriteBatch)
         {
             if (this.PressingMouse)
-                return base.Draw(spriteBatch, this.ColorWhenPressing);
+                base.Draw(spriteBatch, this.ColorWhenPressing);
             else if (this.ContainsMouse)
-                return base.Draw(spriteBatch, this.ColorWhenHovering);
+                base.Draw(spriteBatch, this.ColorWhenHovering);
             else
-                return base.Draw(spriteBatch);
+                base.Draw(spriteBatch);
         }
 
         public override void WithInput(InputHelper input)

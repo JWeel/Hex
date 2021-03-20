@@ -30,10 +30,9 @@ namespace Mogi.Controls
 
         #region Overriden Methods
 
-        public override bool Draw(SpriteBatch spriteBatch, Color color)
+        public override void Draw(SpriteBatch spriteBatch, Color color)
         {
             spriteBatch.DrawNinePatchRectangle(this.Texture, this.Destination, this.Border, color);
-            return true;
         }
 
         #endregion
