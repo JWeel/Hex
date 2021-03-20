@@ -76,8 +76,8 @@ namespace Extended.Extensions
         /// <summary> Projects each element of a sequence into multiple new forms. </summary>
         /// <param name="source"> A sequence of values to invoke a transform function on. </param>
         /// <param name="selectors"> A sequence of transform functions to apply sequentially to each source element. </param>
-        /// <typeparam name="TSource"> The type of the elements of source. </typeparam>
-        /// <typeparam name="TResult"> The type of the value returned by selector. </typeparam>
+        /// <typeparam name="TSource"> The type of the elements of <paramref name="source"/>. </typeparam>
+        /// <typeparam name="TResult"> The type of the value returned by elements of <paramref name="selectors"/>. </typeparam>
         /// <returns> An <see cref="IEnumerable{TResult}"/> whose elements are the result of invoking each transform function of <paramref name="selectors"/> on each element of <paramref name="source"/>. </returns>
         public static IEnumerable<TResult> SelectMulti<TSource, TResult>(this IEnumerable<TSource> source,
             params Func<TSource, TResult>[] selectors)
@@ -87,6 +87,52 @@ namespace Extended.Extensions
                     yield return selector(element);
         }
 
+        #endregion
+
+        #region Select With Next
+
+        /// <summary> Projects each element of a sequence into a tuple with its next element. </summary>
+        /// <remarks> If the sequence contains only one element, the result will be an empty sequence. </remarks>
+        /// <param name="source"> A sequence of values. </param>
+        /// <typeparam name="T"> The type of the elements of <paramref name="source"/>. </typeparam>
+        public static IEnumerable<(T, T)> SelectWithNext<T>(this IEnumerable<T> source)
+        {
+            var enumerator = source.GetEnumerator();
+            var previous = default(T);
+            var hasPrevious = false;
+            while (enumerator.MoveNext())
+            {
+                var current = enumerator.Current;
+                if (hasPrevious)
+                {
+                    yield return (previous, current);
+                }
+                previous = current;
+                hasPrevious = true;
+            }
+        }
+
+        #endregion
+
+        #region Take While Defer
+
+        /// <summary> Returns elements from a sequence as long as a specified condition is <see langword="true"/>.
+        /// <br/> Unlike <see cref="Enumerable.TakeWhile{}"/>, the predicate is checked after the element is returned, which means the element which breaks the condition is also returned. </summary>
+        /// <param name="source"> A sequence to return elements from. </param>
+        /// <param name="predicate"> A function to test each element for a condition. </param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns> An <see cref="IEnumerable{}"/> that contains the elements from the input sequence up to and including the element at which the test no longer passes. </returns>
+        /// <remarks> This method is potentially dangerous because predicates are checked after elements are returned, which means that an element may have been returned for which the predicate would throw an exception on continued enumeration. </remarks>
+        public static IEnumerable<T> TakeWhileDefer<T>(this IEnumerable<T> source, Func<T, bool> predicate)
+        {
+            foreach (var item in source)
+            {
+                yield return item;
+                if (!predicate(item))
+                    yield break;
+            }
+        }
+            
         #endregion
 
         #region Yield

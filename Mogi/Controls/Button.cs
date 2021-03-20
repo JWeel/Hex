@@ -15,31 +15,31 @@ namespace Mogi.Controls
 
         private static readonly Color DEFAULT_COLOR_WHEN_ORDINARY = new Color(235, 235, 235);
         private static readonly Color DEFAULT_COLOR_WHEN_HOVERING = new Color(255, 255, 255);
-        private static readonly Color DEFAULT_COLOR_WHEN_PRESSING = new Color(215, 215, 215);
+        private static readonly Color DEFAULT_COLOR_WHEN_PRESSING = new Color(225, 225, 225);
 
         private const float COLOR_MULTIPLIER_BRIGHTEN = 1.2f;
-        private const float COLOR_MULTIPLIER_DARKEN = 0.8f;
+        private const float COLOR_MULTIPLIER_DARKEN = 0.9f;
 
         #endregion
 
         #region Constructors
 
         /// <summary> Initializes a new instance with a target destination and a texture. Overlay colors for different button states will use default values. </summary>
-        /// <remarks> The default overlay values are: ordinary=235; hovering=255; pressing=215. </remarks>
+        /// <remarks> The default overlay values are: ordinary=235; hovering=255; pressing=225. </remarks>
         public Button(Rectangle destination, Texture2D texture)
             : this(destination, texture, DEFAULT_COLOR_WHEN_ORDINARY, DEFAULT_COLOR_WHEN_HOVERING, DEFAULT_COLOR_WHEN_PRESSING)
         {
         }
 
         /// <summary> Initializes a new instance with a target destination and an overlay color for the 'ordinary' button state. Overlay colors for 'hovering' and 'pressing' states will be calculated automatically. </summary>
-        /// <remarks> The multipliers used for the other buttons states are: hovering=1.2; pressing=0.8. Colors cannot be brightened or darkened beyond max/min values. </remarks>
+        /// <remarks> The multipliers used for the other buttons states are: hovering=1.2; pressing=0.9. Colors cannot be brightened or darkened beyond max/min values. </remarks>
         public Button(Rectangle destination, Color baseColor)
             : this(destination, texture: default, baseColor)
         {
         }
 
         /// <summary> Initializes a new instance with a target destination, a texture, and an overlay color for the 'ordinary' button state. Overlay colors for 'hovering' and 'pressing' states will be calculated automatically. </summary>
-        /// <remarks> The multipliers used for the other buttons states are: hovering=1.2; pressing=0.8. Colors cannot be brightened or darkened beyond max/min values. </remarks>
+        /// <remarks> The multipliers used for the other buttons states are: hovering=1.2; pressing=0.9. Colors cannot be brightened or darkened beyond max/min values. </remarks>
         public Button(Rectangle destination, Texture2D texture, Color baseColor)
             : this(destination, texture, baseColor, Color.Multiply(baseColor, COLOR_MULTIPLIER_BRIGHTEN), Color.Multiply(baseColor, COLOR_MULTIPLIER_DARKEN))
         {
@@ -69,18 +69,18 @@ namespace Mogi.Controls
         protected bool PressedMouse { get; set; }
         protected bool PressingMouse { get; set; }
 
-        private Func<bool> _mouseLeftClickGetter;
-        protected Func<bool> MouseLeftClickedGetter
+        private Func<bool> _mouseLeftDownGetter;
+        protected Func<bool> MouseLeftDownGetter
         {
             get
             {
-                if (_mouseLeftClickGetter == null)
+                if (_mouseLeftDownGetter == null)
                 {
-                    _mouseLeftClickGetter = () => Mouse.GetState().LeftButton.IsPressed();
+                    _mouseLeftDownGetter = () => Mouse.GetState().LeftButton.IsPressed();
                 }
-                return _mouseLeftClickGetter;
+                return _mouseLeftDownGetter;
             }
-            set => _mouseLeftClickGetter = value;
+            set => _mouseLeftDownGetter = value;
         }
 
         #endregion
@@ -98,7 +98,7 @@ namespace Mogi.Controls
             base.Update(gameTime);
 
             this.PressedMouse = this.PressingMouse;
-            this.PressingMouse = (this.ContainsMouse && this.MouseLeftClickedGetter());
+            this.PressingMouse = (this.ContainsMouse && this.MouseLeftDownGetter());
 
             if (this.PressedMouse && !this.PressingMouse && this.ContainsMouse)
                 this.OnClick?.Invoke(this);
@@ -117,7 +117,7 @@ namespace Mogi.Controls
         public override void WithInput(InputHelper input)
         {
             base.WithInput(input);
-            _mouseLeftClickGetter = () => input.MousePressed(MouseButton.Left);
+            _mouseLeftDownGetter = () => input.MouseDown(MouseButton.Left);
         }
 
         #endregion

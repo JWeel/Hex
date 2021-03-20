@@ -481,7 +481,7 @@ namespace Hex
         protected override void Draw(GameTime gameTime)
         {
             // clears the backbuffer, giving the GPU a reliable internal state to work with
-            this.GraphicsDevice.Clear(Color.LightSlateGray);
+            this.GraphicsDevice.Clear(Color.Black);
 
             // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
@@ -629,7 +629,7 @@ namespace Hex
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
 
-            this.OnDraw?.InvokeReverse(this.SpriteBatch);
+            this.OnDraw?.InvokeForDrawing(this.SpriteBatch);
 
             // this.ExitConfirmation.Draw(this.SpriteBatch);
             // this.Side.Draw(this.SpriteBatch);
