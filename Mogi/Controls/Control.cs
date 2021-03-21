@@ -3,7 +3,6 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Extensions;
 using Mogi.Helpers;
-using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls

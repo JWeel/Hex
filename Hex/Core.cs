@@ -17,6 +17,7 @@ using Mogi.Inversion;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Hex
 {
@@ -334,9 +335,10 @@ namespace Hex
             this.ExitConfirmation.Append(yesButton);
             this.ExitConfirmation.SetPriority(-1);
 
+            this.Log = new StringBuilder();
             this.Side = new Panel(new Rectangle());
             this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.LightSlateGray));
-            this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, string.Empty);
+            this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
             this.Side.Append(this.SideLabel);
 
             var toggleSize = new Vector2(40);
@@ -356,6 +358,7 @@ namespace Hex
         Button Toggle;
         Panel Side;
         Label SideLabel;
+        StringBuilder Log;
 
         protected override void Update(GameTime gameTime)
         {
@@ -478,40 +481,15 @@ namespace Hex
 
             if (this.Side.IsActive)
             {
-                var log = /*             */ "M1:" + this.BaseMouseVector.Print()
-                    // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
-                    + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
-                    // + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
-                    + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
-                        //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
-                        //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
-                        //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
-                        //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
-                        //     + Environment.NewLine + "MS:" + this.MapSize.Print()
-                        //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
-                        // + Environment.NewLine + "RECT1:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.BaseMouseVector)
-                        // + Environment.NewLine + "RECT2:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
-                        // + Environment.NewLine + "RECT3:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
-                        + Environment.NewLine + "RECT4:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT5:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT6:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
-                    // + Environment.NewLine + "RECT7:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
-                    // + Environment.NewLine + "RECT8:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
-                    // + Environment.NewLine + "RECT9:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
-                    // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
-                    // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
-                    // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
-                    + Environment.NewLine + "Current:" + this.Client.CurrentResolution.Print()
-                    // + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
-                    + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
-                    // + Environment.NewLine + "Orientation: " + this.Orientation.Value
-                    // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
-                    + Environment.NewLine + "Fullscreen: " + this.Client.IsFullscreen
-                    // + Environment.NewLine + "F11: " + this.Input.KeyDown(Keys.F11)
-                    //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
-                    // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
-                    + Environment.NewLine + this.CalculatedDebug;
-                this.SideLabel.SetText(log);
+                this.Log.Clear();
+                this.Log.AppendLine($"M1: {this.BaseMouseVector.Print()}");
+                this.Log.AppendLine($"M2: {this.ResolutionTranslatedMouseVector.PrintRounded()}");
+                this.Log.AppendLine($"M3: {this.CameraTranslatedMouseVector.PrintRounded()}");
+                this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
+                this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
+                this.Log.AppendLine($"Hexagons: {this.HexagonMap.Count}");
+                this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
+                this.Log.AppendLine(this.CalculatedDebug);
             }
         }
 
