@@ -152,14 +152,14 @@ namespace Hex
 
         protected override void Initialize()
         {
-            // Client is initalized before base so that anything in LoadContent can safely rely on initialized client
+            // Client is initalized first so that anything in LoadContent can safely depend on it
             this.Client.Initialize();
 
             // base.Initialize does the following: 
             // - call ApplyChanges on the GraphicsDevicemanager
             // - call Initialize on all attached GameComponents
             // - call LoadContent
-            // This project does not use GameComponents, and ClientWindow already called ApplyChanges.
+            // This project does not use GameComponents, and ClientWindow.Initialize already called ApplyChanges.
             // Therefore LoadContent can be called here directly.
             this.LoadContent();
         }
@@ -172,7 +172,7 @@ namespace Hex
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
 
-            this.Font = this.Content.Load<SpriteFont>("Alphabet/alphabet");
+            this.Font = this.Content.Load<SpriteFont>("Alphabet/saga");
 
             var dependency = DependencyHelper.Create(this);
             dependency.Register(this.Client);
@@ -320,7 +320,7 @@ namespace Hex
             var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
             var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
             noButton.WithInput(this.Input);
-            noButton.OnClick += button => 
+            noButton.OnClick += button =>
             {
                 this.ExitConfirmation.Toggle();
                 this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
@@ -336,6 +336,8 @@ namespace Hex
 
             this.Side = new Panel(new Rectangle());
             this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.LightSlateGray));
+            this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, string.Empty);
+            this.Side.Append(this.SideLabel);
 
             var toggleSize = new Vector2(40);
             var toggleLocation = new Vector2(1220, 20);
@@ -353,6 +355,7 @@ namespace Hex
         Panel ExitConfirmation;
         Button Toggle;
         Panel Side;
+        Label SideLabel;
 
         protected override void Update(GameTime gameTime)
         {
@@ -472,6 +475,44 @@ namespace Hex
                 this.Rotate(advance: true);
             if (this.Input.KeyPressed(Keys.X))
                 this.Rotate(advance: false);
+
+            if (this.Side.IsActive)
+            {
+                var log = /*             */ "M1:" + this.BaseMouseVector.Print()
+                    // var log = "M2:" + this.ClientSizeTranslatedMouseVector.PrintRounded()
+                    + Environment.NewLine + "M2:" + this.ResolutionTranslatedMouseVector.PrintRounded()
+                    // + Environment.NewLine + "M2b:" + this.CameraTranslatedMouseVector.PrintRounded()
+                    + Environment.NewLine + "M3:" + this.CameraTranslatedMouseVector.PrintRounded()
+                        //     + Environment.NewLine + "SW:" + this.ScaledWindowSize.Print()
+                        //     + Environment.NewLine + "GC:" + this.GridOrigin.Print()
+                        //     + Environment.NewLine + "CP:" + this.Camera.Position.Print()
+                        //     + Environment.NewLine + "CZ:" + this.Camera.ZoomScaleFactor
+                        //     + Environment.NewLine + "MS:" + this.MapSize.Print()
+                        //     + Environment.NewLine + "GS:" + this.GridSizes[this.Orientation].Print()
+                        // + Environment.NewLine + "RECT1:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.BaseMouseVector)
+                        // + Environment.NewLine + "RECT2:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
+                        // + Environment.NewLine + "RECT3:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.BaseMouseVector)
+                        + Environment.NewLine + "RECT4:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT5:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT6:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.ResolutionTranslatedMouseVector)
+                    // + Environment.NewLine + "RECT7:" + BASE_MAP_PANEL_SIZE.ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                    // + Environment.NewLine + "RECT8:" + this.WindowState.Translate(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                    // + Environment.NewLine + "RECT9:" + this.WindowState.Translate2(BASE_MAP_PANEL_SIZE).ToRectangle().Contains(this.WindowState.Translate2(this.BaseMouseVector))
+                    // + Environment.NewLine + "CT:" + this.ClientSizeTranslation.Print()
+                    // + Environment.NewLine + "AR1:" + this.VirtualSizeTranslation.Print()
+                    // + Environment.NewLine + "AR2:" + this.GraphicsDevice.Viewport.AspectRatio
+                    + Environment.NewLine + "Current:" + this.Client.CurrentResolution.Print()
+                    // + Environment.NewLine + "Viewport:" + (this.GraphicsDevice.Viewport.Width, this.GraphicsDevice.Viewport.Height)
+                    + Environment.NewLine + "Window:" + (this.Window.ClientBounds.Width, this.Window.ClientBounds.Height)
+                    // + Environment.NewLine + "Orientation: " + this.Orientation.Value
+                    // + Environment.NewLine + "Hexagons: " + this.HexagonMap.Count
+                    + Environment.NewLine + "Fullscreen: " + this.Client.IsFullscreen
+                    // + Environment.NewLine + "F11: " + this.Input.KeyDown(Keys.F11)
+                    //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
+                    // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
+                    + Environment.NewLine + this.CalculatedDebug;
+                this.SideLabel.SetText(log);
+            }
         }
 
         protected override void Draw(GameTime gameTime)
@@ -589,7 +630,7 @@ namespace Hex
                 //     + Environment.NewLine + "MP:" + this.ScaledMapPanelRectangle
                 // + Environment.NewLine + "Button:" + this.Button.Contains(this.ClientSizeTranslatedMouseVector)
                 + Environment.NewLine + this.CalculatedDebug;
-            this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT * 1.25f).Floored(), scale: 1.5f);
+            // this.SpriteBatch.DrawText(this.Font, log, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT * 1.25f).Floored(), scale: 1.5f);
 
             var cursorInfo = "Cursor:" + Environment.NewLine +
                 ((this.CursorHexagon == null) ? "-none-" :
@@ -603,8 +644,8 @@ namespace Hex
                     "Position:" + this.GetPosition(this.SourceHexagon).Print()
                 );
 
-            this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
-            this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
+            // this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
+            // this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
 
             // var rect1 = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
             // var rect2 = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);

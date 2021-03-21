@@ -14,12 +14,33 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin Alphabet/alphabet.spritefont
+#begin Alphabet/bomon.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Alphabet/alphabet.spritefont
+/build:Alphabet/bomon.spritefont
+
+#begin Alphabet/saga.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Alphabet/saga.spritefont
+
+#begin Alphabet/iso8.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Alphabet/iso8.spritefont
+
+#begin Alphabet/seraphimb1.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:Alphabet/seraphimb1.spritefont
 
 #begin Forms/btnBlueLeft.png
 /importer:TextureImporter

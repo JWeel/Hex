@@ -50,6 +50,9 @@ namespace Mogi.Controls
 
         #region Overriden Methods
 
+        public void SetText(string text) =>
+            this.Text = text;
+
         public override void Draw(SpriteBatch spriteBatch, Color color)
         {
             spriteBatch.DrawText(this.SpriteFont, this.Text, this.Location, color, this.Scale);
