@@ -305,6 +305,13 @@ namespace Hex
             // clears the backbuffer, giving the GPU a reliable internal state to work with
             this.GraphicsDevice.Clear(Color.Black);
 
+            // update/draw order:
+            // priority is kinda nice for update, gives flexibility to change dynamically
+            // it is really shit for draw. there are different passes and it does not match update order
+            // could be handled by giving draw its own prioritize interface, or relying on depth
+            // but depth is not nice for UI control management, it would need to be updated constanly, deferred is easier
+            // instead should just split draw into multiple interfaces: IDraw1, IDraw2, IDraw3, IDraw4, IDraw5
+
             // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
             // this.SpriteBatch.End();

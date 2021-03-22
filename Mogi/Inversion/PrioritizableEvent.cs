@@ -52,10 +52,11 @@ namespace Mogi.Inversion
         /// <param name="PrioritizableDelegateBase"> The wrapper containing the delegate, its priority function and its predicate. </param>
         public static PrioritizableEvent<T> operator +(PrioritizableEvent<T> instance, PrioritizableDelegate<Action<T>> prioritizableEvent)
         {
-            if (instance == null)
-                instance = new PrioritizableEvent<T>();
-            instance.OrderedDelegates.Add(prioritizableEvent);
-            return instance;
+            var result = new PrioritizableEvent<T>();
+            if (instance != null)
+                instance.OrderedDelegates.Each(x => result.OrderedDelegates.Add(x));
+            result.OrderedDelegates.Add(prioritizableEvent);
+            return result;
         }
 
         /// <summary> Unsubscribes a delegate from the event. </summary>
@@ -63,10 +64,12 @@ namespace Mogi.Inversion
         /// <param name="delegate"> The unsubscribing delegate. </param>
         public static PrioritizableEvent<T> operator -(PrioritizableEvent<T> instance, Action<T> @delegate)
         {
-            if (instance == null)
-                return new PrioritizableEvent<T>();
-            instance.OrderedDelegates.RemoveWhere(x => (x.Delegate == @delegate));
-            return instance;
+            var result = new PrioritizableEvent<T>();
+            if (instance != null)
+                instance.OrderedDelegates
+                    .Where(x => (x.Delegate != @delegate))
+                    .Each(x => result.OrderedDelegates.Add(x));
+            return result;
         }
 
         #endregion
@@ -121,10 +124,11 @@ namespace Mogi.Inversion
         /// <param name="PrioritizableDelegateBase"> The wrapper containing the delegate, its priority function and its predicate. </param>
         public static PrioritizableEvent<T1, T2> operator +(PrioritizableEvent<T1, T2> instance, PrioritizableDelegate<Action<T1, T2>> prioritizableEvent)
         {
-            if (instance == null)
-                instance = new PrioritizableEvent<T1, T2>();
-            instance.OrderedDelegates.Add(prioritizableEvent);
-            return instance;
+            var result = new PrioritizableEvent<T1, T2>();
+            if (instance != null)
+                instance.OrderedDelegates.Each(x => result.OrderedDelegates.Add(x));
+            result.OrderedDelegates.Add(prioritizableEvent);
+            return result;
         }
 
         /// <summary> Unsubscribes a delegate from the event. </summary>
@@ -132,10 +136,12 @@ namespace Mogi.Inversion
         /// <param name="delegate"> The unsubscribing delegate. </param>
         public static PrioritizableEvent<T1, T2> operator -(PrioritizableEvent<T1, T2> instance, Action<T1, T2> @delegate)
         {
-            if (instance == null)
-                return new PrioritizableEvent<T1, T2>();
-            instance.OrderedDelegates.RemoveWhere(x => (x.Delegate == @delegate));
-            return instance;
+            var result = new PrioritizableEvent<T1, T2>();
+            if (instance != null)
+                instance.OrderedDelegates
+                    .Where(x => (x.Delegate != @delegate))
+                    .Each(x => result.OrderedDelegates.Add(x));
+            return result;
         }
 
         #endregion
