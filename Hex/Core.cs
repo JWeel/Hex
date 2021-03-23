@@ -57,8 +57,8 @@ namespace Hex
 
         #region Data Members
 
-        public EventPhaseMap<GameTime> OnUpdate { get; set; }
-        public EventPhaseMap<SpriteBatch> OnDraw { get; set; }
+        public PhasedEvent<GameTime> OnUpdate { get; set; }
+        public PhasedEvent<SpriteBatch> OnDraw { get; set; }
 
         protected ClientWindow Client { get; }
         protected SpriteBatch SpriteBatch { get; set; }
@@ -131,6 +131,7 @@ namespace Hex
             //  also dependency 'load' is really 'register' -> IRegister
             //  maybe then 'load' can be similar to ctor mechanism, but separation of ctor params and dependency params
             this.Tilemap.Load(this.Content, this.BlankTexture, this.Font);
+            dependency.Register(this.Camera);
             dependency.Register(this.Tilemap);
 
             // this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
@@ -186,7 +187,7 @@ namespace Hex
             this.Toggle.WithInput(this.Input);
             this.Toggle.OnClick += button => this.Side.Toggle();
 
-            var exitWrapper = new PhaseWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
+            var exitWrapper = new PhasedWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
             this.Attach(exitWrapper);
             this.Attach(this.Side);
             this.Attach(this.Toggle);
@@ -259,7 +260,7 @@ namespace Hex
             // if (this.Input.KeyPressed(Keys.I))
             //     this.Camera.CenterOn(this.GetPosition(this.CenterHexagon));
 
-            this.Camera.HandleInput(this.Input);
+            // this.Camera.HandleInput(this.Input);
             // this.Tilemap.Update(gameTime);
             this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
 
@@ -269,7 +270,7 @@ namespace Hex
             if (this.Side.IsActive)
             {
                 this.Log.Clear();
-                this.Log.AppendLine($"M1: {this.BaseMouseVector.Print()}");
+                this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M2: {this.ResolutionTranslatedMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M3: {this.CameraTranslatedMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");

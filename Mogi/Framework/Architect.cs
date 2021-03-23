@@ -25,8 +25,8 @@ namespace Mogi.Framework
 
         #region Events
 
-        public EventPhaseMap<GameTime> OnUpdate { get; set; }
-        public EventPhaseMap<SpriteBatch> OnDraw { get; set; }
+        public PhasedEvent<GameTime> OnUpdate { get; set; }
+        public PhasedEvent<SpriteBatch> OnDraw { get; set; }
 
         #endregion
 

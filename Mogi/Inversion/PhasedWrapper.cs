@@ -5,13 +5,13 @@ using System;
 namespace Mogi.Inversion
 {
     /// <summary> Provides wrapping of arbitrary instances to support attaching to classes implementing <see cref="IRoot"/>. </summary>
-    public class PhaseWrapper<TUpdatePhase, TDrawPhase> : IUpdate<TUpdatePhase>, IDraw<TDrawPhase>
-        where TUpdatePhase : LogicalPhase
-        where TDrawPhase : LogicalPhase
+    public class PhasedWrapper<TUpdatePhase, TDrawPhase> : IUpdate<TUpdatePhase>, IDraw<TDrawPhase>
+        where TUpdatePhase : IPhase
+        where TDrawPhase : IPhase
     {
         #region Constructors
             
-        public PhaseWrapper(Action<GameTime> update, Action<SpriteBatch> draw)
+        public PhasedWrapper(Action<GameTime> update, Action<SpriteBatch> draw)
         {
             this.UpdateAction = update;
             this.DrawAction = draw;

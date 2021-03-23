@@ -9,10 +9,10 @@ namespace Mogi.Inversion
     public interface IRoot
     {
         /// <summary> An update event to which dependencies can subscribe. It is meant to be the first event raised in <see cref="Game.Update(GameTime)"/>. </summary>
-        EventPhaseMap<GameTime> OnUpdate { get; set; }
+        PhasedEvent<GameTime> OnUpdate { get; set; }
 
         /// <summary> A draw event to which dependencies can subscribe. It is meant to be the first event raised in <see cref="Game.Draw(GameTime)"/>. </summary>
-        EventPhaseMap<SpriteBatch> OnDraw { get; set; }
+        PhasedEvent<SpriteBatch> OnDraw { get; set; }
     }
 
     /// <summary> Exposes an event that should be raised when an instance implementing this interface terminates. </summary>
@@ -28,13 +28,13 @@ namespace Mogi.Inversion
     }
 
     /// <summary> Exposes a method that should update state. </summary>
-    public interface IUpdate<T> where T : LogicalPhase
+    public interface IUpdate<T> where T : IPhase
     {
         void Update(GameTime gameTime);
     }
 
     /// <summary> Exposes a method that should draw state. </summary>
-    public interface IDraw<T> where T : LogicalPhase
+    public interface IDraw<T> where T : IPhase
     {
         void Draw(SpriteBatch spriteBatch);
     }

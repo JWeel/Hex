@@ -69,14 +69,8 @@ namespace Hex.Helpers
 
         public void Update(GameTime gameTime)
         {
-            this.HandleInput(this.Input);
-        }
-
-        public void HandleInput(InputHelper input)
-        {
-            // TODO use event handler instead and add inputhelper to it
-            this.HandleMouse(input);
-            this.HandleKeys(input);
+            this.HandleMouse();
+            this.HandleKeys();
         }
 
         public void Center()
@@ -102,7 +96,7 @@ namespace Hex.Helpers
 
         #region Helper Methods
 
-        protected void HandleMouse(InputHelper input)
+        protected void HandleMouse()
         {
             var mousePosition = this.Input.CurrentMouseVector;
             if (this.IsMoving && this.ZoomScaleFactor >= 1f)
@@ -133,18 +127,18 @@ namespace Hex.Helpers
             }
         }
 
-        protected void HandleKeys(InputHelper input)
+        protected void HandleKeys()
         {
-            if (!input.KeysDownAny(Keys.Q, Keys.E, Keys.A, Keys.D, Keys.W, Keys.S))
+            if (!this.Input.KeysDownAny(Keys.Q, Keys.E, Keys.A, Keys.D, Keys.W, Keys.S))
                 return;
 
-            if (input.KeyDown(Keys.Q))
-                if (input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+            if (this.Input.KeyDown(Keys.Q))
+                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
                 else
                     this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
-            if (input.KeyDown(Keys.E))
-                if (input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+            if (this.Input.KeyDown(Keys.E))
+                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
                 else
                     this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
@@ -156,13 +150,13 @@ namespace Hex.Helpers
             }
 
             var cameraMovement = Vector2.Zero;
-            if (input.KeyDown(Keys.A))
+            if (this.Input.KeyDown(Keys.A))
                 cameraMovement.X = +1;
-            if (input.KeyDown(Keys.D))
+            if (this.Input.KeyDown(Keys.D))
                 cameraMovement.X = -1;
-            if (input.KeyDown(Keys.W))
+            if (this.Input.KeyDown(Keys.W))
                 cameraMovement.Y = +1;
-            if (input.KeyDown(Keys.S))
+            if (this.Input.KeyDown(Keys.S))
                 cameraMovement.Y = -1;
 
             // normalizing is needed when changing two directions at once
