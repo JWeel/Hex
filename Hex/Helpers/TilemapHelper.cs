@@ -313,6 +313,13 @@ namespace Hex.Helpers
             {
                 var cube = this.GetCube(hex);
                 var position = this.TilemapOrigin + this.GetPosition(hex);
+                spriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna);
+            }
+
+            foreach (var hex in this.HexagonMap.Values)
+            {
+                var cube = this.GetCube(hex);
+                var position = this.TilemapOrigin + this.GetPosition(hex);
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.LightYellow
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
@@ -323,15 +330,28 @@ namespace Hex.Helpers
                     };
 
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
-                spriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna);
-
                 spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color);
+            }
+
+            foreach (var hex in this.HexagonMap.Values)
+            {
+                var cube = this.GetCube(hex);
+                var position = this.TilemapOrigin + this.GetPosition(hex);
 
                 // TODO if mountain tiles are on top of each other it looks bad, calculate
                 if (hex.TileType == TileType.Mountain)
                     spriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna);
+            }
 
-                spriteBatch.DrawAt(this.HexOuterTexture, position, 1f,  new Color(100, 140, 70));
+            foreach (var hex in this.HexagonMap.Values)
+            {
+                var cube = this.GetCube(hex);
+                var position = this.TilemapOrigin + this.GetPosition(hex);
+                spriteBatch.DrawAt(this.HexOuterTexture, position, 1f, hex.TileType switch
+                {
+                    TileType.Mountain => new Color(130, 100, 60),
+                    _ => new Color(100, 140, 70)
+                });
             }
 
             if (this.PrintCoords)
