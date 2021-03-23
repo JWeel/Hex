@@ -18,7 +18,7 @@ using System.Linq;
 
 namespace Hex.Helpers
 {
-    public class TilemapHelper : IUpdate, IDraw, IPrioritize
+    public class TilemapHelper : IUpdate<NormalUpdate>, IDraw<BackgroundDraw>
     {
         #region Constants
 
@@ -347,11 +347,6 @@ namespace Hex.Helpers
                 }
                 // spriteBatch.End();
             }
-        }
-
-        public int GetPriority()
-        {
-            return -3;
         }
 
         // shouldnt be publically called like this

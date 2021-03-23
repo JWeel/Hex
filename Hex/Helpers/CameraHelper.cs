@@ -9,7 +9,7 @@ using System;
 
 namespace Hex.Helpers
 {
-    public class CameraHelper : IUpdate
+    public class CameraHelper : IUpdate<NormalUpdate>
     {
         #region Constants
 

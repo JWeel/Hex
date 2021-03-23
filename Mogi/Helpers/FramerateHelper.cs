@@ -7,7 +7,7 @@ using System;
 namespace Mogi.Helpers
 {
     /// <summary> Keeps track of application framerate. </summary>
-    public class FramerateHelper : IUpdate, IDraw, IPrioritize
+    public class FramerateHelper : IUpdate<CriticalUpdate>, IDraw<MenuDraw>
     {
         #region Constants
 
@@ -58,16 +58,6 @@ namespace Mogi.Helpers
             string text = this.Framerate.ToString();
             spriteBatch.DrawText(this.Font, text, this.Position, Color.White, scale: 2f, depth: 0.9f);
         }
-
-        #endregion
-
-        #region IPrioritize Implementation
-
-        protected int Priority { get; set; } = -2;
-
-        public int GetPriority() => this.Priority;
-
-        public int SetPriority(int value) => this.Priority = value;
 
         #endregion
     }

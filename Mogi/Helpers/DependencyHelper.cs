@@ -20,9 +20,9 @@ namespace Mogi.Helpers
         /// <summary> Initializes a new instance using a specified source which exposes events to which eligible dependencies will subscribe, and a map which contains shared dependencies. </summary>
         /// <param name="source"> The instance which exposes events to which eligible dependencies will subscribe. </param>
         /// <param name="map"> The shared dependency map which was populated by a parent root class. </param>
-        /// <remarks> This overload is constrainted to <see cref="ILoad"/> because it is indended to be called inside <see cref="ILoad.Load(DependencyMap)"/>. </remarks>
+        /// <remarks> This overload is constrainted to <see cref="IDepend"/> because it is indended to be called inside <see cref="IDepend.Depend(DependencyMap)"/>. </remarks>
         public static DependencyHelper<T> Create<T>(T source, DependencyMap sharedDependencyMap)
-            where T : class, IRoot, ILoad
+            where T : class, IRoot, IDepend
         {
             return new DependencyHelper<T>(source, sharedDependencyMap);
         }
@@ -75,7 +75,7 @@ namespace Mogi.Helpers
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
         /// <returns> The newly initialized instance, or an existing instance if the type was already in the map. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="ILoad"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
+        /// Eligible interfaces are: <see cref="IDepend"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
         /// </remarks>
         public TDependency Register<TDependency>()
             where TDependency : class
@@ -109,7 +109,7 @@ namespace Mogi.Helpers
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
         /// <returns> The same instance passed into this method. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="ILoad"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
+        /// Eligible interfaces are: <see cref="IDepend"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
         /// </remarks>
         public TDependency Register<TDependency>(TDependency instance)
             where TDependency : class
@@ -119,8 +119,8 @@ namespace Mogi.Helpers
 
             this.DependencyMap.Add(typeof(TDependency), instance);
 
-            if (instance is ILoad loader)
-                loader.Load(this.DependencyMap);
+            if (instance is IDepend loader)
+                loader.Depend(this.DependencyMap);
 
             return this.Source.Attach(instance);
         }

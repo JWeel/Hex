@@ -1,22 +1,14 @@
-﻿using Extended.Collections;
-using Extended.Extensions;
-using Hex.Auxiliary;
-using Hex.Enums;
-using Hex.Extensions;
+﻿using Hex.Extensions;
 using Hex.Helpers;
-using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Controls;
-using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Hex
@@ -65,8 +57,8 @@ namespace Hex
 
         #region Data Members
 
-        public PrioritizableEvent<GameTime> OnUpdate { get; set; }
-        public PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
+        public EventPhaseMap<GameTime> OnUpdate { get; set; }
+        public EventPhaseMap<SpriteBatch> OnDraw { get; set; }
 
         protected event Action<SpriteBatch> OnDrawMap;
         protected event Action<SpriteBatch> OnDrawPanel;
@@ -201,7 +193,8 @@ namespace Hex
             this.Toggle.WithInput(this.Input);
             this.Toggle.OnClick += button => this.Side.Toggle();
 
-            this.Attach(this.ExitConfirmation);
+            var exitWrapper = new PhaseWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
+            this.Attach(exitWrapper);
             this.Attach(this.Side);
             this.Attach(this.Toggle);
         }
@@ -216,7 +209,10 @@ namespace Hex
 
         protected override void Update(GameTime gameTime)
         {
-            this.OnUpdate?.Invoke(gameTime);
+            this.OnUpdate?.Invoke<CriticalUpdate>(gameTime);
+
+            // class Interrupter, simply contains a boolean that says stop processing
+            // check it after critical update, if true return
 
             if (this.Input.KeyPressed(Keys.Escape))
             {
@@ -273,6 +269,8 @@ namespace Hex
             this.Camera.HandleInput(this.Input);
             this.Tilemap.Update(gameTime);
 
+            this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
+
             if (this.Input.KeyPressed(Keys.B))
                 this.RecalculateDebug();
 
@@ -311,6 +309,12 @@ namespace Hex
             // could be handled by giving draw its own prioritize interface, or relying on depth
             // but depth is not nice for UI control management, it would need to be updated constanly, deferred is easier
             // instead should just split draw into multiple interfaces: IDraw1, IDraw2, IDraw3, IDraw4, IDraw5
+            //  IUpdate1
+            //  IUpdate2
+            //  IUpdate3
+            //  IUpdate4
+            //  IUpdate5
+
 
             // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
@@ -324,6 +328,7 @@ namespace Hex
             // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.Orange, depth: 0.15f);
 
             this.Tilemap.Draw(this.SpriteBatch);
+            this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
@@ -334,6 +339,8 @@ namespace Hex
             this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
             this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
             this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
+
+            this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
 
             this.SpriteBatch.End();
 
@@ -377,7 +384,7 @@ namespace Hex
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
 
-            this.OnDraw?.InvokeForDrawing(this.SpriteBatch);
+            this.OnDraw?.Invoke<MenuDraw>(this.SpriteBatch);
 
             this.SpriteBatch.End();
         }

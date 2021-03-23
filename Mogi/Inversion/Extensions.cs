@@ -1,4 +1,5 @@
-using Extended.Extensions;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Linq;
 
@@ -11,19 +12,24 @@ namespace Mogi.Inversion
         public static T Attach<T>(this IRoot root, T instance)
             where T : class
         {
-            Func<int> priorityFunc = instance is IPrioritize prioritizer ? prioritizer.GetPriority : () => 0;
             Func<bool> preventFunc = instance is IPrevent preventer ? preventer.Prevent : () => false;
-            if (instance is IUpdate updater)
+            var type = instance.GetType();
+
+            if (type.TryGetGenericInterface(typeof(IUpdate<>), out var updateInterface))
             {
-                root.OnUpdate += (updater.Update, priorityFunc, preventFunc);
+                var phase = updateInterface.GenericTypeArguments.First();
+                var update = updateInterface.GetMethods().First(x => (x.Name == "Update")).CreateDelegate<Action<GameTime>>(instance);
+                root.OnUpdate += (phase, update);
                 if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => root.OnUpdate -= updater.Update;
+                    terminator.OnTerminate += () => root.OnUpdate -= (phase, update);
             }
-            if (instance is IDraw drawer)
+            if (type.TryGetGenericInterface(typeof(IDraw<>), out var drawInterface))
             {
-                root.OnDraw += (drawer.Draw, priorityFunc, preventFunc);
+                var phase = drawInterface.GenericTypeArguments.First();
+                var draw = drawInterface.GetMethods().First(x => (x.Name == "Draw")).CreateDelegate<Action<SpriteBatch>>(instance);
+                root.OnDraw += (phase, draw);
                 if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => root.OnDraw -= drawer.Draw;
+                    terminator.OnTerminate += () => root.OnDraw -= (phase, draw);
             }
             // if (instance is IResize resizer)
             // {
@@ -34,36 +40,14 @@ namespace Mogi.Inversion
             return instance;
         }
 
-        #endregion
-
-        #region Prioritizable Event Extensions
-
-        /// <summary> Invokes attached delegates while checking prevention predicates in the following order: all prevented delegates are invoked first in order of priority, all delegates that were not prevented are invoked afterwards in order of priority.
-        /// <br/> This allows higher priority components to draw on top of lower priority prevented components in <see cref="Microsoft.Xna.Framework.Graphics.SpriteSortMode.Deferred"/> drawing mode. </summary>
-        /// <param name="arg"> The argument that is passed into the delegates. </param>
-        public static void InvokeForDrawing<T>(this PrioritizableEvent<T> source, T arg)
+        private static bool TryGetGenericInterface(this Type root, Type genericTypeDefinition, out Type interfaceType)
         {
-            var preventing = false;
-            source.GetInvocationList()
-                // preventer should be part of unprevented group, so need track prevention state before and after
-                // 'before' state goes to Prevented, 'after' state is set to the bool if it is not already true
-                .Select(x => (Delegate: x.Delegate, Prevented: preventing, preventing = preventing || x.Prevent()))
-                .GroupBy(x => x.Prevented)
-                .Select(group => group.Select(x => x.Delegate).ToArray())
-                .ToArray()
-                .Reverse()
-                .Each(group => group.Each(x => x?.Invoke(arg)));
-            // Note for caching this sequence:
-            // would need to listen to prevent predicate during Update or find way to loop over components (not ioc)
-            // loop by priority
-            //      if component is preventing
-            //          if was previously preventing
-            //              return/break
-            //          mark cache to be refreshed, return/break
-            //      else if was previously preventing
-            //          mark cache to be refreshed, return/break
-            // will be tricky to do this with ioc:
-            //      callback on changed Prevent() backing bool can notify, but there may be higher prio overruling it
+            interfaceType = 
+                root.GetInterfaces()
+                    .Where(interfaceType => interfaceType.IsGenericType)
+                    .Where(interfaceType => (interfaceType.GetGenericTypeDefinition() == genericTypeDefinition))
+                    .FirstOrDefault();
+            return (interfaceType != null);
         }
 
         #endregion

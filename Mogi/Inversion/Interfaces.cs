@@ -8,16 +8,11 @@ namespace Mogi.Inversion
     /// <summary> Exposes events that should be raised when an instance implementing this interface handles the corresponding tasks. </summary>
     public interface IRoot
     {
-        /// <summary> An update event to which dependencies can subscribe. It is meant to be raised in <see cref="Game.Update(GameTime)"/>. </summary>
-        PrioritizableEvent<GameTime> OnUpdate { get; set; }
+        /// <summary> An update event to which dependencies can subscribe. It is meant to be the first event raised in <see cref="Game.Update(GameTime)"/>. </summary>
+        EventPhaseMap<GameTime> OnUpdate { get; set; }
 
-        /// <summary> A draw event to which dependencies can subscribe. It is meant to be raised in <see cref="Game.Draw(GameTime)"/>. </summary>
-        PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
-
-        // /// <summary> A resize event to which dependencies can subscribe. It is meant to be raised whenever the window is resized.
-        // /// <para/> Consider forwarding the client window event:
-        // /// <br/> <c>this.ClientWindow.OnResize += () => this.OnResize?.Invoke(this.ClientWindow);</c>  </summary>
-        // PrioritizedEvent<ClientWindow> OnResize;
+        /// <summary> A draw event to which dependencies can subscribe. It is meant to be the first event raised in <see cref="Game.Draw(GameTime)"/>. </summary>
+        EventPhaseMap<SpriteBatch> OnDraw { get; set; }
     }
 
     /// <summary> Exposes an event that should be raised when an instance implementing this interface terminates. </summary>
@@ -27,19 +22,19 @@ namespace Mogi.Inversion
     }
 
     /// <summary> Exposes a method that should load dependencies. </summary>
-    public interface ILoad
+    public interface IDepend
     {
-        void Load(DependencyMap dependencyMap);
+        void Depend(DependencyMap dependencyMap);
     }
 
     /// <summary> Exposes a method that should update state. </summary>
-    public interface IUpdate
+    public interface IUpdate<T> where T : LogicalPhase
     {
         void Update(GameTime gameTime);
     }
 
     /// <summary> Exposes a method that should draw state. </summary>
-    public interface IDraw
+    public interface IDraw<T> where T : LogicalPhase
     {
         void Draw(SpriteBatch spriteBatch);
     }
@@ -48,12 +43,6 @@ namespace Mogi.Inversion
     public interface IResize
     {
         void Resize(ClientWindow window);
-    }
-
-    /// <summary> Exposes a method that determines priority of updating/drawing. </summary>
-    public interface IPrioritize
-    {
-        int GetPriority();
     }
 
     public interface IPrevent

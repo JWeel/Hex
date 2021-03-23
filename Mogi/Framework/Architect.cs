@@ -5,7 +5,7 @@ using Mogi.Inversion;
 
 namespace Mogi.Framework
 {
-    public class Architect : IRoot, ILoad, IUpdate, IDraw
+    public class Architect : IRoot, IDepend, IUpdate<NormalUpdate>, IDraw<MenuDraw>
     {
         #region Constructors
 
@@ -27,8 +27,8 @@ namespace Mogi.Framework
 
         #region Events
 
-        public PrioritizableEvent<GameTime> OnUpdate { get; set; }
-        public PrioritizableEvent<SpriteBatch> OnDraw { get; set; }
+        public EventPhaseMap<GameTime> OnUpdate { get; set; }
+        public EventPhaseMap<SpriteBatch> OnDraw { get; set; }
 
         #endregion
 
@@ -36,7 +36,7 @@ namespace Mogi.Framework
 
         public int GetPriority() => this.Priority;
 
-        public void Load(DependencyMap dependencyMap)
+        public void Depend(DependencyMap dependencyMap)
         {
             var dependency = DependencyHelper.Create(this, dependencyMap);
             this.Input = dependency.Register<InputHelper>();
@@ -44,12 +44,12 @@ namespace Mogi.Framework
 
         public void Update(GameTime gameTime)
         {
-            this.OnUpdate?.Invoke(gameTime);
+            // this.OnUpdate?.Invoke(gameTime);
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            this.OnDraw?.Invoke(spriteBatch);
+            // this.OnDraw?.Invoke(spriteBatch);
         }
 
         #endregion

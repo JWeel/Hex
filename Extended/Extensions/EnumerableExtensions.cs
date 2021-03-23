@@ -161,5 +161,12 @@ namespace Extended.Extensions
              source.Where(x => !equalityComparer.Equals(x, except));
 
         #endregion
+
+        #region Flatten
+
+        public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> source) =>
+            source.SelectMany(x => x);
+            
+        #endregion
     }
 }
