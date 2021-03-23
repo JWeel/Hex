@@ -32,7 +32,6 @@ namespace Hex.Helpers
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
             this.Rotation = 0.0f;
-            this.Priority = 1;
         }
 
         #endregion
@@ -50,7 +49,6 @@ namespace Hex.Helpers
         public Vector2 Position { get; protected set; }
         public float ZoomScaleFactor { get; protected set; }
         protected float Rotation { get; set; }
-        protected int Priority { get; set; }
 
         // TODO come up with way to cache this and only recalculate when needed, e.g. use the above setters
         public Matrix TranslationMatrix =>
@@ -214,8 +212,6 @@ namespace Hex.Helpers
         //         return this.MapClampedPosition(cameraCenteredOnTilePosition);
         //     return cameraCenteredOnTilePosition;
         // }
-
-        public int GetPriority() => this.Priority;
 
         #endregion
     }

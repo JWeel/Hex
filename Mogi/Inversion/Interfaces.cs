@@ -22,9 +22,9 @@ namespace Mogi.Inversion
     }
 
     /// <summary> Exposes a method that should load dependencies. </summary>
-    public interface IDepend
+    public interface IRegister
     {
-        void Depend(DependencyMap dependencyMap);
+        void Register(DependencyMap dependencyMap);
     }
 
     /// <summary> Exposes a method that should update state. </summary>

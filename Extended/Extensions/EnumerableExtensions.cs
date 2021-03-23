@@ -164,6 +164,7 @@ namespace Extended.Extensions
 
         #region Flatten
 
+        /// <summary> Flattens a sequence of sequences into one sequence. </summary>
         public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> source) =>
             source.SelectMany(x => x);
             

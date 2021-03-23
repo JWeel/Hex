@@ -309,6 +309,7 @@ namespace Hex.Helpers
         {
             spriteBatch.DrawTo(this.BlankTexture, this.MapSize.ToRectangle(), Color.DarkSlateGray);
 
+            // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
                 var cube = this.GetCube(hex);
@@ -316,6 +317,7 @@ namespace Hex.Helpers
                 spriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna);
             }
 
+            // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
                 var cube = this.GetCube(hex);
@@ -333,6 +335,7 @@ namespace Hex.Helpers
                 spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color);
             }
 
+            // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
                 var cube = this.GetCube(hex);
@@ -343,6 +346,7 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna);
             }
 
+            // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
                 var cube = this.GetCube(hex);
@@ -354,6 +358,7 @@ namespace Hex.Helpers
                 });
             }
 
+            // should flip back to using depth so only 1 loop needed
             if (this.PrintCoords)
             {
                 // spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);

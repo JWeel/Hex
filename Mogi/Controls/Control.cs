@@ -60,10 +60,6 @@ namespace Mogi.Controls
         protected Texture2D Texture { get; set; }
         protected Color Color { get; set; }
 
-        /// <summary> Determines the priority of drawing this control. </summary>
-        /// <remarks> Note that out of the box this is used only when drawing standalone controls using <see cref="DependencyHelper"/>. Controls contained in a <see cref="Panel"/> are still drawn according to panel ordering. </remarks>
-        protected int Priority { get; set; }
-
         protected bool ContainedMouse { get; set; }
         protected bool ContainsMouse { get; set; }
 
@@ -127,14 +123,6 @@ namespace Mogi.Controls
         {
             _mousePositionGetter = () => input.CurrentVirtualMouseVector;
         }
-
-        #endregion
-
-        #region IPrioritize Implementation
-
-        public int GetPriority() => this.Priority;
-
-        public int SetPriority(int value) => this.Priority = value;
 
         #endregion
     }

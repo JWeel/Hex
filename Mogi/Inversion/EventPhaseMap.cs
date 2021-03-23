@@ -37,8 +37,8 @@ namespace Mogi.Inversion
         public Action<T>[] GetInvocationList() =>
             this.Map.Values.Flatten().ToArray();
 
-        /// <summary> Invokes attached delegates in order of priority until the end or until one prevents further invocations. </summary>
-        /// <param name="args"> The argument that is passed into the delegates. </param>
+        /// <summary> Invokes delegates of a specified pahse. </summary>
+        /// <param name="arg"> The argument that is passed into the delegates. </param>
         public void Invoke<TPhase>(T arg) where TPhase : LogicalPhase
         {
             if (!this.Map.TryGetValue(typeof(TPhase), out var actionList))

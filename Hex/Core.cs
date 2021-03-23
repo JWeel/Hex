@@ -60,9 +60,6 @@ namespace Hex
         public EventPhaseMap<GameTime> OnUpdate { get; set; }
         public EventPhaseMap<SpriteBatch> OnDraw { get; set; }
 
-        protected event Action<SpriteBatch> OnDrawMap;
-        protected event Action<SpriteBatch> OnDrawPanel;
-
         protected ClientWindow Client { get; }
         protected SpriteBatch SpriteBatch { get; set; }
 
@@ -128,16 +125,13 @@ namespace Hex
             this.Camera = new CameraHelper(() => this.Tilemap.MapSize, () => BASE_MAP_PANEL_SIZE, this.Input, this.Client);
             this.Tilemap = new TilemapHelper(BASE_WINDOW_SIZE, BASE_MAP_PADDING, this.Input, this.Camera);
 
-            // TODO: 2 issues with dependency registering tilemap:
-            // 1: Load is ugly because it shouldnt be using dependency helper.
+            // Load is ugly because it shouldnt be using dependency helper.
             //  the 'load' part of tilemap can be done through ctor.
             //  however it means need to support non-dependency parameters for the ctor
             //  also dependency 'load' is really 'register' -> IRegister
             //  maybe then 'load' can be similar to ctor mechanism, but separation of ctor params and dependency params
-            // 2: tilemap belongs to a different Draw than the other dependencies. it needs the scaling matrix
-            //  and also the PrintCoords needs a different draw too?
             this.Tilemap.Load(this.Content, this.BlankTexture, this.Font);
-            // dependency.Register(this.Tilemap);
+            dependency.Register(this.Tilemap);
 
             // this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
             this.Tilemap.Orientation.Advance();
@@ -179,7 +173,6 @@ namespace Hex
             yesButton.WithInput(this.Input);
             yesButton.OnClick += button => this.Exit();
             this.ExitConfirmation.Append(yesButton);
-            this.ExitConfirmation.SetPriority(-1);
 
             this.Log = new StringBuilder();
             this.Side = new Panel(new Rectangle());
@@ -267,8 +260,7 @@ namespace Hex
             //     this.Camera.CenterOn(this.GetPosition(this.CenterHexagon));
 
             this.Camera.HandleInput(this.Input);
-            this.Tilemap.Update(gameTime);
-
+            // this.Tilemap.Update(gameTime);
             this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
 
             if (this.Input.KeyPressed(Keys.B))
@@ -303,33 +295,16 @@ namespace Hex
             // clears the backbuffer, giving the GPU a reliable internal state to work with
             this.GraphicsDevice.Clear(Color.Black);
 
-            // update/draw order:
-            // priority is kinda nice for update, gives flexibility to change dynamically
-            // it is really shit for draw. there are different passes and it does not match update order
-            // could be handled by giving draw its own prioritize interface, or relying on depth
-            // but depth is not nice for UI control management, it would need to be updated constanly, deferred is easier
-            // instead should just split draw into multiple interfaces: IDraw1, IDraw2, IDraw3, IDraw4, IDraw5
-            //  IUpdate1
-            //  IUpdate2
-            //  IUpdate3
-            //  IUpdate4
-            //  IUpdate5
 
-
-            // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.DarkOliveGreen, depth: 0.1f);
-            // this.SpriteBatch.End();
-
-            // this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Camera.TranslationMatrix);
+            // SpriteSortMode.FrontToBack
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Camera.TranslationMatrix);
-            this.OnDrawMap?.Invoke(this.SpriteBatch);
+            
             this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.MapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, this.WindowState.Translate(this.MapSize).ToRectangle(), Color.DarkSlateGray, depth: 0.15f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, this.ScaledMapPanelRectangle, Color.Orange, depth: 0.15f);
 
-            this.Tilemap.Draw(this.SpriteBatch);
+            // this.Tilemap.Draw(this.SpriteBatch);
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
+
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
@@ -341,51 +316,11 @@ namespace Hex
             this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
 
             this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
-
             this.SpriteBatch.End();
 
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.AnisotropicClamp);
-            this.OnDrawPanel?.Invoke(this.SpriteBatch);
-
-            // var topRectangle = new Rectangle(0, 0, BASE_WINDOW_WIDTH - 1, 1);
-            // var bottomRectangle = new Rectangle(0, BASE_WINDOW_HEIGHT - 1, BASE_WINDOW_WIDTH - 1, 1);
-            // var leftRectangle = new Rectangle(0, 0, 1, BASE_WINDOW_HEIGHT - 1);
-            // var rightRectangle = new Rectangle(BASE_WINDOW_WIDTH - 1, 0, 1, BASE_WINDOW_HEIGHT - 1);
-            // var middleRectangle = new Rectangle(BASE_WINDOW_WIDTH / 2 - 1, 0, 2, BASE_WINDOW_HEIGHT - 1);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, topRectangle, Color.Maroon, depth: 1f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, bottomRectangle, Color.Maroon, depth: 1f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, leftRectangle, Color.Maroon, depth: 1f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rightRectangle, Color.Maroon, depth: 1f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, middleRectangle, Color.Maroon, depth: 1f);
-
-            // var portraitRectangle = new Rectangle(BASE_MAP_PANEL_WIDTH + 30, 30, 64, 64);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, portraitRectangle, Color.WhiteSmoke, depth: 1f);
-
-
-            // this.SpriteBatch.DrawText(this.Font, sourceInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH * 1.25f, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
-            // this.SpriteBatch.DrawText(this.Font, cursorInfo, new Vector2(10 + BASE_MAP_PANEL_WIDTH, 10 + BASE_SIDE_PANEL_HEIGHT).Floored(), scale: 1.5f);
-
-            // var rect1 = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
-            // var rect2 = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);
-            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect1, 13, new Color(150, 200, 170, 255));
-            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect2, 13, new Color(150, 200, 170, 255));
-
-            // var marginsize = 4;
-            // var rect3 = new Rectangle(0, 0, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
-            // var rect4 = new Rectangle(0, BASE_MAP_PANEL_HEIGHT - marginsize, BASE_MAP_PANEL_WIDTH + marginsize, marginsize);
-            // var rect5 = new Rectangle(0, 0, marginsize, BASE_MAP_PANEL_HEIGHT);
-            // var rect6 = new Rectangle(BASE_MAP_PANEL_WIDTH - marginsize, 0, marginsize * 2, BASE_MAP_PANEL_HEIGHT);
-            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect3, 4, new Color(150, 200, 170, 255), depth: 0.8f);
-            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect4, 4, new Color(150, 200, 170, 255), depth: 0.8f);
-            // this.SpriteBatch.DrawNinePatchRectangle(this.PanelTexture, rect5, 2, new Color(150, 200, 170, 255), depth: 0.85f);
-            // this.SpriteBatch.DrawRoundedRectangle(this.PanelTexture, rect6, 4, new Color(150, 200, 170, 255), depth: 0.95f);
-
-            this.SpriteBatch.End();
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
-
             this.OnDraw?.Invoke<MenuDraw>(this.SpriteBatch);
-
             this.SpriteBatch.End();
         }
 

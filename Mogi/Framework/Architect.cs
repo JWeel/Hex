@@ -5,7 +5,7 @@ using Mogi.Inversion;
 
 namespace Mogi.Framework
 {
-    public class Architect : IRoot, IDepend, IUpdate<NormalUpdate>, IDraw<MenuDraw>
+    public class Architect : IRoot, IRegister, IUpdate<NormalUpdate>, IDraw<MenuDraw>
     {
         #region Constructors
 
@@ -16,8 +16,6 @@ namespace Mogi.Framework
         #endregion
 
         #region Properties
-
-        protected int Priority { get; set; }
 
         protected InputHelper Input { get; set; }
 
@@ -34,9 +32,7 @@ namespace Mogi.Framework
 
         #region Methods
 
-        public int GetPriority() => this.Priority;
-
-        public void Depend(DependencyMap dependencyMap)
+        public void Register(DependencyMap dependencyMap)
         {
             var dependency = DependencyHelper.Create(this, dependencyMap);
             this.Input = dependency.Register<InputHelper>();
