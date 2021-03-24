@@ -6,8 +6,8 @@ using System.Linq;
 namespace Mogi.Inversion
 {
     /// <summary> Represents an event where subscription and invocation are scoped to logical phases. </summary>
-    /// <remarks> This class is similar to <see langword="event"/> but does not have language level support, therefore:
-    /// <br/> - interfaces cannot expose it as field (must be property)
+    /// <remarks> This class is similar to <see langword="event"/>, but does not have language level support, therefore:
+    /// <br/> - interfaces cannot expose it as field (use property instead)
     /// <br/> - this event can be set to null by anyone, not just the owner </remarks>
     public class PhasedEvent<T>
     {
@@ -49,12 +49,12 @@ namespace Mogi.Inversion
 
         /// <summary> Subscribes a delegate to the event of the specified phase. </summary>
         /// <param name="instance"> The event map to which a delegate will be subscribed. </param>
-        /// <param name="tuple"> A wrapper containing the logical phase where the delagate applies and the delegate. </param>
+        /// <param name="tuple"> A wrapper containing the logical phase where the delegate applies and the delegate. </param>
         public static PhasedEvent<T> operator +(PhasedEvent<T> instance, (Type Type, Action<T> Action) tuple)
         {
             var (type, action) = tuple;
             if (!type.IsAssignableTo(typeof(IPhase)))
-                throw new InvalidOperationException($"Type must inherit from {nameof(IPhase)}");
+                throw new InvalidOperationException($"Type '{type.Name}' does not inherit from {nameof(IPhase)}");
             
             var result = new PhasedEvent<T>(instance);
             if (!result.Map.TryGetValue(type, out var actionList))
@@ -68,12 +68,12 @@ namespace Mogi.Inversion
 
         /// <summary> Unsubscribes a delegate from the event. </summary>
         /// <param name="instance"> The event map from which a delegate will be unsubscribed. </param>
-        /// <param name="tuple"> A wrapper containing the logical phase where the delagate applies and the delegate. </param>
+        /// <param name="tuple"> A wrapper containing the logical phase where the delegate applies and the delegate. </param>
         public static PhasedEvent<T> operator -(PhasedEvent<T> instance, (Type Type, Action<T> Action) tuple)
         {
             var (type, action) = tuple;
             if (!type.IsAssignableTo(typeof(IPhase)))
-                throw new InvalidOperationException($"Type must inherit from {nameof(IPhase)}");
+                throw new InvalidOperationException($"Type '{type.Name}' does not inherit from {nameof(IPhase)}");
 
             var result = new PhasedEvent<T>(instance);
             if (!result.Map.TryGetValue(type, out var actionList))

@@ -66,8 +66,8 @@ namespace Mogi.Helpers
         /// <summary>
         /// Creates and registers a dependency in the map if the type is not already registered.
         /// <para/>
-        /// Initialization expects one public constructor and an exception will be thrown if there are none or more than one.
-        /// If the constructor has parameters, arguments will be provided so long as their types exist in the map. If they do not, a similar exception will be thrown.
+        /// Initialization expects one public constructor. If the constructor has parameters, arguments will be provided so long as their types exist in the dependency map. 
+        /// If they do not, or if there is not exactly one public constructor, an exception will be thrown.
         /// <para/>
         /// If the dependency type inherits from specific interfaces (see remarks), the instance will, after initialization, automatically get subscribed to events on the root instance.
         /// It may also have instance methods invoked which propagate the map.
@@ -75,7 +75,7 @@ namespace Mogi.Helpers
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
         /// <returns> The newly initialized instance, or an existing instance if the type was already in the map. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
+        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="ITerminate"/> 
         /// </remarks>
         public TDependency Register<TDependency>()
             where TDependency : class
@@ -109,7 +109,7 @@ namespace Mogi.Helpers
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
         /// <returns> The same instance passed into this method. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate"/>, <see cref="IDraw"/>, <see cref="IResize"/>, <see cref="ITerminate"/> 
+        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="ITerminate"/> 
         /// </remarks>
         public TDependency Register<TDependency>(TDependency instance)
             where TDependency : class

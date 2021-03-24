@@ -302,7 +302,6 @@ namespace Hex
             
             this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.MapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
 
-            // this.Tilemap.Draw(this.SpriteBatch);
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
 
