@@ -232,6 +232,8 @@ namespace Hex.Helpers
                 })
                 .ToArray();
 
+            this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
+
             this.Center();
         }
 
@@ -291,6 +293,10 @@ namespace Hex.Helpers
             {
                 this.LastSourceHexagon = this.SourceHexagon;
                 this.SourceHexagon = (this.SourceHexagon != this.CursorHexagon) ? this.CursorHexagon : default;
+                if (this.SourceHexagon != null)
+                    this.DetermineFogOfWar();
+                else
+                    this.FogOfWarMap.Keys.Each(key => this.FogOfWarMap[key] = false);
                 this.CalculatedVisibility = false;
             }
 
@@ -338,7 +344,6 @@ namespace Hex.Helpers
                         _ => new Color(190, 230, 160)
                     };
 
-                // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color);
             }
 
@@ -349,6 +354,7 @@ namespace Hex.Helpers
                 var position = this.TilemapOrigin + this.GetPosition(hex);
 
                 // TODO if mountain tiles are on top of each other it looks bad, calculate
+                // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 if (hex.TileType == TileType.Mountain)
                     spriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna);
             }
@@ -379,6 +385,19 @@ namespace Hex.Helpers
                 }
                 // spriteBatch.End();
             }
+
+            // should flip back to using depth so only 1 loop needed
+            if (this.SourceHexagon != null)
+            {
+                foreach (var pair in this.FogOfWarMap)
+                {
+                    var (hex, visible) = pair;
+                    var position = this.TilemapOrigin + this.GetPosition(hex);
+                    if (visible)
+                        continue;
+                    spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, new Color(100, 100, 100, 128));
+                }
+            }
         }
 
         // shouldnt be publically called like this
@@ -401,9 +420,11 @@ namespace Hex.Helpers
 
         #region Helper Methods
 
+        // TODO dont always need to get cube/position by orientation -> if translated to index 0 it will be same
         protected Cube GetCube(Hexagon hexagon) =>
             hexagon.Cubes[this.Orientation];
 
+        // TODO dont always need to get cube/position by orientation -> if translated to index 0 it will be same
         protected Vector2 GetPosition(Hexagon hexagon) =>
             hexagon.Positions[this.Orientation];
 
@@ -545,6 +566,14 @@ namespace Hex.Helpers
                     stillVisible = (determineIsVisible(cubePositive) || determineIsVisible(cubeNegative));
                 });
             return stillVisible;
+        }
+
+        IDictionary<Hexagon, bool> FogOfWarMap;
+        protected void DetermineFogOfWar()
+        {
+            var viewDistance = 6;
+            this.HexagonMap.Values.Each(hex => 
+                this.FogOfWarMap[hex] = (Cube.Distance(this.GetCube(hex), this.GetCube(this.SourceHexagon)) < viewDistance));
         }
 
         #endregion

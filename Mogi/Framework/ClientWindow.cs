@@ -128,15 +128,17 @@ namespace Mogi.Framework
 
             var oldResolution = this.CurrentResolution;
             var newResolution = Vector2.Clamp(resolution, min: this.MinimumResolution, max: Vector2.Max(this.VirtualResolution, this.MonitorResolution));
+            var wasCentered = (this.Window.Position == (this.MonitorResolution / 2 - this.CurrentResolution / 2).ToPoint());
 
             // ResizeBackBuffer will be leveraged to handle preserving aspect ratio and raising ClientWindow.OnResize
             this.ResizeBackBuffer(newResolution);
 
-            // When resolution matches screen, repositioning in the center creates a borderless fullscreen effect.
+            // When resolution matches screen, repositioning in the center will create a nice borderless fullscreen effect.
             // This means there will be no windowbar (just like when toggling fullscreen).
-            // When resizing down from this repositioned fullscreen, the windowbar will be out of reach.
-            // So for both these scenarios the window should be repositioned. In all other cases, it is left alone.
-            if (this.CurrentResolution != this.MonitorResolution && oldResolution != this.MonitorResolution)
+            // However, when resizing down from this repositioned fullscreen, the windowbar will remain out of reach.
+            // So when either going in or out of borderless fulscreen, the window should be repositioned.
+            // If neither is the case, then recentering the window depends on whether it was already centered.
+            if (!wasCentered && (this.CurrentResolution != this.MonitorResolution) && (oldResolution != this.MonitorResolution))
                 return;
             this.CenterWindow();
         }

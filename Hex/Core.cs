@@ -163,7 +163,7 @@ namespace Hex
 
             this.Log = new StringBuilder();
             this.Side = new Panel(new Rectangle());
-            this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.LightSlateGray));
+            this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.BurlyWood));
             this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
             this.Side.Append(this.SideLabel);
 
@@ -256,7 +256,7 @@ namespace Hex
             if (this.Side.IsActive)
             {
                 this.Log.Clear();
-                this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
+                // this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M2: {this.ResolutionTranslatedMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M3: {this.TilemapTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
@@ -270,16 +270,6 @@ namespace Hex
                 // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
                 // this.Log.AppendLine($"Orientation: {this.Tilemap.Orientation}");
                 this.Log.AppendLine(this.CalculatedDebug);
-
-                // var cursorInfo = "Cursor:" + Environment.NewLine +
-                //     ((this.Tilemap.CursorHexagon == null) ? "-none-" : this.Tilemap
-                //         .Info(this.Tilemap.CursorHexagon)
-                //         .Into(info => "Hex:" + info.Coordinates + Environment.NewLine + "Position:" + info.Position));
-
-                // var sourceInfo = "Selected:" + Environment.NewLine +
-                //     ((this.Tilemap.SourceHexagon == null) ? "-none-" : this.Tilemap
-                //         .Info(this.Tilemap.SourceHexagon)
-                //         .Into(info => "Hex:" + info.Coordinates + Environment.NewLine + "Position:" + info.Position));
             }
         }
 
