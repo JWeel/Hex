@@ -18,6 +18,8 @@ namespace Extended.Collections
         
         public int Index { get; protected set; }
 
+        public int Length => this.Values.Length;
+
         public T Value =>
             this.Values[this.Index];
 
@@ -46,6 +48,9 @@ namespace Extended.Collections
             
         public static implicit operator T (Cycle<T> cycle) =>
             cycle.Value;
+
+        public override string ToString() =>
+            this.Value?.ToString();
 
         #endregion
     }

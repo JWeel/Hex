@@ -16,7 +16,6 @@ namespace Hex.Helpers
         private const float ZOOM_SCALE_FACTOR_INCREMENT = 1 / 16f;
         private const float ZOOM_SCALE_MAXIMUM = 4f;
         private const float ZOOM_SCALE_MINIMUM = 1f;
-        private const float ZOOM_SCALE_MINIMUM_EXTREME = 1 / 4f;
         private const float POSITION_MOVE_INCREMENT = 5f;
 
         #endregion
@@ -110,11 +109,7 @@ namespace Hex.Helpers
                 if (this.Input.MouseScrolled())
                 {
                     var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (this.Input.MouseScrolledUp() ? 2 : -2);
-                    // TODO add zoomOrigin to zoom
-                    if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                        this.Zoom(zoomAmount, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
-                    else
-                        this.Zoom(zoomAmount);
+                    this.Zoom(zoomAmount);
 
                     if (this.ZoomScaleFactor < 1f)
                         this.Center();
@@ -134,12 +129,12 @@ namespace Hex.Helpers
 
             if (this.Input.KeyDown(Keys.Q))
                 if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
+                    this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
                 else
                     this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
             if (this.Input.KeyDown(Keys.E))
                 if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT, minAmount: ZOOM_SCALE_MINIMUM_EXTREME);
+                    this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
                 else
                     this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
 

@@ -15,7 +15,6 @@ namespace Hex.Models
             this.Positions = coordinates.Select(x => x.Position).ToArray();
 
             this.TileType = this.Cubes[0].Into(x => (x.X % 7 == x.Y)) ? TileType.Mountain : TileType.Grass;
-            this.Color = Color.YellowGreen;
         }
 
         #endregion

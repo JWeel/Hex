@@ -10,6 +10,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
+using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using System;
@@ -38,24 +39,35 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public TilemapHelper(Vector2 size, int padding, InputHelper input, CameraHelper camera)
+        public TilemapHelper(ClientWindow client, InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
-            this.TilemapSize = size;
-            this.TilemapPadding = new Vector2(padding);
+            this.Camera = new CameraHelper(() => this.MapSize, () => this.ContainerSize, input, client);
+
             this.Input = input;
-            this.Camera = camera;
-            // this.HexagonMap = new HexagonMap(default, default, default);
+            this.BlankTexture = blankTexture;
+            this.Font = font;
+
+            this.HexOuterPointyTop = content.Load<Texture2D>("xop");
+            this.HexInnerPointyTop = content.Load<Texture2D>("xip");
+            this.HexOuterFlattyTop = content.Load<Texture2D>("xof");
+            this.HexInnerFlattyTop = content.Load<Texture2D>("xif");
+            this.HexBorderPointyTop = content.Load<Texture2D>("xbp");
+            this.HexBorderFlattyTop = content.Load<Texture2D>("xbf");
+
+            this.HexagonPointySize = new Vector2(this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height);
+            this.HexagonFlattySize = new Vector2(this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
+            this.HexagonPointySizeAdjusted = (this.HexOuterPointyTop.Width / SHORT_OVERLAP_DIVISOR, this.HexOuterPointyTop.Height / LONG_OVERLAP_DIVISOR);
+            this.HexagonFlattySizeAdjusted = (this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR, this.HexOuterFlattyTop.Height / SHORT_OVERLAP_DIVISOR);
+
+            this.HexagonMap = new HexagonMap(Array.Empty<Hexagon>(), default, default);
+            this.GridSizes = Generate.Range(this.Orientation.Length).Select(x => Vector2.Zero).ToArray();
         }
 
         #endregion
 
         #region Properties
 
-        public Vector2 TilemapSize { get; }
-        public Vector2 TilemapPadding { get; }
-
         public HexagonMap HexagonMap { get; protected set; }
-
         public Hexagon CursorHexagon { get; protected set; }
         public Hexagon SourceHexagon { get; protected set; }
 
@@ -68,11 +80,16 @@ namespace Hex.Helpers
 
         // TODO find better way to share this (camera needs it, maybe have camera be child of tilemaphelper)
         public Vector2 MapSize =>
-            Vector2.Max(this.TilemapSize, (this.GridSizes[this.Orientation] + this.TilemapPadding))
+            Vector2.Max(this.ContainerSize, (this.GridSizes[this.Orientation] + this.ContainerPadding))
                 .IfOddAddOne();
+
+        // public Vector2 GridSize => this.GridSizes[this.Orientation];
 
         protected InputHelper Input { get; }
         protected CameraHelper Camera { get; }
+
+        protected Vector2 ContainerSize { get; set; }
+        protected Vector2 ContainerPadding { get; set; }
 
         protected Vector2 TilemapOrigin { get; set; }
 
@@ -116,26 +133,13 @@ namespace Hex.Helpers
 
         #region Methods
 
-        // public void Load(DependencyMap dependencyMap)
-        public void Load(ContentManager content, Texture2D blankTexture, SpriteFont font)
+        public void Arrange(Vector2 containerSize, int containerPadding)
         {
-            this.BlankTexture = blankTexture;
-            this.Font = font;
-
-            this.HexOuterPointyTop = content.Load<Texture2D>("xop");
-            this.HexInnerPointyTop = content.Load<Texture2D>("xip");
-            this.HexOuterFlattyTop = content.Load<Texture2D>("xof");
-            this.HexInnerFlattyTop = content.Load<Texture2D>("xif");
-            this.HexBorderPointyTop = content.Load<Texture2D>("xbp");
-            this.HexBorderFlattyTop = content.Load<Texture2D>("xbf");
-
-            this.HexagonPointySize = new Vector2(this.HexOuterPointyTop.Width, this.HexOuterPointyTop.Height);
-            this.HexagonFlattySize = new Vector2(this.HexOuterFlattyTop.Width, this.HexOuterFlattyTop.Height);
-            this.HexagonPointySizeAdjusted = (this.HexOuterPointyTop.Width / SHORT_OVERLAP_DIVISOR, this.HexOuterPointyTop.Height / LONG_OVERLAP_DIVISOR);
-            this.HexagonFlattySizeAdjusted = (this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR, this.HexOuterFlattyTop.Height / SHORT_OVERLAP_DIVISOR);
+            this.ContainerSize = containerSize;
+            this.ContainerPadding = new Vector2(containerPadding);
 
             var random = new Random();
-            var n = 14;
+            var n = 34;
             var m = 30;
             var axials = new List<(int Q, int R)>();
             if (false)
@@ -211,14 +215,13 @@ namespace Hex.Helpers
             this.CenterHexagon = this.HexagonMap[round];
             this.CenterHexagon.Color = Color.Aquamarine;
 
-            this.GridSizes = Enumerable
-                .Range(0, 12)
+            this.GridSizes = Enumerable.Range(0, 12)
                 .Select(orientation =>
                 {
                     var width = orientation.IsEven() ? this.HexOuterPointyTop.Width : this.HexOuterFlattyTop.Width;
                     var height = orientation.IsEven() ? this.HexOuterPointyTop.Height : this.HexOuterFlattyTop.Height;
                     var (minX, maxX, minY, maxY) = this.HexagonMap.Values
-                        .Select(this.GetPosition)
+                        .Select(hex => hex.Positions[orientation])
                         .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
                             (aggregate, vector) => (
                                 Math.Min(aggregate.MinX, (int) vector.X),
@@ -228,10 +231,14 @@ namespace Hex.Helpers
                     return new Vector2(maxX - minX, maxY - minY);
                 })
                 .ToArray();
+
+            this.Center();
         }
 
         public void Update(GameTime gameTime)
         {
+            this.Camera.Update(gameTime);
+
             if (this.Input.KeyPressed(Keys.O))
                 this.Center();
 
@@ -243,7 +250,7 @@ namespace Hex.Helpers
                 var mouseVector = this.Input.CurrentVirtualMouseVector;
                 var cameraTranslatedMouseVector = this.Camera.FromScreen(mouseVector);
 
-                if (this.TilemapSize.ToRectangle().Contains(mouseVector))
+                if (this.ContainerSize.ToRectangle().Contains(mouseVector))
                 {
                     var cubeAtMouse = this.ToCubeCoordinates(cameraTranslatedMouseVector);
                     this.LastCursorHexagon = this.CursorHexagon;
@@ -320,11 +327,11 @@ namespace Hex.Helpers
             // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
-                var cube = this.GetCube(hex);
                 var position = this.TilemapOrigin + this.GetPosition(hex);
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.LightYellow
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
+                    : hex.Color != default ? hex.Color
                     : hex.TileType switch
                     {
                         TileType.Mountain => Color.Tan,
@@ -378,10 +385,17 @@ namespace Hex.Helpers
         public void Center()
         {
             this.RecenterGrid();
+            this.Camera.Center();
         }
 
         public (Cube Coordinates, Vector2 Position) Info(Hexagon hexagon) =>
             (this.GetCube(hexagon), this.GetPosition(hexagon));
+
+        public Vector2 Translate(Vector2 vector) =>
+            this.Camera.FromScreen(vector);
+
+        public Matrix TranslationMatrix =>
+            this.Camera.TranslationMatrix;
 
         #endregion
 
@@ -395,6 +409,9 @@ namespace Hex.Helpers
 
         protected void RecenterGrid()
         {
+            if (this.CenterHexagon == null)
+                return;
+
             // TODO figure out why there is offset
             // // 154 | 143     44 | 24     27 | 4      86 |66      21 |10     23 | 24        
             // //  30 | 52       9 | 22     15 | 16     119|108     25 | 5     27 | 4
@@ -425,6 +442,11 @@ namespace Hex.Helpers
             //     new Vector2(6.5f, 11f),     // F
             //     new Vector2(0.5f, 8.5f)     // G
             // };
+
+            // var padding = new Vector2(
+            //     (this.TilemapSize.X < (this.GridSizes[this.Orientation] + this.TilemapPadding).X) ? this.TilemapPadding.X : 0,
+            //     (this.TilemapSize.Y < (this.GridSizes[this.Orientation] + this.TilemapPadding).Y) ? this.TilemapPadding.Y : 0);
+
             var centerHexagonPositionRelativeToOrigin = this.GetPosition(this.CenterHexagon);
             var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
             this.TilemapOrigin = Vector2.Floor(positionForCenterHexagon - centerHexagonPositionRelativeToOrigin);

@@ -1,4 +1,5 @@
-﻿using Hex.Extensions;
+﻿using Extended.Extensions;
+using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -8,7 +9,6 @@ using Mogi.Extensions;
 using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
-using System;
 using System.Text;
 
 namespace Hex
@@ -25,7 +25,7 @@ namespace Hex
         private const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
         private const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
         private const int BASE_WINDOW_HEIGHT = 720;
-        private const int BASE_MAP_PANEL_WIDTH = 1280;//790; // 1280 / 1.618 = 791.10 : using 790 for even number
+        private const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
         private const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
         private const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
         private const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
@@ -65,7 +65,6 @@ namespace Hex
 
         protected FramerateHelper Framerate { get; set; }
         protected InputHelper Input { get; set; }
-        protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
 
         protected Architect Architect { get; set; }
@@ -79,8 +78,8 @@ namespace Hex
         /// <summary> Resolution translation is needed only when in windowed mode client resolution does not match virtual resolution (in fullscreen mode they always match). </summary>
         protected Vector2 ResolutionTranslatedMouseVector { get; set; }
 
-        /// <summary> Camera translation is needed when camera is zoomed. </summary>
-        protected Vector2 CameraTranslatedMouseVector { get; set; }
+        /// <summary> Tilemap uses a camera, therefore translation is needed when the camera is zoomed. </summary>
+        protected Vector2 TilemapTranslatedMouseVector { get; set; }
 
         protected string CalculatedDebug;
 
@@ -121,24 +120,11 @@ namespace Hex
             dependency.Register<FramerateHelper>();
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
+            this.Tilemap = dependency.Register<TilemapHelper>();
 
-            this.Camera = new CameraHelper(() => this.Tilemap.MapSize, () => BASE_MAP_PANEL_SIZE, this.Input, this.Client);
-            this.Tilemap = new TilemapHelper(BASE_WINDOW_SIZE, BASE_MAP_PADDING, this.Input, this.Camera);
-
-            // Load is ugly because it shouldnt be using dependency helper.
-            //  the 'load' part of tilemap can be done through ctor.
-            //  however it means need to support non-dependency parameters for the ctor
-            //  also dependency 'load' is really 'register' -> IRegister
-            //  maybe then 'load' can be similar to ctor mechanism, but separation of ctor params and dependency params
-            this.Tilemap.Load(this.Content, this.BlankTexture, this.Font);
-            dependency.Register(this.Camera);
-            dependency.Register(this.Tilemap);
-
-            // this.SourceHexagon = this.HexagonMap[new Cube(0, -12, 12)];
-            this.Tilemap.Orientation.Advance();
-            this.Tilemap.Orientation.Advance();
-            this.Tilemap.Center();
-            this.Camera.Center();
+            this.Tilemap.Arrange(BASE_WINDOW_SIZE, BASE_MAP_PADDING);
+            // this.Tilemap.Orientation.Advance();
+            // this.Tilemap.Orientation.Advance();
 
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
@@ -153,7 +139,7 @@ namespace Hex
             this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
             var exitConfirmationText = "Are you sure you want to quit?";
-            var exitConformationTextScale = 2f;
+            var exitConformationTextScale = 1.5f;
             var exitConformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
             var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitConformationTextSize / 2) - new Vector2(0, 30);
             this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
@@ -221,12 +207,12 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
                 this.Client.ToggleFullscreen();
 
+            // if (this.Input.KeyPressed(Keys.Enter))
+            //     this.Tilemap.Arrange(BASE_WINDOW_SIZE, BASE_MAP_PADDING);
+
             if (this.Input.KeyPressed(Keys.C))
-            {
-                // TODO move each to input handler of each class
+                // TODO move to input handler of tilemap
                 this.Tilemap.Center();
-                this.Camera.Center();
-            }
 
             if (!this.Client.IsFullscreen)
             {
@@ -245,7 +231,7 @@ namespace Hex
             {
                 this.BaseMouseVector = this.Input.CurrentVirtualMouseVector;
                 this.ResolutionTranslatedMouseVector = this.Input.CurrentVirtualMouseVector;
-                this.CameraTranslatedMouseVector = this.Camera.FromScreen(this.ResolutionTranslatedMouseVector);
+                this.TilemapTranslatedMouseVector = this.Tilemap.Translate(this.ResolutionTranslatedMouseVector);
             }
 
             // if (this.Input.KeyPressed(Keys.Left))
@@ -272,11 +258,17 @@ namespace Hex
                 this.Log.Clear();
                 this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M2: {this.ResolutionTranslatedMouseVector.PrintRounded()}");
-                this.Log.AppendLine($"M3: {this.CameraTranslatedMouseVector.PrintRounded()}");
-                this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
-                this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
+                this.Log.AppendLine($"M3: {this.TilemapTranslatedMouseVector.PrintRounded()}");
+                // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
+                // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
+                this.Log.AppendLine($"Cursor: {this.Tilemap.CursorHexagon?.Into(this.Tilemap.Info).ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
+                // this.Log.AppendLine($"Tilemap: {this.Tilemap.MapSize}");
+                // this.Log.AppendLine($"Grid: {this.Tilemap.GridSize}");
+                // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
+                // this.Log.AppendLine($"Orientation: {this.Tilemap.Orientation}");
                 this.Log.AppendLine(this.CalculatedDebug);
 
                 // var cursorInfo = "Cursor:" + Environment.NewLine +
@@ -298,7 +290,7 @@ namespace Hex
 
 
             // SpriteSortMode.FrontToBack
-            this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Camera.TranslationMatrix);
+            this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
             
             this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.MapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
 
@@ -308,12 +300,12 @@ namespace Hex
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
 
-            var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
-            var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
-            var panelOverlay = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
-            this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
-            this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
-            this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
+            // var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
+            // var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
+            // var panelOverlay = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
 
             this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
