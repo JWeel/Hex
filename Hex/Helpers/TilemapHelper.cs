@@ -100,6 +100,7 @@ namespace Hex.Helpers
 
         protected bool CalculatedVisibility { get; set; }
         protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
+        protected IDictionary<Hexagon, bool> FogOfWarMap { get; set; }
 
         protected Vector2[] GridSizes { get; set; }
 
@@ -142,7 +143,7 @@ namespace Hex.Helpers
             var n = 34;
             var m = 30;
             var axials = new List<(int Q, int R)>();
-            if (false)
+            if (true)
             {
                 for (var q = -n; q <= n; q++)
                 {
@@ -568,12 +569,23 @@ namespace Hex.Helpers
             return stillVisible;
         }
 
-        IDictionary<Hexagon, bool> FogOfWarMap;
         protected void DetermineFogOfWar()
         {
-            var viewDistance = 6;
-            this.HexagonMap.Values.Each(hex => 
-                this.FogOfWarMap[hex] = (Cube.Distance(this.GetCube(hex), this.GetCube(this.SourceHexagon)) < viewDistance));
+            var viewDistance = 10;
+            Predicate<Cube> determineIsVisible = x => (this.HexagonMap[x]?.TileType == TileType.Grass);
+            this.HexagonMap.Values.Each(hex => this.FogOfWarMap[hex] = InView(hex));
+            bool InView(Hexagon hexagon)
+            {
+                if (hexagon == this.SourceHexagon)
+                    return true;
+                var targetCube = this.GetCube(hexagon);
+                var sourceCube = this.GetCube(this.SourceHexagon);
+                var distance = Cube.Distance(targetCube, sourceCube);
+                var withinView = (distance < viewDistance);
+                if (!withinView)
+                    return false;
+                return this.DeterminePointIsVisibleFrom(targetCube, sourceCube, determineIsVisible);
+            }
         }
 
         #endregion
