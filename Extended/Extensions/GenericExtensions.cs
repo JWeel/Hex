@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Extended.Extensions
 {
@@ -27,6 +28,14 @@ namespace Extended.Extensions
         public static TResult Into<TValue, TResult>(this TValue value, Func<TValue, TResult> func) =>
             func(value);
 
+        #endregion
+
+        #region In
+
+        /// <summary> Determines whether this <paramref name="source"/> is equal to any of the passed <paramref name="values"/>. </summary>
+        public static bool In<T>(this T source, params T[] values) =>
+            values.Contains(source);
+            
         #endregion
     }
 }

@@ -132,7 +132,7 @@ namespace Extended.Extensions
                     yield break;
             }
         }
-            
+
         #endregion
 
         #region Yield
@@ -167,7 +167,52 @@ namespace Extended.Extensions
         /// <summary> Flattens a sequence of sequences into one sequence. </summary>
         public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> source) =>
             source.SelectMany(x => x);
-            
+
+        #endregion
+
+        #region None / One / OneOrNone / MoreThanOne
+
+        /// <summary> Determines whether the sequence does not have any elements. </summary>
+        public static bool None<T>(this IEnumerable<T> source)
+        {
+            if (source is ICollection<T> collection)
+                return (collection.Count == 0);
+            return !source.Any();
+        }
+
+        /// <summary> Determines whether the sequence has exactly one element. </summary>
+        public static bool One<T>(this IEnumerable<T> source)
+        {
+            if (source is ICollection<T> collection)
+                return (collection.Count == 1);
+            var enumerator = source.GetEnumerator();
+            if (!enumerator.MoveNext())
+                return false;
+            return !enumerator.MoveNext();
+        }
+
+        /// <summary> Determines whether the sequence has no elements or exactly one element. </summary>
+        public static bool OneOrNone<T>(this IEnumerable<T> source)
+        {
+            if (source is ICollection<T> collection)
+                return ((collection.Count == 0) || (collection.Count == 1));
+            var enumerator = source.GetEnumerator();
+            if (!enumerator.MoveNext())
+                return true;
+            return !enumerator.MoveNext();
+        }
+
+        /// <summary> Determines whether the sequence has more than one element. </summary>
+        public static bool MoreThanOne<T>(this IEnumerable<T> source)
+        {
+            if (source is ICollection<T> collection)
+                return (collection.Count > 1);
+            var enumerator = source.GetEnumerator();
+            if (!enumerator.MoveNext())
+                return false;
+            return enumerator.MoveNext();
+        }
+
         #endregion
     }
 }

@@ -129,7 +129,7 @@ namespace Hex
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
             this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
-            
+
             // var exitConfirmationPanelSize = new Vector2(256, 144);
             var exitConfirmationPanelSize = new Vector2(400, 100);
             var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
@@ -169,7 +169,7 @@ namespace Hex
 
             var toggleSize = new Vector2(40);
             var toggleLocation = new Vector2(1220, 20);
-            this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, new Color(160, 140, 180));
+            this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, Color.BurlyWood);
             this.Toggle.WithInput(this.Input);
             this.Toggle.OnClick += button => this.Side.Toggle();
 
@@ -226,7 +226,7 @@ namespace Hex
                     this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
             }
 
-            
+
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentVirtualMouseVector;
@@ -261,8 +261,8 @@ namespace Hex
                 this.Log.AppendLine($"M3: {this.TilemapTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
                 // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
-                this.Log.AppendLine($"Cursor: {this.Tilemap.CursorHexagon?.Into(this.Tilemap.Info).ToString() ?? "n/a"}");
-                this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Cursor: {this.Tilemap.CursorHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 // this.Log.AppendLine($"Tilemap: {this.Tilemap.MapSize}");
@@ -291,7 +291,7 @@ namespace Hex
 
             // SpriteSortMode.FrontToBack
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
-            
+
             this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.MapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
 
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);

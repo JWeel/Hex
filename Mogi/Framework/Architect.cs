@@ -9,8 +9,10 @@ namespace Mogi.Framework
     {
         #region Constructors
 
-        public Architect()
+        public Architect(InputHelper input, Texture2D blankTexture)
         {
+            this.Input = input;
+            this.BlankTexture = blankTexture;
         }
 
         #endregion
@@ -18,7 +20,6 @@ namespace Mogi.Framework
         #region Properties
 
         protected InputHelper Input { get; set; }
-
         protected Texture2D BlankTexture { get; set; }
 
         #endregion
@@ -35,17 +36,16 @@ namespace Mogi.Framework
         public void Register(DependencyMap dependencyMap)
         {
             var dependency = DependencyHelper.Create(this, dependencyMap);
-            this.Input = dependency.Register<InputHelper>();
         }
 
         public void Update(GameTime gameTime)
         {
-            // this.OnUpdate?.Invoke(gameTime);
+            this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            // this.OnDraw?.Invoke(spriteBatch);
+            this.OnDraw?.Invoke<MenuDraw>(spriteBatch);
         }
 
         #endregion

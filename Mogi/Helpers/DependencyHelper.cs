@@ -1,3 +1,4 @@
+using Extended.Extensions;
 using Mogi.Inversion;
 using System;
 using System.Linq;
@@ -84,12 +85,10 @@ namespace Mogi.Helpers
                 return (TDependency) existingValue;
 
             var constructors = typeof(TDependency).GetConstructors();
-            if (constructors.Length != 1)
-            {
+            if (!constructors.One())
                 throw new InvalidOperationException($"Cannot register type '{typeof(TDependency).Name}' because it does not have exactly one public constructor.");
-            }
-            var constructor = constructors.First();
 
+            var constructor = constructors.First();
             var parameters = constructor.GetParameters();
             var arguments = parameters
                 .Select(parameter => this.DependencyMap.TryGetValue(parameter.ParameterType, out var instance) ?
