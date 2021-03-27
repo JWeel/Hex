@@ -95,6 +95,7 @@ namespace Hex.Helpers
 
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
+        protected Hexagon RotationHexagon { get; set; }
         protected Hexagon LastCursorHexagon { get; set; }
         protected Hexagon LastSourceHexagon { get; set; }
 
@@ -143,7 +144,7 @@ namespace Hex.Helpers
             var n = 34;
             var m = 30;
             var axials = new List<(int Q, int R)>();
-            if (true)
+            if (false)
             {
                 for (var q = -n; q <= n; q++)
                 {
@@ -308,15 +309,9 @@ namespace Hex.Helpers
             }
 
             if (this.Input.KeyPressed(Keys.Z))
-            {
                 this.Rotate(advance: true);
-                this.Camera.Center();
-            }
             if (this.Input.KeyPressed(Keys.X))
-            {
                 this.Rotate(advance: false);
-                this.Camera.Center();
-            }
         }
 
         public void Draw(SpriteBatch spriteBatch)
@@ -337,6 +332,7 @@ namespace Hex.Helpers
                 var position = this.TilemapOrigin + this.GetPosition(hex);
                 var color = (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.CursorHexagon) ? Color.LightYellow
+                    : (hex == this.RotationHexagon) ? Color.OliveDrab
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
                     : hex.Color != default ? hex.Color
                     : hex.TileType switch
@@ -399,6 +395,16 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, new Color(100, 100, 100, 128));
                 }
             }
+
+            // if (this.CenterHexagon != null)
+            // {
+            //     var position = this.GetPosition(this.CenterHexagon);
+            //     var scaledViewportCenter = this.ContainerSize / this.Camera.ZoomScaleFactor / 2f;
+            //     spriteBatch.DrawText(this.Font, position.ToString(), position);
+            //     spriteBatch.DrawText(this.Font, scaledViewportCenter.ToString(), scaledViewportCenter);
+            //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position, 3f, Color.Maroon);
+            //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position + this.HexSize/2, 3f, Color.Navy);
+            // }
         }
 
         // shouldnt be publically called like this
@@ -466,8 +472,8 @@ namespace Hex.Helpers
             // };
 
             // var padding = new Vector2(
-            //     (this.TilemapSize.X < (this.GridSizes[this.Orientation] + this.TilemapPadding).X) ? this.TilemapPadding.X : 0,
-            //     (this.TilemapSize.Y < (this.GridSizes[this.Orientation] + this.TilemapPadding).Y) ? this.TilemapPadding.Y : 0);
+            //     (this.ContainerSize.X < (this.GridSizes[this.Orientation] + this.ContainerPadding).X) ? this.ContainerPadding.X : 0,
+            //     (this.ContainerSize.Y < (this.GridSizes[this.Orientation] + this.ContainerPadding).Y) ? this.ContainerPadding.Y : 0);
 
             var centerHexagonPositionRelativeToOrigin = this.GetPosition(this.CenterHexagon);
             var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
@@ -476,16 +482,27 @@ namespace Hex.Helpers
 
         protected void Rotate(bool advance)
         {
+            var rotationOriginVector = this.Translate(this.ContainerSize / 2);
+            var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
+            this.RotationHexagon = this.HexagonMap[cubeAtRotationOrigin];
+
             if (advance)
                 this.Orientation.Advance();
             else
                 this.Orientation.Reverse();
             this.RecenterGrid();
 
-            // todo fix the CameraHelper.CenterOn method
-            // then calculate what is hexagon in center of screen before rotate
-            // then after rotate center on that hexagon
-            this.Camera.Center();
+            // this does not need to be a property
+            if (this.RotationHexagon != null)
+                this.Camera.CenterOn(this.GetPosition(this.RotationHexagon), this.GetPosition(this.CenterHexagon));
+            else
+                // center on is not ideal, it requires relative hexagon positioning to work
+                // this means that when no rotation origin hexagon is found, camera position is off
+                // calling Clamp here is a bandaid: it ensures camera does not go outside tilemap
+                // true solution requires:
+                // 1. center on position, not relative hexagon
+                // 2. increasing the 'viewable' tilemap size to be larger -> each tilemap edge + half container size
+                this.Camera.Clamp();
         }
 
         protected Cube ToCubeCoordinates(Vector2 position)

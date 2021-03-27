@@ -50,6 +50,7 @@ namespace Hex.Helpers
         protected float Rotation { get; set; }
 
         // TODO come up with way to cache this and only recalculate when needed, e.g. use the above setters
+        // Probably not really worth the minimal optimization
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
             Matrix.CreateRotationZ(this.Rotation) *
@@ -74,26 +75,48 @@ namespace Hex.Helpers
 
         public void Center()
         {
-            var mapSize = this.MapSizeGetter();
-            var viewportSize = this.ViewportSizeGetter();
-            var viewportCorner = viewportSize / this.ZoomScaleFactor / 2f;
-            var offset = new Vector2(
-                (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
-                (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
-            var cameraMin = viewportCorner + offset;
-            var cameraMax = mapSize - viewportCorner + offset;
-            this.Position = Vector2.Floor((cameraMax + cameraMin) / 2);
+            var (cameraMin, cameraMax) = this.GetBounds();
+            this.Position = Vector2.Floor((cameraMin + cameraMax) / 2);
         }
 
-        // TODO: fix these methods, also it shouldnt know anything about hexagon class
-        public void CenterOn(Vector2 position) =>
-            this.Position = position;
-        // public void CenterOn(Hexagon hex) =>
-        //     this.Position = this.CenterOn(hex, clamp: true);
+        public void CenterOn(Vector2 position, Vector2 centerPosition)
+        {
+            var (cameraMin, cameraMax) = this.GetBounds();
+            var cameraCenter = (cameraMin + cameraMax) / 2f;
+
+            var relativeDifference = cameraCenter - centerPosition;
+            var unclampedPosition = position + relativeDifference;
+
+            this.Position = Vector2.Clamp(unclampedPosition, cameraMin, cameraMax);
+        }
+
+        public void Clamp()
+        {
+            var (cameraMin, cameraMax) = this.GetBounds();
+            this.Position = Vector2.Clamp(this.Position, cameraMin, cameraMax);
+        }
 
         #endregion
 
         #region Helper Methods
+
+        protected (Vector2 CameraMin, Vector2 CameraMax) GetBounds()
+        {
+            var mapSize = this.MapSizeGetter();
+            var viewportSize = this.ViewportSizeGetter();
+            var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
+
+            // this offset causes the center hexagon to always be in the middle when rotating
+            // not sure why the camera needs to provide it. it may be a bug with the tilemap origin
+            // because if this is left as 0 all parts of the tilemap are still visible
+            var offset = new Vector2(
+                (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
+                (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
+            var cameraMin = scaledViewportCenter + offset;
+            var cameraMax = mapSize - scaledViewportCenter + offset;
+
+            return (cameraMin, cameraMax);
+        }
 
         protected void HandleMouse()
         {
@@ -181,26 +204,9 @@ namespace Hex.Helpers
 
         protected Vector2 MapClampedPosition(Vector2 position)
         {
-            var mapSize = this.MapSizeGetter();
-            var viewportSize = this.ViewportSizeGetter();
-            var viewportCorner = viewportSize / this.ZoomScaleFactor / 2f;
-            var offset = new Vector2(
-                (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
-                (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
-            var cameraMin = viewportCorner + offset;
-            var cameraMax = mapSize - viewportCorner + offset;
+            var (cameraMin, cameraMax) = this.GetBounds();
             return Vector2.Clamp(position, Vector2.Floor(cameraMin), Vector2.Floor(cameraMax));
         }
-
-        // TODO: fix this, also it shouldnt know anything about hexagon class
-        // protected Vector2 CenterOn(Hexagon hex, bool clamp = false)
-        // {
-        //     var cameraPosition = new Vector2(hex.Q * 25, hex.R * 29);
-        //     var cameraCenteredOnTilePosition = new Vector2(cameraPosition.X + 25 / 2, cameraPosition.Y + 29 / 2);
-        //     if (clamp)
-        //         return this.MapClampedPosition(cameraCenteredOnTilePosition);
-        //     return cameraCenteredOnTilePosition;
-        // }
 
         #endregion
     }
