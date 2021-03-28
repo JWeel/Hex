@@ -140,6 +140,9 @@ namespace Hex.Helpers
             this.ContainerSize = containerSize;
             this.ContainerPadding = new Vector2(containerPadding);
 
+            // TODO:
+            // Load preset tilemaps
+
             var random = new Random();
             var n = 34;
             var m = 30;
@@ -237,6 +240,47 @@ namespace Hex.Helpers
             this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
 
             this.Center();
+        }
+
+        /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
+        /// <remarks> If <paramref name="m"/> is 0, the tilemap will be shaped like a hexagon with origin in the middle.
+        /// <br/> Otherwise it will be shaped like a rectangle with origin in the top left. </remarks>
+        // TODO tiletype should also come from here, meaning not in the hexagon ctor
+        public void Spawn(int n, int m)
+        {
+            var axials = new List<(int Q, int R)>();
+            if (m < 1)
+            {
+                for (var q = -n; q <= n; q++)
+                {
+                    // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
+                    var color = Color.White;
+                    var r1 = Math.Max(-n, -q - n);
+                    var r2 = Math.Min(n, -q + n);
+                    for (var r = r1; r <= r2; r++)
+                    {
+                        // not sure why q and r are flipped here
+                        axials.Add((r, q));
+                    }
+                }
+            }
+            else
+            {
+                for (var r = 0; r < m; r++)
+                {
+                    var color = Color.White;
+                    var r_offset = (int) Math.Floor(r / 2f);
+                    for (var q = -r_offset; q < n - r_offset; q++)
+                    {
+                        // TODO square board with odd rows having 1 less
+                        axials.Add((q, r));
+                    }
+                }
+            }
+        }
+        
+        public void Load(string path)
+        {
         }
 
         public void Update(GameTime gameTime)
