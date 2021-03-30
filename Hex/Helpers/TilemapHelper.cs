@@ -144,11 +144,34 @@ namespace Hex.Helpers
             // Load preset tilemaps
 
             var random = new Random();
-            var n = 34;
+            var n = 14;
             var m = 30;
             var axials = new List<(int Q, int R)>();
-            if (false)
+            if (true)
             {
+                // triangle
+                for (int q = 0; q <= n; q++)
+                {
+                    for (int r = 0; r <= n - q; r++)
+                    {
+                        axials.Add((q, r));
+                    }
+                }
+            }
+            else if (true)
+            {
+                // parallelogram
+                for (int q = 0; q <= n; q++)
+                {
+                    for (int r = 0; r <= m; r++)
+                    {
+                        axials.Add((q, r));
+                    }
+                }
+            }
+            else if (false)
+            {
+                // hexagon
                 for (var q = -n; q <= n; q++)
                 {
                     // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
@@ -164,6 +187,7 @@ namespace Hex.Helpers
             }
             else
             {
+                // rectangle
                 for (var r = 0; r < m; r++)
                 {
                     var color = Color.White;
@@ -207,7 +231,8 @@ namespace Hex.Helpers
                 .Into(sequence => new HexagonMap(sequence, 12, () => this.Orientation));
 
             this.OriginHexagon = this.HexagonMap[default];
-            this.OriginHexagon.Color = Color.Gold;
+            if (this.OriginHexagon != null)
+                this.OriginHexagon.Color = Color.Gold;
             this.HexagonMap[new Cube(1, -2, 1)]?.Into(hex => hex.Color = Color.Silver);
 
             var (minX, minY, minZ, maxX, maxY, maxZ) = this.HexagonMap.Values
@@ -278,7 +303,7 @@ namespace Hex.Helpers
                 }
             }
         }
-        
+
         public void Load(string path)
         {
         }
