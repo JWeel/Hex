@@ -41,7 +41,7 @@ namespace Hex.Helpers
 
         public TilemapHelper(ClientWindow client, InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
-            this.Camera = new CameraHelper(() => this.MapSize, () => this.ContainerSize, input, client);
+            this.Camera = new CameraHelper(() => this.TilemapSize, () => this.ContainerSize, () => this.Rotation, input, client);
 
             this.Input = input;
             this.BlankTexture = blankTexture;
@@ -79,7 +79,7 @@ namespace Hex.Helpers
         public Cycle<int> Orientation { get; } = new Cycle<int>(Generate.Range(12).ToArray());
 
         // TODO find better way to share this (camera needs it, maybe have camera be child of tilemaphelper)
-        public Vector2 MapSize =>
+        public Vector2 TilemapSize =>
             Vector2.Max(this.ContainerSize, (this.GridSizes[this.Orientation] + this.ContainerPadding))
                 .IfOddAddOne();
 
@@ -131,6 +131,8 @@ namespace Hex.Helpers
         protected Texture2D BlankTexture { get; set; }
         protected SpriteFont Font { get; set; }
 
+        public float Rotation { get; set; }
+
         #endregion
 
         #region Methods
@@ -142,63 +144,7 @@ namespace Hex.Helpers
 
             // TODO:
             // Load preset tilemaps
-
-            var random = new Random();
-            var n = 14;
-            var m = 30;
-            var axials = new List<(int Q, int R)>();
-            if (true)
-            {
-                // triangle
-                for (int q = 0; q <= n; q++)
-                {
-                    for (int r = 0; r <= n - q; r++)
-                    {
-                        axials.Add((q, r));
-                    }
-                }
-            }
-            else if (true)
-            {
-                // parallelogram
-                for (int q = 0; q <= n; q++)
-                {
-                    for (int r = 0; r <= m; r++)
-                    {
-                        axials.Add((q, r));
-                    }
-                }
-            }
-            else if (false)
-            {
-                // hexagon
-                for (var q = -n; q <= n; q++)
-                {
-                    // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
-                    var color = Color.White;
-                    var r1 = Math.Max(-n, -q - n);
-                    var r2 = Math.Min(n, -q + n);
-                    for (var r = r1; r <= r2; r++)
-                    {
-                        // not sure why q and r are flipped here
-                        axials.Add((r, q));
-                    }
-                }
-            }
-            else
-            {
-                // rectangle
-                for (var r = 0; r < m; r++)
-                {
-                    var color = Color.White;
-                    var r_offset = (int) Math.Floor(r / 2f);
-                    for (var q = -r_offset; q < n - r_offset; q++)
-                    {
-                        // TODO square board with odd rows having 1 less
-                        axials.Add((q, r));
-                    }
-                }
-            }
+            var axials = this.Spawn(13, 40);
 
             var adjustedWidthPointyTop = this.HexOuterPointyTop.Width / SHORT_OVERLAP_DIVISOR;
             var adjustedWidthFlattyTop = this.HexOuterFlattyTop.Width / LONG_OVERLAP_DIVISOR;
@@ -271,11 +217,34 @@ namespace Hex.Helpers
         /// <remarks> If <paramref name="m"/> is 0, the tilemap will be shaped like a hexagon with origin in the middle.
         /// <br/> Otherwise it will be shaped like a rectangle with origin in the top left. </remarks>
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
-        public void Spawn(int n, int m)
+        public (int Q, int R)[] Spawn(int n, int m)
         {
             var axials = new List<(int Q, int R)>();
-            if (m < 1)
+            if (false)
             {
+                // triangle
+                for (int q = 0; q <= n; q++)
+                {
+                    for (int r = 0; r <= n - q; r++)
+                    {
+                        axials.Add((q, r));
+                    }
+                }
+            }
+            else if (false)
+            {
+                // parallelogram
+                for (int q = 0; q <= n; q++)
+                {
+                    for (int r = 0; r <= m; r++)
+                    {
+                        axials.Add((q, r));
+                    }
+                }
+            }
+            else if (false)
+            {
+                // hexagon
                 for (var q = -n; q <= n; q++)
                 {
                     // var color = new Color(random.Next(256), random.Next(256), random.Next(256));
@@ -291,6 +260,7 @@ namespace Hex.Helpers
             }
             else
             {
+                // rectangle
                 for (var r = 0; r < m; r++)
                 {
                     var color = Color.White;
@@ -302,6 +272,7 @@ namespace Hex.Helpers
                     }
                 }
             }
+            return axials.ToArray();
         }
 
         public void Load(string path)
@@ -321,10 +292,17 @@ namespace Hex.Helpers
             if (this.Input.MouseMoved())
             {
                 var mouseVector = this.Input.CurrentVirtualMouseVector;
+                // mouseVector = new Vector2(mouseVector.X, 500);
                 var cameraTranslatedMouseVector = this.Camera.FromScreen(mouseVector);
 
                 if (this.ContainerSize.ToRectangle().Contains(mouseVector))
                 {
+                    var matrix =
+                        Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f, 0)) *
+                        Matrix.CreateRotationZ(this.Rotation) *
+                        Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f, 0));
+                    var rotatedVector = Vector2.Transform(cameraTranslatedMouseVector, matrix);
+
                     var cubeAtMouse = this.ToCubeCoordinates(cameraTranslatedMouseVector);
                     this.LastCursorHexagon = this.CursorHexagon;
                     this.CursorHexagon = this.HexagonMap[cubeAtMouse];
@@ -383,24 +361,50 @@ namespace Hex.Helpers
                 this.Rotate(advance: false);
         }
 
+        public int XX = 40;
+        public int YY = 40;
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.MapSize.ToRectangle(), Color.DarkSlateGray);
+            spriteBatch.DrawTo(this.BlankTexture, this.TilemapSize.ToRectangle(), Color.DarkSlateGray, .05f);
 
-            // should flip back to using depth so only 1 loop needed
             foreach (var hex in this.HexagonMap.Values)
             {
+                var matrix =
+                    Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f, 1)) *
+                    Matrix.CreateRotationZ(this.Rotation) *
+                    Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f, 1));
+
                 var cube = this.GetCube(hex);
-                var position = this.TilemapOrigin + this.GetPosition(hex);
-                spriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna);
-            }
+                var (px, py) = Vector2.Transform(this.GetPosition(hex), matrix);
 
-            // should flip back to using depth so only 1 loop needed
-            foreach (var hex in this.HexagonMap.Values)
-            {
-                var position = this.TilemapOrigin + this.GetPosition(hex);
-                var color = (hex == this.SourceHexagon) ? Color.Coral
+                // there is a rounding error in non-90° degree rotations
+                var degrees = (int) Math.Round(this.Rotation * 180 / Math.PI);
+                if (degrees % 90 != 0)
+                {
+                    if (this.HexagonsArePointy)
+                    {
+                        var ppx = px - px / XX;
+                        var ppy = py - py / YY;
+                        px = ppx;
+                        py = ppy;
+                    }
+                    else
+                    {
+                        // -192 148
+                        var ppx = px - px / XX;
+                        var ppy = py - py / YY;
+                        px = ppx;
+                        py = ppy;
+                    }
+                }
+
+                var position = this.TilemapOrigin + new Vector2(px, py);
+
+                spriteBatch.DrawAt(this.HexBorderTexture, position, 1f, Color.Sienna);
+
+                var color = ((hex == this.CursorHexagon) && (hex == this.SourceHexagon)) ? new Color(255, 170, 130)
                     : (hex == this.CursorHexagon) ? Color.LightYellow
+                    : (hex == this.SourceHexagon) ? Color.Coral
                     : (hex == this.RotationHexagon) ? Color.OliveDrab
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
                     : hex.Color != default ? hex.Color
@@ -410,49 +414,28 @@ namespace Hex.Helpers
                         _ => new Color(190, 230, 160)
                     };
 
-                spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color);
-            }
-
-            // should flip back to using depth so only 1 loop needed
-            foreach (var hex in this.HexagonMap.Values)
-            {
-                var cube = this.GetCube(hex);
-                var position = this.TilemapOrigin + this.GetPosition(hex);
+                spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, color, .15f);
 
                 // TODO if mountain tiles are on top of each other it looks bad, calculate
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 if (hex.TileType == TileType.Mountain)
-                    spriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna);
-            }
+                    spriteBatch.DrawAt(this.HexBorderTexture, position - new Vector2(0, 5), 1f, Color.Sienna, .2f);
 
-            // should flip back to using depth so only 1 loop needed
-            foreach (var hex in this.HexagonMap.Values)
-            {
-                var cube = this.GetCube(hex);
-                var position = this.TilemapOrigin + this.GetPosition(hex);
-                spriteBatch.DrawAt(this.HexOuterTexture, position, 1f, hex.TileType switch
+                color = hex.TileType switch
                 {
                     TileType.Mountain => new Color(130, 100, 60),
                     _ => new Color(100, 140, 70)
-                });
-            }
+                };
+                spriteBatch.DrawAt(this.HexOuterTexture, position, 1f, color, .25f);
 
-            // should flip back to using depth so only 1 loop needed
-            if (this.PrintCoords)
-            {
-                // spriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: this.Camera.TranslationMatrix);
-                foreach (var hex in this.HexagonMap.Values)
+                if (this.PrintCoords)
                 {
-                    var cube = this.GetCube(hex);
-                    var position = this.TilemapOrigin + this.GetPosition(hex);
                     var (q, r) = cube.ToAxial();
                     var hexLog = $"{q},{r}";
-                    spriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.MistyRose, scale: 0.5f);
+                    spriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.MistyRose, scale: 0.5f, .9f);
                 }
-                // spriteBatch.End();
             }
 
-            // should flip back to using depth so only 1 loop needed
             if (this.SourceHexagon != null)
             {
                 foreach (var pair in this.FogOfWarMap)
@@ -461,10 +444,12 @@ namespace Hex.Helpers
                     var position = this.TilemapOrigin + this.GetPosition(hex);
                     if (visible)
                         continue;
-                    spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, new Color(100, 100, 100, 128));
+                    spriteBatch.DrawAt(this.HexInnerTexture, position, 1f, new Color(100, 100, 100, 128), .3f);
                 }
             }
 
+            // if (debug != null)
+            //     spriteBatch.DrawText(this.Font, debug, this.TilemapSize / 2);
             // if (this.CenterHexagon != null)
             // {
             //     var position = this.GetPosition(this.CenterHexagon);
@@ -475,6 +460,7 @@ namespace Hex.Helpers
             //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position + this.HexSize/2, 3f, Color.Navy);
             // }
         }
+        public string Debug;
 
         // shouldnt be publically called like this
         public void Center()
@@ -498,16 +484,16 @@ namespace Hex.Helpers
 
         // TODO dont always need to get cube/position by orientation -> if translated to index 0 it will be same
         protected Cube GetCube(Hexagon hexagon) =>
-            hexagon.Cubes[this.Orientation];
+            hexagon.Cubes[0];//this.Orientation];
 
         // TODO dont always need to get cube/position by orientation -> if translated to index 0 it will be same
         protected Vector2 GetPosition(Hexagon hexagon) =>
-            hexagon.Positions[this.Orientation];
+            hexagon.Positions[0];//this.Orientation];
 
         protected void RecenterGrid()
         {
-            if (this.CenterHexagon == null)
-                return;
+            // if (this.CenterHexagon == null)
+            //     return;
 
             // TODO figure out why there is offset
             // // 154 | 143     44 | 24     27 | 4      86 |66      21 |10     23 | 24        
@@ -544,8 +530,15 @@ namespace Hex.Helpers
             //     (this.ContainerSize.X < (this.GridSizes[this.Orientation] + this.ContainerPadding).X) ? this.ContainerPadding.X : 0,
             //     (this.ContainerSize.Y < (this.GridSizes[this.Orientation] + this.ContainerPadding).Y) ? this.ContainerPadding.Y : 0);
 
-            var centerHexagonPositionRelativeToOrigin = this.GetPosition(this.CenterHexagon);
-            var positionForCenterHexagon = (this.MapSize - this.HexSize) / 2;
+
+            var matrix =
+                Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f, 0)) *
+                Matrix.CreateRotationZ(this.Rotation) *
+                Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f, 0));
+
+            var centerHexagonPositionRelativeToOrigin = Vector2.Transform(this.GridSizes[0] / 2, matrix);
+            // var centerHexagonPositionRelativeToOrigin = this.GetPosition(this.CenterHexagon);
+            var positionForCenterHexagon = (this.TilemapSize - this.HexSize) / 2;
             this.TilemapOrigin = Vector2.Floor(positionForCenterHexagon - centerHexagonPositionRelativeToOrigin);
         }
 
@@ -553,13 +546,25 @@ namespace Hex.Helpers
         {
             var rotationOriginVector = this.Translate(this.ContainerSize / 2);
             var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
-            this.RotationHexagon = this.HexagonMap[cubeAtRotationOrigin];
+            // this.RotationHexagon = this.HexagonMap[cubeAtRotationOrigin];
 
             if (advance)
+            {
+                this.Rotation += (float) (30 * Math.PI / 180);
+                this.Rotation %= (float) (360 * Math.PI / 180);
                 this.Orientation.Advance();
+            }
             else
+            {
+                this.Rotation -= (float) (30 * Math.PI / 180);
+                this.Rotation %= (float) (360 * Math.PI / 180);
                 this.Orientation.Reverse();
+            }
+            this.Debug = this.Rotation.ToString();
             this.RecenterGrid();
+
+            this.Camera.Center();
+            return;
 
             // this does not need to be a property
             if (this.RotationHexagon != null)
@@ -576,7 +581,14 @@ namespace Hex.Helpers
 
         protected Cube ToCubeCoordinates(Vector2 position)
         {
-            var (mx, my) = position - this.TilemapOrigin - this.HexSize / 2;
+            var matrix =
+                Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f, 0)) *
+                Matrix.CreateRotationZ(this.Rotation) *
+                Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f, 0));
+            // origin point may be rotated so convert it to offset
+            var rotationOffset = Vector2.Transform(this.OriginHexagon.Positions[0], matrix);
+
+            var (mx, my) = position - rotationOffset - this.TilemapOrigin - this.HexSize / 2;
 
             // no idea why this works but without it the coordinates are off
             if (this.HexagonsArePointy)

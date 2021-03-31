@@ -35,24 +35,24 @@ namespace Mogi.Helpers
 
         #region Public Methods
 
-        /// <summary> Determines whether a specified key was previously up and is now down. </summary>
+        /// <summary> Determines whether a specified key is currently down and was previously up. </summary>
         public bool KeyPressed(Keys key) =>
             (this.PreviousKeyboard.IsKeyUp(key) && this.CurrentKeyboard.IsKeyDown(key));
 
-        /// <summary> Determines whether all specified keys were previously up and are now down. </summary>
+        /// <summary> Determines whether all specified keys are currently down and were previously up. </summary>
         public bool KeysPressed(params Keys[] keys) => keys.All(this.KeyPressed);
 
-        /// <summary> Determines whether any of the specified keys were previously up and are now down. </summary>
+        /// <summary> Determines whether any of the specified keys are currently down and were previously up. </summary>
         public bool KeysPressedAny(params Keys[] keys) => keys.Any(this.KeyPressed);
 
-        /// <summary> Determines whether a specified key was previously down and is now up. </summary>
+        /// <summary> Determines whether a specified key is currently up and was previously down. </summary>
         public bool KeyReleased(Keys key) =>
             (this.PreviousKeyboard.IsKeyDown(key) && this.CurrentKeyboard.IsKeyUp(key));
 
-        /// <summary> Determines whether all specified keys were previously down and are now up. </summary>
+        /// <summary> Determines whether all specified keys are currently up and were previously down. </summary>
         public bool KeysReleased(params Keys[] keys) => keys.All(this.KeyReleased);
 
-        /// <summary> Determines whether any of the specified keys were previously down and are now up. </summary>
+        /// <summary> Determines whether any of the specified keys are currently up and were previously down. </summary>
         public bool KeysReleasedAny(params Keys[] keys) => keys.Any(this.KeyReleased);
 
         /// <summary> Determines whether a specified key is currently down. </summary>
@@ -81,11 +81,11 @@ namespace Mogi.Helpers
         public bool MouseUp(MouseButton button) =>
             this.CurrentMouse.GetButtonState(button).IsReleased();
 
-        /// <summary> Determines whether the specified mouse button was previously up and is now down. </summary>
+        /// <summary> Determines whether the specified mouse button is currently down and was previously up. </summary>
         public bool MousePressed(MouseButton button) =>
             (!this.PreviousMouse.GetButtonState(button).IsPressed() && this.CurrentMouse.GetButtonState(button).IsPressed());
 
-        /// <summary> Determines whether the specified mouse button was previously down and is now up. </summary>
+        /// <summary> Determines whether the specified mouse button is currently up and was previously down. </summary>
         public bool MouseReleased(MouseButton button) =>
             (!this.PreviousMouse.GetButtonState(button).IsReleased() && this.CurrentMouse.GetButtonState(button).IsReleased());
 

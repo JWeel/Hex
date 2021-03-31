@@ -1,4 +1,5 @@
-﻿using Extended.Extensions;
+﻿using System.Runtime.CompilerServices;
+using Extended.Extensions;
 using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
@@ -204,6 +205,9 @@ namespace Hex
 
             this.IsMouseVisible = true;
 
+            if (this.Input.KeyPressed(Keys.Tab))
+                this.Side.Toggle();
+
             if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
                 this.Client.ToggleFullscreen();
 
@@ -226,11 +230,20 @@ namespace Hex
                     this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
             }
 
+            if (this.Input.KeyPressed(Keys.D3) || (this.Input.KeyDown(Keys.D3) && this.Input.KeyDown(Keys.LeftShift)))
+                this.Tilemap.XX --;
+            if (this.Input.KeyPressed(Keys.D4) || (this.Input.KeyDown(Keys.D4) && this.Input.KeyDown(Keys.LeftShift)))
+                this.Tilemap.XX ++;
+            if (this.Input.KeyPressed(Keys.D5) || (this.Input.KeyDown(Keys.D5) && this.Input.KeyDown(Keys.LeftShift)))
+                this.Tilemap.YY --;
+            if (this.Input.KeyPressed(Keys.D6) || (this.Input.KeyDown(Keys.D6) && this.Input.KeyDown(Keys.LeftShift)))
+                this.Tilemap.YY ++;
 
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentVirtualMouseVector;
                 this.ResolutionTranslatedMouseVector = this.Input.CurrentVirtualMouseVector;
+                // this.ResolutionTranslatedMouseVector = new Vector2(this.ResolutionTranslatedMouseVector.X, 500);
                 this.TilemapTranslatedMouseVector = this.Tilemap.Translate(this.ResolutionTranslatedMouseVector);
             }
 
@@ -268,7 +281,9 @@ namespace Hex
                 // this.Log.AppendLine($"Tilemap: {this.Tilemap.MapSize}");
                 // this.Log.AppendLine($"Grid: {this.Tilemap.GridSize}");
                 // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
-                // this.Log.AppendLine($"Orientation: {this.Tilemap.Orientation}");
+                this.Log.AppendLine($"Orientation: {this.Tilemap.Orientation}");
+                this.Log.AppendLine($": {(this.Tilemap.XX, this.Tilemap.YY)}");
+                this.Log.AppendLine($": {this.Tilemap.Debug}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }
@@ -280,9 +295,9 @@ namespace Hex
 
 
             // SpriteSortMode.FrontToBack
-            this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
 
-            this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.MapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.TilemapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
 
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();

@@ -22,7 +22,7 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input, ClientWindow window)
+        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, Func<float> rotationGetter, InputHelper input, ClientWindow window)
         {
             this.MapSizeGetter = mapSizeGetter;
             this.ViewportSizeGetter = viewportSizeGetter;
