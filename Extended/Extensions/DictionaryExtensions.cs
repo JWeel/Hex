@@ -21,5 +21,13 @@ namespace Extended.Extensions
             map.Remove(KeyValuePair.Create(tuple.Key, tuple.Value));
 
         #endregion
+
+        #region Coalesce
+
+        /// <summary> Gets the value associated with the specified key, or a default value if the key does not exist in the map. </summary>
+        public static TValue GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> map, TKey key) =>
+            map.TryGetValue(key, out var value) ? value : default;
+
+        #endregion
     }
 }

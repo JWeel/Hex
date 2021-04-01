@@ -7,13 +7,13 @@ namespace Mogi.Extensions
     {
         #region Draw Methods
 
-        public static void DrawAt(this SpriteBatch spriteBatch, Texture2D texture, Vector2 position, float scale, Color? color = default, float depth = 0f) =>
+        public static void DrawAt(this SpriteBatch spriteBatch, Texture2D texture, Vector2 position, Color? color = default, float rotation = 0f, float scale = 1f, float depth = 0f) =>
             spriteBatch.Draw(
                 texture: texture,
                 position: position,
                 sourceRectangle: null,
                 color: color ?? Color.White,
-                rotation: 0f,
+                rotation: rotation,
                 origin: Vector2.Zero,
                 scale: scale,
                 effects: SpriteEffects.None,

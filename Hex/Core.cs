@@ -230,15 +230,6 @@ namespace Hex
                     this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
             }
 
-            if (this.Input.KeyPressed(Keys.D3) || (this.Input.KeyDown(Keys.D3) && this.Input.KeyDown(Keys.LeftShift)))
-                this.Tilemap.XX --;
-            if (this.Input.KeyPressed(Keys.D4) || (this.Input.KeyDown(Keys.D4) && this.Input.KeyDown(Keys.LeftShift)))
-                this.Tilemap.XX ++;
-            if (this.Input.KeyPressed(Keys.D5) || (this.Input.KeyDown(Keys.D5) && this.Input.KeyDown(Keys.LeftShift)))
-                this.Tilemap.YY --;
-            if (this.Input.KeyPressed(Keys.D6) || (this.Input.KeyDown(Keys.D6) && this.Input.KeyDown(Keys.LeftShift)))
-                this.Tilemap.YY ++;
-
             if (this.Input.MouseMoved())
             {
                 this.BaseMouseVector = this.Input.CurrentVirtualMouseVector;
@@ -278,11 +269,10 @@ namespace Hex
                 this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                // this.Log.AppendLine($"Tilemap: {this.Tilemap.MapSize}");
-                // this.Log.AppendLine($"Grid: {this.Tilemap.GridSize}");
+                this.Log.AppendLine($"Tilemap1  : {this.Tilemap.TrueSize}");
+                this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
+                this.Log.AppendLine($"Tilemap3: {this.Tilemap.TransformedPaddedTilemapSize}");
                 // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
-                this.Log.AppendLine($"Orientation: {this.Tilemap.Orientation}");
-                this.Log.AppendLine($": {(this.Tilemap.XX, this.Tilemap.YY)}");
                 this.Log.AppendLine($": {this.Tilemap.Debug}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
@@ -294,16 +284,18 @@ namespace Hex
             this.GraphicsDevice.Clear(Color.Black);
 
 
-            // SpriteSortMode.FrontToBack
+            // try other SamplerStates
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
 
-            this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.TilemapSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.TrueSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
 
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
 
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
+
+            this.SpriteBatch.DrawAt(this.BlankTexture, this.Client.CurrentResolution/2 - new Vector2(3), Color.DarkMagenta, scale: 7f);
 
             // var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
             // var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
@@ -353,5 +345,6 @@ namespace Hex
         //      And whether to start in fullscreen -> meaning global settings should be stored in config file
         // fullscreen just borderless mode? not sure of impact on non-windows
         // all form controls need keyboard support, like the blinking selector from pan engine
+        // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
     }
 }

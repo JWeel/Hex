@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 
 namespace Hex.Extensions
@@ -29,6 +30,13 @@ namespace Hex.Extensions
         // cannot call it floor because thats a void method (which mutates the struct yuck)
         public static Vector2 Floored(this Vector2 vector) =>
             Vector2.Floor(vector);
+            
+        #endregion
+
+        #region Absolute
+
+        public static Vector2 Absolute(this Vector2 vector) =>
+            new Vector2(Math.Abs(vector.X), Math.Abs(vector.Y));
             
         #endregion
     }

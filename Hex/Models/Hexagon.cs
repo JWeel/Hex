@@ -9,20 +9,20 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Hexagon((Cube Cube, Vector2 Position)[] coordinates)
+        public Hexagon(Cube cube, Vector2 position)
         {
-            this.Cubes = coordinates.Select(x => x.Cube).ToArray();
-            this.Positions = coordinates.Select(x => x.Position).ToArray();
+            this.Cube = cube;
+            this.Position = position;
 
-            // this.TileType = this.Cubes[0].Into(x => (x.X % 7 == x.Z)) ? TileType.Mountain : TileType.Grass;
+            this.TileType = (cube.X % 7 == cube.Z) ? TileType.Mountain : TileType.Grass;
         }
 
         #endregion
 
         #region Properties
 
-        public Cube[] Cubes { get; }
-        public Vector2[] Positions { get; }
+        public Cube Cube { get; }
+        public Vector2 Position { get; }
         public TileType TileType { get; }
         public Color Color { get; set; }
 
