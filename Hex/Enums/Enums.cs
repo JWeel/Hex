@@ -12,6 +12,7 @@ namespace Hex.Enums
     public enum TileType
     {
         Grass,
-        Mountain
+        Mountain,
+        Sea
     }
 }

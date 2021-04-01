@@ -84,10 +84,7 @@ namespace Hex.Helpers
             var (cameraMin, cameraMax) = this.GetBounds();
             var cameraCenter = (cameraMin + cameraMax) / 2f;
 
-            var relativeDifference = cameraCenter - position;
-            var unclampedPosition = position + relativeDifference;
-
-            this.Position = Vector2.Clamp(unclampedPosition, cameraMin, cameraMax);
+            this.Position = Vector2.Clamp(position, cameraMin, cameraMax);
         }
 
         public void CenterOn(Vector2 position, Vector2 centerPosition)

@@ -123,7 +123,7 @@ namespace Hex
             this.Architect = dependency.Register<Architect>();
             this.Tilemap = dependency.Register<TilemapHelper>();
 
-            this.Tilemap.Arrange(BASE_WINDOW_SIZE, BASE_MAP_PADDING);
+            this.Tilemap.Arrange(BASE_WINDOW_SIZE);
             // this.Tilemap.Orientation.Advance();
             // this.Tilemap.Orientation.Advance();
 
@@ -131,7 +131,6 @@ namespace Hex
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
             this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
 
-            // var exitConfirmationPanelSize = new Vector2(256, 144);
             var exitConfirmationPanelSize = new Vector2(400, 100);
             var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
             var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
@@ -269,11 +268,10 @@ namespace Hex
                 this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                this.Log.AppendLine($"Tilemap1  : {this.Tilemap.TrueSize}");
+                this.Log.AppendLine($"Tilemap1: {this.Tilemap.TrueSize}");
                 this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
-                this.Log.AppendLine($"Tilemap3: {this.Tilemap.TransformedPaddedTilemapSize}");
+                this.Log.AppendLine($"Tilemap3: {this.Tilemap.TilemapOffset}");
                 this.Log.AppendLine($"Tilemap4: {this.Tilemap.BaseBoundingBoxSize}");
-                // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }
@@ -287,23 +285,28 @@ namespace Hex
             // try other SamplerStates
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
 
-            this.SpriteBatch.DrawTo(this.BlankTexture, this.Tilemap.TrueSize.ToRectangle(), Color.DarkSlateGray);//, depth: 0.15f);
-
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
+
+            this.SpriteBatch.End();
+
+
+            // Indication of container size - can be removed
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
+            var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
+            var rect1 = new Rectangle(difference.X, 0, difference.X, difference.Y);
+            var rect2 = new Rectangle(0, difference.Y, difference.X * 2, difference.Y);
+            this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
+            this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
             this.SpriteBatch.End();
 
 
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
-
-            this.SpriteBatch.DrawAt(this.BlankTexture, this.Client.CurrentResolution/2 - new Vector2(3), Color.DarkMagenta, scale: 7f);
-
             // var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
             // var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
             // var panelOverlay = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
             // this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
             // this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
             // this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
-
             this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
 

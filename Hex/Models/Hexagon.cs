@@ -14,7 +14,10 @@ namespace Hex.Models
             this.Cube = cube;
             this.Position = position;
 
-            this.TileType = (cube.X % 7 == cube.Z) ? TileType.Mountain : TileType.Grass;
+            this.TileType = 
+                (cube.X % 7 == cube.Z) ? TileType.Mountain :
+                // (cube.Z % 3 == cube.Y-1) ? TileType.Sea :
+                TileType.Grass;
         }
 
         #endregion
