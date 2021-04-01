@@ -272,8 +272,8 @@ namespace Hex
                 this.Log.AppendLine($"Tilemap1  : {this.Tilemap.TrueSize}");
                 this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
                 this.Log.AppendLine($"Tilemap3: {this.Tilemap.TransformedPaddedTilemapSize}");
+                this.Log.AppendLine($"Tilemap4: {this.Tilemap.BaseBoundingBoxSize}");
                 // this.Log.AppendLine($"Padding: {this.Tilemap.TilemapPadding}");
-                this.Log.AppendLine($": {this.Tilemap.Debug}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }

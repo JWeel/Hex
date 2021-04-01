@@ -48,7 +48,8 @@ namespace Hex.Helpers
 
             this.HexagonOuterTexture = content.Load<Texture2D>("xop");
             this.HexagonInnerTexture = content.Load<Texture2D>("xip");
-            this.HexagonBorderTexture = content.Load<Texture2D>("xbp");
+            this.HexagonBorderPointyTexture = content.Load<Texture2D>("xbp");
+            this.HexagonBorderFlattyTexture = content.Load<Texture2D>("xbf");
 
             this.HexagonSize = new Vector2(this.HexagonOuterTexture.Width, this.HexagonOuterTexture.Height);
             this.HexagonSizeAdjusted = (this.HexagonOuterTexture.Width / SHORT_OVERLAP_DIVISOR, this.HexagonOuterTexture.Height / LONG_OVERLAP_DIVISOR);
@@ -65,15 +66,16 @@ namespace Hex.Helpers
         public Hexagon SourceHexagon { get; protected set; }
 
         // TODO find better way to share this (camera needs it, maybe have camera be child of tilemaphelper)
-        public Vector2 TrueSize =>
-            Vector2.Max(this.ContainerSize, this.TransformedPaddedTilemapSize).IfOddAddOne();
+        public Vector2 TrueSize => this.BaseBoundingBoxSize;
+        // Vector2.Max(this.ContainerSize, this.TransformedPaddedTilemapSize).IfOddAddOne();
 
         public Vector2 BaseTilemapSize { get; protected set; }
 
         // needed for hexagon-shaped map, where (0,0,0) is not at top left but in middle -> probably more scenarios!!
         // alternatively make a hexagon shape where (0,0,0) is not middle?
         protected Vector2 CenterOffset =>
-            (this.OriginHexagon == this.CenterHexagon) ? (this.BaseTilemapSize - this.HexagonSize) / 2 : Vector2.Zero;
+            (this.BaseTilemapSize / 2 - this.OriginHexagon.Position + this.HexagonSize / 2);
+        // (this.OriginHexagon == this.CenterHexagon) ? (this.BaseTilemapSize - this.HexagonSize) / 2 : Vector2.Zero;
 
         // not accurate!
         // Y is too big in parallelograms
@@ -103,7 +105,8 @@ namespace Hex.Helpers
 
         protected Texture2D HexagonOuterTexture { get; set; }
         protected Texture2D HexagonInnerTexture { get; set; }
-        protected Texture2D HexagonBorderTexture { get; set; }
+        protected Texture2D HexagonBorderPointyTexture { get; set; }
+        protected Texture2D HexagonBorderFlattyTexture { get; set; }
 
         protected Vector2 HexagonSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
@@ -153,9 +156,16 @@ namespace Hex.Helpers
 
             this.BaseTilemapSize = this.CalculateHexagonsCombinedSize();
 
+            var (w, h) = this.BaseTilemapSize.ToPoint();
+            var diagonal = (float) Math.Sqrt(Math.Pow(w, 2) + Math.Pow(h, 2));
+            this.BaseBoundingBoxSize = new Vector2(diagonal);
+
+
             this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
             this.Center();
         }
+        public Vector2 BaseBoundingBoxSize { get; protected set; }
+        public Vector2 PaddedBoundingBoxSize => this.BaseBoundingBoxSize + this.ContainerPadding;
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
@@ -291,10 +301,15 @@ namespace Hex.Helpers
                 this.CalculatedVisibility = false;
             }
 
-            if (this.Input.KeyDown(Keys.Z))
-                this.Rotate(advance: true);
-            if (this.Input.KeyDown(Keys.X))
-                this.Rotate(advance: false);
+            if (this.Input.KeyPressed(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                this.Rotate(advance: true, fixedStep: true);
+            else if (this.Input.KeyDown(Keys.Z) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                this.Rotate(advance: true, fixedStep: false);
+
+            if (this.Input.KeyPressed(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                this.Rotate(advance: false, fixedStep: true);
+            else if (this.Input.KeyDown(Keys.X) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                this.Rotate(advance: false, fixedStep: false);
 
             if (this.Input.KeyPressed(Keys.V))
             {
@@ -313,7 +328,7 @@ namespace Hex.Helpers
                 var basePosition = hex.Position;
                 var position = this.TilemapOrigin + this.Transform(basePosition);
 
-                spriteBatch.DrawAt(this.HexagonBorderTexture, position, Color.Sienna, this.Rotation, depth: .075f);
+                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, position, Color.Sienna, this.Rotation, depth: .075f);
 
                 var color = ((hex == this.CursorHexagon) && (hex == this.SourceHexagon)) ? new Color(255, 170, 130)
                     : (hex == this.CursorHexagon) ? Color.LightYellow
@@ -333,11 +348,18 @@ namespace Hex.Helpers
                 // TODO calculate border hexagons and only draw for them, note it changes by orientation!
                 if (hex.TileType == TileType.Mountain)
                 {
+                    // var degrees = Math.Round(this.Rotation * 180 / Math.PI);
+                    // var modulo = degrees % 60;
+                    // var borderTexture = modulo == 0 ? this.HexagonBorderPointyTexture : this.HexagonBorderFlattyTexture;
+
+                    var borderTexture = this.HexagonBorderPointyTexture;
+                    var borderRotation = this.Rotation;
+
                     var innerBorderPosition1 = this.TilemapOrigin + this.Transform(basePosition - new Vector2(0, 5));
                     // var innerBorderPosition2 = this.TilemapOrigin + this.Transform(basePosition - new Vector2(0, 9));
                     // var innerBorderPosition3 = this.TilemapOrigin + this.Transform(basePosition - new Vector2(0, 13));
 
-                    spriteBatch.DrawAt(this.HexagonBorderTexture, innerBorderPosition1, Color.Sienna, this.Rotation, depth: .2f);
+                    spriteBatch.DrawAt(borderTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
                     // spriteBatch.DrawAt(this.HexBorderTexture, innerBorderPosition2, Color.Sienna, this.Rotation, depth: .21f);
                     // spriteBatch.DrawAt(this.HexBorderTexture, innerBorderPosition3, Color.Sienna, this.Rotation, depth: .22f);
                 }
@@ -369,8 +391,6 @@ namespace Hex.Helpers
                 }
             }
 
-            // if (debug != null)
-            //     spriteBatch.DrawText(this.Font, debug, this.TilemapSize / 2);
             // if (this.CenterHexagon != null)
             // {
             //     var position = this.CenterHexagon.Position;
@@ -381,11 +401,10 @@ namespace Hex.Helpers
             //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position + this.HexSize/2, 3f, Color.Navy);
             // }
 
-            var middle = this.BaseTilemapSize /2 + this.TilemapOrigin - this.CenterOffset;
+            var middle = this.BaseTilemapSize / 2 - this.CenterOffset + this.TilemapOrigin;
 
             spriteBatch.DrawAt(this.BlankTexture, middle - new Vector2(3), Color.DarkOrange, scale: 7f, depth: .9f);
         }
-        public string Debug;
 
         // shouldnt be publically called like this
         public void Center()
@@ -409,30 +428,43 @@ namespace Hex.Helpers
 
         protected void RecenterGrid()
         {
-            this.TilemapOrigin = Vector2.Round((this.TrueSize - this.BaseTilemapSize) / 2) + this.CenterOffset;
+            // given arbitrary tilemap shape
+            // given arbitrary origin, calculate difference between origin and middle
+            // given max bounding box,
+
+
+            // bounding box to be calculated in Arrange
+            // BaseBoundingBox
+            // PaddedBoundingBox
+
+            this.TilemapOrigin = Vector2.Round(this.BaseBoundingBoxSize / 2 - this.CenterOffset);
+
+
+            // this.TilemapOrigin = Vector2.Round((this.TrueSize - this.BaseTilemapSize) / 2) + this.CenterOffset;
         }
 
-        protected void Rotate(bool advance)
+        protected void Rotate(bool advance, bool fixedStep)
         {
             var rotationOriginVector = this.Translate(this.ContainerSize / 2);
             var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
             // this.RotationHexagon = this.HexagonMap[cubeAtRotationOrigin];
 
+            var degreeIncrement = fixedStep ? 30 : 3;
+
             if (advance)
-            {
-                this.Rotation += (float) (3 * Math.PI / 180);
-            }
+                this.Rotation += (float) (degreeIncrement * Math.PI / 180);
             else
-            {
-                this.Rotation -= (float) (3 * Math.PI / 180);
-                // this.Orientation.Reverse();
-            }
+                this.Rotation -= (float) (degreeIncrement * Math.PI / 180);
+
             this.Rotation %= (float) (360 * Math.PI / 180);
 
-            this.Debug = this.Rotation.ToString();
-            this.RecenterGrid();
+            // for camera:
+            // calculate difference between camera position and middle of tilemap
+            // now do transform by translating -that distance, rotate, +that distance
 
-            this.Camera.Center();
+            // this.RecenterGrid();
+            // this.Camera.CenterOn(this.Transform(this.Camera.Position));
+            // this.Camera.Center();
             return;
 
             // this does not need to be a property
@@ -538,9 +570,9 @@ namespace Hex.Helpers
         }
 
         protected Matrix TilemapTransform =>
-                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / -2f + this.CenterOffset, 1)) *
+                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / -2f, 1)) *
                 Matrix.CreateRotationZ(this.Rotation) *
-                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / 2f  - this.CenterOffset, 1));
+                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / 2f, 1));
 
         protected Vector2 Transform(Vector2 vector) =>
             Vector2.Transform(vector, this.TilemapTransform);
