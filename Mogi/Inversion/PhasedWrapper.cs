@@ -46,4 +46,37 @@ namespace Mogi.Inversion
 
         #endregion
     }
+
+    /// <summary> Forwards delegates to the necessary methods for implementing <see cref="IUpdate{}"/>.
+    /// <br/> This enables any arbitrary class to be attached to classes implementing <see cref="IRoot"/>. </summary>
+    /// <remarks> See also: <see cref="Extensions.Attach"/> </remarks>
+    public class PhasedUpdateWrapper<TUpdatePhase> : IUpdate<TUpdatePhase>
+        where TUpdatePhase : IPhase
+    {
+        #region Constructors
+
+        /// <summary> Initializes a new instance with a delegate that allows it to implement <see cref="IUpdate{}"/>. </summary>
+        /// <param name="update"> The action to invoke when updating. </param>
+        public PhasedUpdateWrapper(Action<GameTime> update)
+        {
+            this.UpdateAction = update;
+        }
+
+        #endregion
+
+        #region Properties
+
+        protected Action<GameTime> UpdateAction { get; }
+
+        #endregion
+
+        #region Methods
+
+        public void Update(GameTime gameTime)
+        {
+            this.UpdateAction?.Invoke(gameTime);
+        }
+
+        #endregion
+    }
 }

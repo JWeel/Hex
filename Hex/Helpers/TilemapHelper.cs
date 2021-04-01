@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -31,7 +32,7 @@ namespace Hex.Helpers
         // no idea why this works, but without it mouse to hexagon conversion is off and gets worse as it moves further from origin
         private const int SCREEN_TO_HEX_MAGIC_OFFSET_NUMBER = 169;
 
-        /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two points. </summary>
+        /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two cubes. </summary>
         private static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
 
         #endregion
@@ -75,15 +76,17 @@ namespace Hex.Helpers
 
         public Vector2 ContainerSize { get; protected set; }
 
-        public Vector2 TilemapOffset { get; set; }
+        public Vector2 TilemapOffset { get; protected set; }
 
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
         protected Hexagon RotationHexagon { get; set; }
         protected Hexagon LastCursorHexagon { get; set; }
         protected Hexagon LastSourceHexagon { get; set; }
-        protected Vector2 OriginPosition { get; set; }
         protected Vector2 RenderPosition { get; set; }
+
+        protected float Rotation { get; set; }
+
         protected Vector2 RotationOrigin =>
             this.BaseTilemapSize / 2 + this.TilemapOffset + this.RenderPosition;
 
@@ -103,8 +106,6 @@ namespace Hex.Helpers
 
         protected Texture2D BlankTexture { get; set; }
         protected SpriteFont Font { get; set; }
-
-        protected float Rotation { get; set; }
 
         #endregion
 
@@ -131,13 +132,8 @@ namespace Hex.Helpers
                 .ToDictionary(x => x.Cube);
 
             this.OriginHexagon = this.HexagonMap.GetOrDefault(default);
-            if (this.OriginHexagon == null)
-                this.OriginPosition = Vector2.Zero;
-            else
-            {
+            if (this.OriginHexagon != null)
                 this.OriginHexagon.Color = Color.Gold;
-                this.OriginPosition = this.OriginHexagon.Position;
-            }
             this.HexagonMap.GetOrDefault(new Cube(1, -2, 1))?.Into(x => x.Color = Color.Silver);
 
             var centerCube = this.FindCenterCube();
@@ -175,8 +171,8 @@ namespace Hex.Helpers
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R)[] Spawn(int n, int m)
         {
-            var shape = DefaultShape.Hexagon;
-            // var shape = DefaultShape.Rectangle;
+            // var shape = DefaultShape.Hexagon;
+            var shape = DefaultShape.Rectangle;
             // var shape = DefaultShape.Triangle;
             // var shape = DefaultShape.Parallelogram;
             // var shape = DefaultShape.Line;
@@ -203,6 +199,27 @@ namespace Hex.Helpers
                             // not sure why q and r are flipped here
                             axials.Add((r, q));
                         }
+                        if (n < 3) break;
+                        // DONUT
+                        axials.Remove(default);
+                        axials.Remove((-1, 0));
+                        axials.Remove((-1, 1));
+                        axials.Remove((0, -1));
+                        axials.Remove((0, 1));
+                        axials.Remove((1, -1));
+                        axials.Remove((1, 0));
+                        axials.Remove((0, -2));
+                        axials.Remove((1, -2));
+                        axials.Remove((2, -2));
+                        axials.Remove((-1, -1));
+                        axials.Remove((2, -1));
+                        axials.Remove((-2, 0));
+                        axials.Remove((2, 0));
+                        axials.Remove((-2, 1));
+                        axials.Remove((1, 1));
+                        axials.Remove((-2, 2));
+                        axials.Remove((-1, 2));
+                        axials.Remove((0, 2));
                     }
                     break;
                 case DefaultShape.Rectangle:
@@ -226,7 +243,6 @@ namespace Hex.Helpers
             // var ran = new Random();
             // Enumerable.Range(0, ran.Next(axials.Count))
             //     .Each(i => axials.RemoveAt(ran.Next(axials.Count)));
-            axials.Remove(default);
             return axials.ToArray();
         }
 
@@ -238,7 +254,7 @@ namespace Hex.Helpers
         {
             this.Camera.Update(gameTime);
 
-            if (this.Input.KeyPressed(Keys.O))
+            if (this.Input.KeyPressed(Keys.C))
                 this.Center();
 
             if (this.Input.KeyPressed(Keys.P))
@@ -247,7 +263,6 @@ namespace Hex.Helpers
             if (this.Input.MouseMoved())
             {
                 var mouseVector = this.Input.CurrentVirtualMouseVector;
-                // mouseVector = new Vector2(mouseVector.X, 500);
                 var cameraTranslatedMouseVector = this.Camera.FromScreen(mouseVector);
 
                 if (this.ContainerSize.ToRectangle().Contains(mouseVector))
@@ -357,15 +372,24 @@ namespace Hex.Helpers
                     // var borderTexture = modulo == 0 ? this.HexagonBorderPointyTexture : this.HexagonBorderFlattyTexture;
 
                     var borderTexture = this.HexagonBorderPointyTexture;
+                    // var borderRotation = (float) (this.Rotation % (60 * Math.PI / 180));
                     var borderRotation = this.Rotation;
 
-                    var innerBorderPosition1 = this.TilemapOffset + (basePosition - new Vector2(0, 5)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition2 = this.TilemapOffset + (basePosition - new Vector2(0, 9)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition3 = this.TilemapOffset + (basePosition - new Vector2(0, 13)).Transform(this.TilemapRotationMatrix);
+                    var degrees = this.Rotation * 180 / Math.PI;
+                    var rotationOffset = degrees switch
+                    {
+                        // var x when (degrees < 180) => Vector2.Zero,
+                        // var x when (degrees < 210) => new Vector2(this.HexagonSize.X, this.HexagonSize.Y*1.5f),
+                        _ => Vector2.Zero
+                    };
+
+                    var innerBorderPosition1 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 5)).Transform(this.TilemapRotationMatrix);
+                    var innerBorderPosition2 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 9)).Transform(this.TilemapRotationMatrix);
+                    var innerBorderPosition3 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 13)).Transform(this.TilemapRotationMatrix);
 
                     spriteBatch.DrawAt(borderTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
-                    spriteBatch.DrawAt(borderTexture, innerBorderPosition2, Color.Sienna, this.Rotation, depth: .21f);
-                    spriteBatch.DrawAt(borderTexture, innerBorderPosition3, Color.Sienna, this.Rotation, depth: .22f);
+                    spriteBatch.DrawAt(borderTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
+                    spriteBatch.DrawAt(borderTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
                 }
 
                 color = hex.TileType switch
@@ -395,16 +419,6 @@ namespace Hex.Helpers
                 }
             }
 
-            // if (this.CenterHexagon != null)
-            // {
-            //     var position = this.CenterHexagon.Position;
-            //     var scaledViewportCenter = this.ContainerSize / this.Camera.ZoomScaleFactor / 2f;
-            //     spriteBatch.DrawText(this.Font, position.ToString(), position);
-            //     spriteBatch.DrawText(this.Font, scaledViewportCenter.ToString(), scaledViewportCenter);
-            //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position, 3f, Color.Maroon);
-            //     spriteBatch.DrawAt(this.BlankTexture, this.TilemapOrigin + position + this.HexSize/2, 3f, Color.Navy);
-            // }
-
             // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin - new Vector2(2), Color.DarkOrange, scale: 5f, depth: .9f);
             // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin, Color.DarkGray, depth: .91f);
             // spriteBatch.DrawText(this.Font, this.RotationOrigin.ToString(), this.RotationOrigin);
@@ -432,25 +446,18 @@ namespace Hex.Helpers
 
         protected void RecenterGrid()
         {
-            // Given an arbitrary origin position, calculate distance to relative middle
-            // The middle is relative because render position (top left position of all rendering) can differ from origin
-            // (i.e. hexagon (0,0) does not need to be at top left)
+            // Get distance from top left (renderposition) to tilemap middle
             var relativeMiddle = this.BaseTilemapSize / 2 + this.RenderPosition;
-            var distanceOriginToMiddle = this.OriginPosition - relativeMiddle;
-            // Now with this relative distance, add this to the true middle to get the offset for the tilemap
-            this.TilemapOffset = Vector2.Round(this.TrueSize / 2 + distanceOriginToMiddle);
-
-            // Note: Technically any shape could be made with origin as top left
-            // But this way that is not a requirement. Means that OriginHexagon does not need to be (0,0) either!
+            // Subtract this distance from true middle to get offset for centered tilemap rendering
+            this.TilemapOffset = Vector2.Round(this.TrueSize / 2 - relativeMiddle);
         }
 
         protected void Rotate(bool advance, bool fixedStep)
         {
             var rotationOriginVector = this.Translate(this.ContainerSize / 2);
             var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
-            // this.RotationHexagon = this.HexagonMap[cubeAtRotationOrigin];
 
-            var degreeIncrement = fixedStep ? 30 : 3;
+            var degreeIncrement = fixedStep ? 30 : 1;
 
             if (advance)
                 this.Rotation -= (float) (degreeIncrement * Math.PI / 180);
@@ -459,32 +466,12 @@ namespace Hex.Helpers
 
             this.Rotation %= (float) (360 * Math.PI / 180);
 
-            // for camera:
-            // calculate difference between camera position and middle of tilemap
-            // now do transform by translating -that distance, rotate, +that distance
-            var positionRelativeToCenter = this.TrueSize / 2 - this.Camera.Position;
+            // TODO preserve relative camera position after rotating
             var matrix =
-                Matrix.CreateTranslation(new Vector3(positionRelativeToCenter / -2f, 1)) *
+                Matrix.CreateTranslation(new Vector3(this.Camera.Position / -2f, 1)) *
                 Matrix.CreateRotationZ(this.Rotation) *
-                Matrix.CreateTranslation(new Vector3(positionRelativeToCenter / 2f, 1));
+                Matrix.CreateTranslation(new Vector3(this.Camera.Position / 2f, 1));
             // this.Camera.CenterOn(this.Camera.Position.Transform(matrix.Invert()));
-
-            // this.RecenterGrid();
-            // this.Camera.CenterOn(this.Transform(this.Camera.Position));
-            // this.Camera.Center();
-            return;
-
-            // this does not need to be a property
-            if (this.RotationHexagon != null)
-                this.Camera.CenterOn(this.RotationHexagon.Position, this.CenterHexagon.Position);
-            else
-                // center on is not ideal, it requires relative hexagon positioning to work
-                // this means that when no rotation origin hexagon is found, camera position is off
-                // calling Clamp here is a bandaid: it ensures camera does not go outside tilemap
-                // true solution requires:
-                // 1. center on position, not relative hexagon
-                // 2. increasing the 'viewable' tilemap size to be larger -> each tilemap edge + half container size
-                this.Camera.Clamp();
         }
 
         protected Cube ToCubeCoordinates(Vector2 position)
@@ -562,7 +549,7 @@ namespace Hex.Helpers
 
         protected void DetermineFogOfWar()
         {
-            var viewDistance = 10;
+            var viewDistance = 9;
             this.HexagonMap.Values.Each(hex => this.FogOfWarMap[hex] = InView(hex));
             bool InView(Hexagon hexagon)
             {
@@ -584,6 +571,7 @@ namespace Hex.Helpers
                 Matrix.CreateRotationZ(this.Rotation) *
                 Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / 2f + this.RenderPosition, 1));
 
+        // not really sure what center is useful for
         protected Cube FindCenterCube()
         {
             var (minX, minY, minZ, maxX, maxY, maxZ) = this.HexagonMap.Values

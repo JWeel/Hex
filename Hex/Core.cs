@@ -177,6 +177,25 @@ namespace Hex
             this.Attach(exitWrapper);
             this.Attach(this.Side);
             this.Attach(this.Toggle);
+
+            var clientWindowWrapper = new PhasedUpdateWrapper<NormalUpdate>(gametime =>
+            {
+                if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
+                    this.Client.ToggleFullscreen();
+
+                if (!this.Client.IsFullscreen)
+                {
+                    if (this.Input.KeyPressed(Keys.D0))
+                        this.Client.CenterWindow();
+                    if (this.Input.KeyPressed(Keys.R))
+                        this.Client.Resize(BASE_WINDOW_SIZE);
+                    if (this.Input.KeyPressed(Keys.OemPlus))
+                        this.Client.Resize(this.Client.CurrentResolution + BASE_WINDOW_INCREMENT);
+                    if (this.Input.KeyPressed(Keys.OemMinus))
+                        this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
+                }
+            });
+            this.Attach(clientWindowWrapper);
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
@@ -204,30 +223,11 @@ namespace Hex
 
             this.IsMouseVisible = true;
 
-            if (this.Input.KeyPressed(Keys.Tab))
-                this.Side.Toggle();
-
-            if (this.Input.KeyPressed(Keys.F11) || (this.Input.KeyPressed(Keys.Enter) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt)))
-                this.Client.ToggleFullscreen();
-
             // if (this.Input.KeyPressed(Keys.Enter))
             //     this.Tilemap.Arrange(BASE_WINDOW_SIZE, BASE_MAP_PADDING);
 
-            if (this.Input.KeyPressed(Keys.C))
-                // TODO move to input handler of tilemap
-                this.Tilemap.Center();
-
-            if (!this.Client.IsFullscreen)
-            {
-                if (this.Input.KeyPressed(Keys.D0))
-                    this.Client.CenterWindow();
-                if (this.Input.KeyPressed(Keys.R))
-                    this.Client.Resize(BASE_WINDOW_SIZE);
-                if (this.Input.KeyPressed(Keys.OemPlus))
-                    this.Client.Resize(this.Client.CurrentResolution + BASE_WINDOW_INCREMENT);
-                if (this.Input.KeyPressed(Keys.OemMinus))
-                    this.Client.Resize(this.Client.CurrentResolution - BASE_WINDOW_INCREMENT);
-            }
+            if (this.Input.KeyPressed(Keys.Tab))
+                this.Side.Toggle();
 
             if (this.Input.MouseMoved())
             {
@@ -237,24 +237,7 @@ namespace Hex
                 this.TilemapTranslatedMouseVector = this.Tilemap.Translate(this.ResolutionTranslatedMouseVector);
             }
 
-            // if (this.Input.KeyPressed(Keys.Left))
-            //     this.GridOrigin -= new Vector2(100, 0);
-            // if (this.Input.KeyPressed(Keys.Right))
-            //     this.GridOrigin += new Vector2(100, 0);
-            // if (this.Input.KeyPressed(Keys.Up))
-            //     this.GridOrigin -= new Vector2(0, 100);
-            // if (this.Input.KeyPressed(Keys.Down))
-            //     this.GridOrigin += new Vector2(0, 100);
-
-            // if (this.Input.KeyPressed(Keys.I))
-            //     this.Camera.CenterOn(this.GetPosition(this.CenterHexagon));
-
-            // this.Camera.HandleInput(this.Input);
-            // this.Tilemap.Update(gameTime);
             this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
-
-            if (this.Input.KeyPressed(Keys.B))
-                this.RecalculateDebug();
 
             if (this.Side.IsActive)
             {
@@ -268,10 +251,10 @@ namespace Hex
                 this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                this.Log.AppendLine($"Tilemap1: {this.Tilemap.TrueSize}");
-                this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
-                this.Log.AppendLine($"Tilemap3: {this.Tilemap.TilemapOffset}");
-                this.Log.AppendLine($"Tilemap4: {this.Tilemap.BaseBoundingBoxSize}");
+                // this.Log.AppendLine($"Tilemap1: {this.Tilemap.TrueSize}");
+                // this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
+                // this.Log.AppendLine($"Tilemap3: {this.Tilemap.TilemapOffset}");
+                // this.Log.AppendLine($"Tilemap4: {this.Tilemap.BaseBoundingBoxSize}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }
@@ -329,14 +312,6 @@ namespace Hex
             this.SpriteBatch.Draw(this.Client.RenderTarget, this.GraphicsDevice.Viewport.Bounds, Color.White);
             this.SpriteBatch.End();
             base.EndDraw();
-        }
-
-        #endregion
-
-        #region Helper Methods
-
-        protected void RecalculateDebug()
-        {
         }
 
         #endregion
