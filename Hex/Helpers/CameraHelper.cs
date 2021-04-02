@@ -30,7 +30,6 @@ namespace Hex.Helpers
             this.Window = window;
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
-            this.Rotation = 0.0f;
         }
 
         #endregion
@@ -47,15 +46,24 @@ namespace Hex.Helpers
 
         public Vector2 Position { get; protected set; }
         public float ZoomScaleFactor { get; protected set; }
-        protected float Rotation { get; set; }
 
-        // TODO come up with way to cache this and only recalculate when needed, e.g. use the above setters
-        // Probably not really worth the minimal optimization
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
-            Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
             Matrix.CreateTranslation(new Vector3(this.MapSizeGetter() / 2f, 0));
+
+        // not sure why this works, but without this when tilemapsize > viewport camera goes out of bounds top left
+        public Vector2 MagicOffset
+        {
+            get
+            {
+                var mapSize = this.MapSizeGetter();
+                var viewportSize = this.ViewportSizeGetter();
+                return new Vector2(
+                    (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
+                    (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
+            }
+        }
 
         #endregion
 
@@ -87,15 +95,11 @@ namespace Hex.Helpers
             this.Position = Vector2.Clamp(position, cameraMin, cameraMax);
         }
 
-        public void CenterOn(Vector2 position, Vector2 centerPosition)
+        public bool RequiresClamping(Vector2 cameraPosition)
         {
             var (cameraMin, cameraMax) = this.GetBounds();
-            var cameraCenter = (cameraMin + cameraMax) / 2f;
-
-            var relativeDifference = cameraCenter - centerPosition;
-            var unclampedPosition = position + relativeDifference;
-
-            this.Position = Vector2.Clamp(unclampedPosition, cameraMin, cameraMax);
+            return ((cameraPosition.X < cameraMin.X) || (cameraPosition.Y < cameraMin.Y) ||
+                    (cameraPosition.X > cameraMax.X) || (cameraPosition.Y > cameraMax.Y));
         }
 
         public void Clamp()
@@ -114,14 +118,8 @@ namespace Hex.Helpers
             var viewportSize = this.ViewportSizeGetter();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
 
-            // this offset causes the center hexagon to always be in the middle when rotating
-            // not sure why the camera needs to provide it. it may be a bug with the tilemap origin
-            // because if this is left as 0 all parts of the tilemap are still visible
-            var offset = new Vector2(
-                (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
-                (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
-            var cameraMin = scaledViewportCenter + offset;
-            var cameraMax = mapSize - scaledViewportCenter + offset;
+            var cameraMin = scaledViewportCenter + this.MagicOffset;
+            var cameraMax = mapSize - scaledViewportCenter + this.MagicOffset;
 
             return (cameraMin, cameraMax);
         }
@@ -131,7 +129,7 @@ namespace Hex.Helpers
             var mousePosition = this.Input.CurrentMouseVector;
             if (this.IsMoving && this.ZoomScaleFactor >= 1f)
             {
-                this.Move(-(mousePosition - this.LastMovePosition), clamp: true);
+                this.Move(-(mousePosition - this.LastMovePosition));
                 this.LastMovePosition = mousePosition;
                 this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
             }
@@ -191,29 +189,20 @@ namespace Hex.Helpers
 
             cameraMovement *= POSITION_MOVE_INCREMENT;
             cameraMovement *= this.ZoomScaleFactor;
-            this.Move(-cameraMovement, clamp: true);
+            this.Move(-cameraMovement);
         }
 
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
             this.ZoomScaleFactor = Math.Clamp(this.ZoomScaleFactor + amount, minAmount, maxAmount);
-            this.Move(Vector2.Zero, clamp: true);
+            // TODO: preserve camera center after zooming
+            this.Move(Vector2.Zero);
         }
 
-        protected void Move(Vector2 amount, bool clamp)
-        {
-            if (!clamp)
-            {
-                this.Position += amount;
-                return;
-            }
-            this.Position = this.MapClampedPosition(this.Position + amount);
-        }
-
-        protected Vector2 MapClampedPosition(Vector2 position)
+        protected void Move(Vector2 amount)
         {
             var (cameraMin, cameraMax) = this.GetBounds();
-            return Vector2.Clamp(position, Vector2.Floor(cameraMin), Vector2.Floor(cameraMax));
+            this.Position = Vector2.Clamp(this.Position + amount, cameraMin, cameraMax);
         }
 
         #endregion

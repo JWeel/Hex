@@ -70,6 +70,7 @@ namespace Hex.Helpers
             Vector2.Max(this.BaseBoundingBoxSize, this.ContainerSize);
 
         public Vector2 BaseTilemapSize { get; protected set; }
+        public Vector2 BaseBoundingBoxSize { get; protected set; }
 
         protected InputHelper Input { get; }
         protected CameraHelper Camera { get; }
@@ -148,16 +149,16 @@ namespace Hex.Helpers
             var tilemapSize = this.CalculateHexagonsCombinedSize();
             this.BaseTilemapSize = tilemapSize;
 
-            // note that this diagonal gives too much padding in non-rectangular shapes (like hexagon and parallelogram)
-            var (w, h) = tilemapSize.ToPoint();
-            var diagonal = Math.Sqrt(Math.Pow(w, 2) + Math.Pow(h, 2));
-            this.BaseBoundingBoxSize = new Vector2((float) diagonal);
+            // boundingbox should be all 4 corners of the bounding rectangle (usually diagonal of tilemapsize)
+            // plus padding for when that corner is the center of rotation (half of containersize on each side)
+            // this gives slightly more than necessary (might be hexagonsize?), but good for now
+            this.BaseBoundingBoxSize = new Vector2(tilemapSize.Length()) + this.ContainerSize;
+            this.Camera.Center();
 
+            this.TilemapOffset = this.CalculateOffset();
 
             this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
-            this.Center();
         }
-        public Vector2 BaseBoundingBoxSize { get; protected set; }
 
         protected enum DefaultShape
         {
@@ -172,8 +173,8 @@ namespace Hex.Helpers
         public (int Q, int R)[] Spawn(int n, int m)
         {
             // var shape = DefaultShape.Hexagon;
-            var shape = DefaultShape.Rectangle;
-            // var shape = DefaultShape.Triangle;
+            // var shape = DefaultShape.Rectangle;
+            var shape = DefaultShape.Triangle;
             // var shape = DefaultShape.Parallelogram;
             // var shape = DefaultShape.Line;
             var axials = new List<(int Q, int R)>();
@@ -255,7 +256,18 @@ namespace Hex.Helpers
             this.Camera.Update(gameTime);
 
             if (this.Input.KeyPressed(Keys.C))
-                this.Center();
+                this.Camera.Center();
+
+            if (this.Input.KeyPressed(Keys.H))
+            {
+                if (null != this.SourceHexagon)
+                {
+                    var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
+                    var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
+                    var newPos = Vector2.Round(transPos + this.Camera.MagicOffset);
+                    this.Camera.CenterOn(newPos);
+                }
+            }
 
             if (this.Input.KeyPressed(Keys.P))
                 this.PrintCoords = !this.PrintCoords;
@@ -319,20 +331,26 @@ namespace Hex.Helpers
                 this.CalculatedVisibility = false;
             }
 
-            if (this.Input.KeyPressed(Keys.Z) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                this.Rotate(advance: true, fixedStep: true);
-            else if (this.Input.KeyDown(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                this.Rotate(advance: true, fixedStep: false);
+            if (this.Input.KeyPressed(Keys.Z) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                this.Rotate(degrees: -30);
+            else if (!this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeyDown(Keys.Z) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: -3);
+                else if (this.Input.KeyDown(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: -1);
 
-            if (this.Input.KeyPressed(Keys.X) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                this.Rotate(advance: false, fixedStep: true);
-            else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                this.Rotate(advance: false, fixedStep: false);
+            if (this.Input.KeyPressed(Keys.X) && this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                this.Rotate(degrees: 30);
+            else if (!this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeyDown(Keys.X) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: 3);
+                else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: 1);
 
             if (this.Input.KeyPressed(Keys.V))
             {
-                this.Rotation = 0f;
-                this.Center();
+                // rotate back to 0
+                this.Rotate(-this.Rotation);
             }
         }
 
@@ -422,13 +440,14 @@ namespace Hex.Helpers
             // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin - new Vector2(2), Color.DarkOrange, scale: 5f, depth: .9f);
             // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin, Color.DarkGray, depth: .91f);
             // spriteBatch.DrawText(this.Font, this.RotationOrigin.ToString(), this.RotationOrigin);
-        }
 
-        // shouldnt be publically called like this
-        public void Center()
-        {
-            this.RecenterGrid();
-            this.Camera.Center();
+            spriteBatch.DrawAt(this.BlankTexture, -this.Camera.MagicOffset + this.Camera.Position - new Vector2(2), Color.Firebrick, scale: 3f, depth: .96f);
+            // spriteBatch.DrawAt(this.BlankTexture, this.Camera.Position - new Vector2(26), Color.Firebrick, scale: 53f, depth: .96f);
+            // if (null != this.SourceHexagon)
+            // {
+            //     var transPos = this.SourceHexagon.Position.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
+            //     spriteBatch.DrawText(this.Font, transPos.ToString(), transPos);
+            // }
         }
 
         public (Cube Coordinates, Vector2 Position) Info(Hexagon hexagon) =>
@@ -437,41 +456,44 @@ namespace Hex.Helpers
         public Vector2 Translate(Vector2 vector) =>
             this.Camera.FromScreen(vector);
 
-        public Matrix TranslationMatrix =>
+        public Matrix CameraTranslationMatrix =>
             this.Camera.TranslationMatrix;
 
         #endregion
 
         #region Helper Methods
 
-        protected void RecenterGrid()
+        protected Vector2 CalculateOffset()
         {
             // Get distance from top left (renderposition) to tilemap middle
             var relativeMiddle = this.BaseTilemapSize / 2 + this.RenderPosition;
             // Subtract this distance from true middle to get offset for centered tilemap rendering
-            this.TilemapOffset = Vector2.Round(this.TrueSize / 2 - relativeMiddle);
+            return Vector2.Round(this.TrueSize / 2 - relativeMiddle);
         }
 
-        protected void Rotate(bool advance, bool fixedStep)
+        protected void Rotate(int degrees)
         {
-            var rotationOriginVector = this.Translate(this.ContainerSize / 2);
-            var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
+            var radians = (float) (degrees * Math.PI / 180);
+            this.Rotate(radians);
+        }
 
-            var degreeIncrement = fixedStep ? 30 : 1;
+        protected void Rotate(float radians)
+        {
+            // var rotationOriginVector = this.Translate(this.ContainerSize / 2);
+            // var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
+            // this.RotationHexagon = this.HexagonMap.GetOrDefault(cubeAtRotationOrigin);
 
-            if (advance)
-                this.Rotation -= (float) (degreeIncrement * Math.PI / 180);
-            else
-                this.Rotation += (float) (degreeIncrement * Math.PI / 180);
-
+            this.Rotation += radians;
             this.Rotation %= (float) (360 * Math.PI / 180);
 
-            // TODO preserve relative camera position after rotating
-            var matrix =
-                Matrix.CreateTranslation(new Vector3(this.Camera.Position / -2f, 1)) *
-                Matrix.CreateRotationZ(this.Rotation) *
-                Matrix.CreateTranslation(new Vector3(this.Camera.Position / 2f, 1));
-            // this.Camera.CenterOn(this.Camera.Position.Transform(matrix.Invert()));
+            // TODO do this based off container middle, not sourcehexagon position
+            if (this.SourceHexagon != null)
+            {
+                var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
+                var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
+                var newPos = Vector2.Round(transPos + this.Camera.MagicOffset);
+                this.Camera.CenterOn(newPos);
+            }
         }
 
         protected Cube ToCubeCoordinates(Vector2 position)

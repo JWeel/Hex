@@ -266,7 +266,7 @@ namespace Hex
 
 
             // try other SamplerStates
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.TranslationMatrix);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.CameraTranslationMatrix);
 
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
 
@@ -275,11 +275,11 @@ namespace Hex
 
             // Indication of container size - can be removed
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
-            var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
-            var rect1 = new Rectangle(difference.X, 0, difference.X, difference.Y);
-            var rect2 = new Rectangle(0, difference.Y, difference.X * 2, difference.Y);
-            this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
-            this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
+            // var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
+            // var rect1 = new Rectangle(difference.X, 0, difference.X, difference.Y);
+            // var rect2 = new Rectangle(0, difference.Y, difference.X * 2, difference.Y);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
             this.SpriteBatch.End();
 
 
