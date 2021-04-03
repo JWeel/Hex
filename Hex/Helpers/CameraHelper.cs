@@ -67,31 +67,38 @@ namespace Hex.Helpers
 
         public void Center()
         {
-            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
-            this.Position = Vector2.Floor((cameraMin + cameraMax) / 2);
+            var (minimum, maximum) = this.GetPositionExtrema();
+            this.Position = Vector2.Floor((minimum + maximum) / 2);
         }
 
         public void CenterOn(Vector2 position)
         {
-            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
-            var cameraCenter = (cameraMin + cameraMax) / 2f;
-
-            this.Position = Vector2.Clamp(position, cameraMin, cameraMax);
+            var (minimum, maximum) = this.GetPositionExtrema();
+            var cameraCenter = (minimum + maximum) / 2f;
+            this.Position = Vector2.Clamp(position, minimum, maximum);
         }
 
         #endregion
 
         #region Helper Methods
 
-        protected (Vector2 CameraMin, Vector2 CameraMax) GetBoundaryCorners()
+        protected (Vector2 Minimum, Vector2 Maximum) GetPositionExtrema()
         {
+            // 'corners' are relative as camera position is the middle of viewport
+            // example: viewport of 3 by 3 in boundary of 6 by 6
+            // the actual corners are 0,0 and 5,5, but camera position corners are not
+            // + - + - - +
+            // | x |     |  -> if camera is in top left, position will be 1,1
+            // + - +     |
+            // |     + - +
+            // |     | x |  -> if camera is in bottom right, position will be 4,4
+            // + - - + - +
             var boundarySize = this.BoundarySizeGetter();
             var viewportSize = this.ViewportSizeGetter();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
-
-            var cameraMin = scaledViewportCenter;
-            var cameraMax = boundarySize - scaledViewportCenter;
-            return (cameraMin, cameraMax);
+            var minimum = scaledViewportCenter;
+            var maximum = boundarySize - scaledViewportCenter;
+            return (minimum, maximum);
         }
 
         protected void HandleMouse()
@@ -172,8 +179,8 @@ namespace Hex.Helpers
 
         protected void Move(Vector2 amount)
         {
-            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
-            this.Position = Vector2.Clamp(this.Position + amount, cameraMin, cameraMax);
+            var (minimum, maximum) = this.GetPositionExtrema();
+            this.Position = Vector2.Clamp(this.Position + amount, minimum, maximum);
         }
 
         #endregion

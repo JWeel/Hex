@@ -11,6 +11,7 @@ using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using System.Text;
+using Hex.Models;
 
 namespace Hex
 {
@@ -322,5 +323,6 @@ namespace Hex
         // all form controls need keyboard support, like the blinking selector from pan engine
         // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
         // selected-tile-centered-rotating should be a toggle
+        // slow pulse button press -> press and held, after 1 second pulse every .10? until released
     }
 }

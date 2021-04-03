@@ -1,3 +1,4 @@
+using Extended.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Framework;
@@ -19,45 +20,44 @@ namespace Mogi.Inversion
             where T : class
         {
             var type = instance.GetType();
-            if (type.TryGetSubscriber<T, GameTime>(instance, typeof(IUpdate<>), nameof(IUpdate<IPhase>.Update), out var update))
-            {
-                root.OnUpdate += update;
-                if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => root.OnUpdate -= update;
-            }
-            if (type.TryGetSubscriber<T, SpriteBatch>(instance, typeof(IDraw<>), nameof(IDraw<IPhase>.Draw), out var draw))
-            {
-                root.OnDraw += draw;
-                if (instance is ITerminate terminator)
-                    terminator.OnTerminate += () => root.OnDraw -= draw;
-            }
-            if (type.TryGetSubscriber<T, ClientWindow>(instance, typeof(IResize<>), nameof(IResize<IPhase>.Resize), out var resize))
-            {
-                // root.OnResize += resize;
-                // if (instance is ITerminate terminator)
-                //     terminator.OnTerminate += () => root.OnResize -= resize;
-            }
+            type.GetSubscribers<T, GameTime>(instance, typeof(IUpdate<>), nameof(IUpdate<IPhase>.Update))
+                .Each(update =>
+                {
+                    root.OnUpdate += update;
+                    if (instance is ITerminate terminator)
+                        terminator.OnTerminate += () => root.OnUpdate -= update;
+                });
+            type.GetSubscribers<T, SpriteBatch>(instance, typeof(IDraw<>), nameof(IDraw<IPhase>.Draw))
+                .Each(draw => 
+                {
+                    root.OnDraw += draw;
+                    if (instance is ITerminate terminator)
+                        terminator.OnTerminate += () => root.OnDraw -= draw;
+                });
+            type.GetSubscribers<T, ClientWindow>(instance, typeof(IResize<>), nameof(IResize<IPhase>.Resize))
+                .Each(resize =>
+                {
+                    // root.OnResize += resize;
+                    // if (instance is ITerminate terminator)
+                    //     terminator.OnTerminate += () => root.OnResize -= resize;
+                });
             return instance;
         }
 
-        private static bool TryGetSubscriber<TInstance, TParameter>(this Type root, TInstance instance, Type genericTypeDefinition, string actionName,
-            out (Type, Action<TParameter>) subscriber)
+        private static (Type, Action<TParameter>)[] GetSubscribers<TInstance, TParameter>(this Type root, TInstance instance, Type genericTypeDefinition, string actionName)
         {
-            var interfaceType = root.GetInterfaces()
+            return root.GetInterfaces()
                 .Where(interfaceType => interfaceType.IsGenericType)
                 .Where(interfaceType => (interfaceType.GetGenericTypeDefinition() == genericTypeDefinition))
-                .FirstOrDefault();
-            if (interfaceType == null)
-            {
-                subscriber = default;
-                return false;
-            }
-            var phaseType = interfaceType.GenericTypeArguments.First();
-            var action = interfaceType.GetMethods()
-                .First(x => (x.Name == actionName))
-                .CreateDelegate<Action<TParameter>>(instance);
-            subscriber = (phaseType, action);
-            return true;
+                .Select(interfaceType => 
+                {
+                    var phaseType = interfaceType.GenericTypeArguments.First();
+                    var action = interfaceType.GetMethods()
+                        .First(x => (x.Name == actionName))
+                        .CreateDelegate<Action<TParameter>>(instance);
+                    return (phaseType, action);
+                })
+                .ToArray();
         }
 
         #endregion

@@ -1,4 +1,3 @@
-using System.Security.Cryptography.X509Certificates;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -129,7 +128,7 @@ namespace Hex.Helpers
 
             // TODO:
             // Load preset tilemaps
-            var axials = this.Spawn(33, 40);
+            var axials = this.Spawn(2, 8);
 
             this.HexagonMap = axials
                 .Select(axial =>
@@ -153,9 +152,10 @@ namespace Hex.Helpers
             if (this.CenterHexagon != null)
                 this.CenterHexagon.Color = Color.Aquamarine;
 
-            this.RenderPosition = this.HexagonMap.Values
-                .Select(x => x.Position)
-                .Aggregate((a, v) => Vector2.Min(a, v));
+            if (this.HexagonMap.Any())
+                this.RenderPosition = this.HexagonMap.Values
+                    .Select(x => x.Position)
+                    .Aggregate((a, v) => Vector2.Min(a, v));
 
             this.TilemapSize = this.CalculateHexagonsCombinedSize();
 
@@ -234,7 +234,7 @@ namespace Hex.Helpers
                     axials.Remove((0, 2));
                     break;
                 case DefaultShape.Rectangle:
-                    for (var r = 0; r < m; r++)
+                    for (var r = 0; r < m - 1; r++)
                     {
                         var r_offset = (int) Math.Floor(r / 2f);
                         var r_end = (r % 2 == 1) ? r_offset : r_offset - 1;
@@ -363,7 +363,12 @@ namespace Hex.Helpers
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.CameraBounds.ToRectangle(), new Color(20, 60, 80), .05f);
+            // this draws a background color in exactly only the viewport. small rounding error so add tiny offset
+            var offset = new Vector2(-2) * this.Camera.ZoomScaleFactor;
+            var cameraCorner = this.Camera.Position - this.ContainerSize / 2 / this.Camera.ZoomScaleFactor + offset;
+            var cameraBoxSize = this.ContainerSize / this.Camera.ZoomScaleFactor - offset * 2;
+            var cameraBox = new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
+            spriteBatch.DrawTo(this.BlankTexture, cameraBox, new Color(20, 60, 80), .05f);
 
             foreach (var hex in this.HexagonMap.Values)
             {
@@ -429,17 +434,11 @@ namespace Hex.Helpers
                     var hexLog = $"{q},{r}";
                     spriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.MistyRose, scale: 0.5f, .9f);
                 }
-            }
 
-            if (this.SourceHexagon != null)
-            {
-                foreach (var pair in this.FogOfWarMap)
+                if (this.SourceHexagon != null)
                 {
-                    var (hex, visible) = pair;
-                    if (visible)
-                        continue;
-                    var position = this.TilemapOffset + hex.Position.Transform(this.TilemapRotationMatrix);
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
+                    if (!this.FogOfWarMap[hex])
+                        spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
                 }
             }
         }
@@ -476,6 +475,7 @@ namespace Hex.Helpers
             this.Rotation += radians;
             this.Rotation %= (float) (360 * Math.PI / 180);
 
+            // TODO setting to toggle this behavior on/off
             if (this.SourceHexagon != null)
             {
                 var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
