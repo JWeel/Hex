@@ -41,7 +41,7 @@ namespace Hex.Helpers
 
         public TilemapHelper(ClientWindow client, InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
-            this.Camera = new CameraHelper(() => this.TrueSize, () => this.ContainerSize, () => this.Rotation, input);
+            this.Camera = new CameraHelper(() => this.CameraBounds, () => this.ContainerSize, input);
 
             this.Input = input;
             this.BlankTexture = blankTexture;
@@ -62,34 +62,40 @@ namespace Hex.Helpers
 
         #region Properties
 
+        /// <summary> The mapping of all tiles by cube-coordinates. </summary>
         public IDictionary<Cube, Hexagon> HexagonMap { get; protected set; }
+
+        /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon CursorHexagon { get; protected set; }
+
+        /// <summary> The selected tile. </summary>
         public Hexagon SourceHexagon { get; protected set; }
 
-        public Vector2 TrueSize =>
-            Vector2.Max(this.BaseBoundingBoxSize, this.ContainerSize);
+        /// <summary> The size of the widget, control, or component that contains this tilemap. </summary>
+        public Vector2 ContainerSize { get; protected set; }
 
-        public Vector2 BaseTilemapSize { get; protected set; }
-        public Vector2 BaseBoundingBoxSize { get; protected set; }
+        /// <summary> The combined size of all tiles. </summary>
+        public Vector2 TilemapSize { get; protected set; }
+
+        /// <summary> The size of the bounding box that can fully contains the tilemap in any rotation. </summary>
+        public Vector2 BoundingBoxSize { get; protected set; }
+
+        /// <summary> The bounds of the camera. This is the max of <see cref="BoundingBoxSize"/> and <see cref="ContainerSize"/>. </summary>
+        public Vector2 CameraBounds { get; protected set; }
+
+        /// <summary> The distance between origin and tilemap that would set the tilemap centered in the bounding box. </summary>
+        public Vector2 TilemapOffset { get; protected set; }
 
         protected InputHelper Input { get; }
         protected CameraHelper Camera { get; }
 
-        public Vector2 ContainerSize { get; protected set; }
-
-        public Vector2 TilemapOffset { get; protected set; }
+        protected Vector2 RenderPosition { get; set; }
+        protected float Rotation { get; set; }
 
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
-        protected Hexagon RotationHexagon { get; set; }
         protected Hexagon LastCursorHexagon { get; set; }
         protected Hexagon LastSourceHexagon { get; set; }
-        protected Vector2 RenderPosition { get; set; }
-
-        protected float Rotation { get; set; }
-
-        protected Vector2 RotationOrigin =>
-            this.BaseTilemapSize / 2 + this.TilemapOffset + this.RenderPosition;
 
         protected bool CalculatedVisibility { get; set; }
         protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
@@ -99,7 +105,6 @@ namespace Hex.Helpers
         protected Texture2D HexagonInnerTexture { get; set; }
         protected Texture2D HexagonBorderPointyTexture { get; set; }
         protected Texture2D HexagonBorderFlattyTexture { get; set; }
-
         protected Vector2 HexagonSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
 
@@ -107,6 +112,11 @@ namespace Hex.Helpers
 
         protected Texture2D BlankTexture { get; set; }
         protected SpriteFont Font { get; set; }
+
+        protected Matrix TilemapRotationMatrix =>
+            Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
+            Matrix.CreateRotationZ(this.Rotation) *
+            Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition, 1));
 
         #endregion
 
@@ -147,15 +157,17 @@ namespace Hex.Helpers
                 .Select(x => x.Position)
                 .Aggregate((a, v) => Vector2.Min(a, v));
 
-            var tilemapSize = this.CalculateHexagonsCombinedSize();
-            this.BaseTilemapSize = tilemapSize;
+            this.TilemapSize = this.CalculateHexagonsCombinedSize();
 
             // boundingbox should be all 4 corners of the bounding rectangle (usually diagonal of tilemapsize)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)
-            // this gives slightly more than necessary (might be hexagonsize?), but good for now
-            this.BaseBoundingBoxSize = new Vector2(tilemapSize.Length()) + this.ContainerSize;
+            // below formula gives slightly more than necessary (might be hexagonsize?), but will do for now
+            this.BoundingBoxSize = new Vector2(this.TilemapSize.Length()) + this.ContainerSize;
+
+            this.CameraBounds = Vector2.Max(this.BoundingBoxSize, this.ContainerSize);
             this.Camera.Center();
 
+            // requires RenderPosition, TilemapSize, and CameraBounds (maybe pass these as args to the method)
             this.TilemapOffset = this.CalculateOffset();
 
             this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
@@ -344,14 +356,14 @@ namespace Hex.Helpers
 
             if (this.Input.KeyPressed(Keys.V))
             {
-                // subtract current rotation to reset it
+                // subtract current rotation to reset it to 0
                 this.Rotate(-this.Rotation);
             }
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.TrueSize.ToRectangle(), new Color(20, 60, 80), .05f);
+            spriteBatch.DrawTo(this.BlankTexture, this.CameraBounds.ToRectangle(), new Color(20, 60, 80), .05f);
 
             foreach (var hex in this.HexagonMap.Values)
             {
@@ -364,7 +376,6 @@ namespace Hex.Helpers
                 var color = ((hex == this.CursorHexagon) && (hex == this.SourceHexagon)) ? new Color(255, 170, 130)
                     : (hex == this.CursorHexagon) ? Color.LightYellow
                     : (hex == this.SourceHexagon) ? Color.Coral
-                    : (hex == this.RotationHexagon) ? Color.OliveDrab
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
                     : hex.Color != default ? hex.Color
                     : hex.TileType switch
@@ -449,9 +460,9 @@ namespace Hex.Helpers
         protected Vector2 CalculateOffset()
         {
             // Get distance from top left (renderposition) to tilemap middle
-            var relativeMiddle = this.BaseTilemapSize / 2 + this.RenderPosition;
+            var relativeMiddle = this.TilemapSize / 2 + this.RenderPosition;
             // Subtract this distance from true middle to get offset for centered tilemap rendering
-            return Vector2.Round(this.TrueSize / 2 - relativeMiddle);
+            return Vector2.Round(this.CameraBounds / 2 - relativeMiddle);
         }
 
         protected void Rotate(int degrees)
@@ -565,11 +576,6 @@ namespace Hex.Helpers
             }
             bool IsVisible(Cube cube) => (this.HexagonMap.GetOrDefault(cube)?.TileType == TileType.Grass);
         }
-
-        protected Matrix TilemapRotationMatrix =>
-                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / -2f - this.RenderPosition, 1)) *
-                Matrix.CreateRotationZ(this.Rotation) *
-                Matrix.CreateTranslation(new Vector3(this.BaseTilemapSize / 2f + this.RenderPosition, 1));
 
         // not really sure what center is useful for
         protected Cube FindCenterCube()

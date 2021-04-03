@@ -251,10 +251,6 @@ namespace Hex
                 this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
                 this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                // this.Log.AppendLine($"Tilemap1: {this.Tilemap.TrueSize}");
-                // this.Log.AppendLine($"Tilemap2: {this.Tilemap.BaseTilemapSize}");
-                // this.Log.AppendLine($"Tilemap3: {this.Tilemap.TilemapOffset}");
-                // this.Log.AppendLine($"Tilemap4: {this.Tilemap.BaseBoundingBoxSize}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }
@@ -325,5 +321,6 @@ namespace Hex
         // fullscreen just borderless mode? not sure of impact on non-windows
         // all form controls need keyboard support, like the blinking selector from pan engine
         // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
+        // selected-tile-centered-rotating should be a toggle
     }
 }

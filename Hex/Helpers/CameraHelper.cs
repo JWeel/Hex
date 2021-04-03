@@ -21,9 +21,9 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, Func<float> rotationGetter, InputHelper input)
+        public CameraHelper(Func<Vector2> boundarySizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input)
         {
-            this.MapSizeGetter = mapSizeGetter;
+            this.BoundarySizeGetter = boundarySizeGetter;
             this.ViewportSizeGetter = viewportSizeGetter;
             this.Input = input;
             this.Position = Vector2.Zero;
@@ -34,7 +34,7 @@ namespace Hex.Helpers
 
         #region Properties
 
-        protected Func<Vector2> MapSizeGetter { get; }
+        protected Func<Vector2> BoundarySizeGetter { get; }
         protected Func<Vector2> ViewportSizeGetter { get; }
         protected InputHelper Input { get; }
 
@@ -54,10 +54,10 @@ namespace Hex.Helpers
         #region Public Methods
 
         public Vector2 ToScreen(Vector2 worldPosition) =>
-            Vector2.Transform(worldPosition, this.TranslationMatrix);
+            worldPosition.Transform(this.TranslationMatrix);
 
         public Vector2 FromScreen(Vector2 screenPosition) =>
-            Vector2.Transform(screenPosition, Matrix.Invert(this.TranslationMatrix));
+            screenPosition.Transform(this.TranslationMatrix.Invert());
 
         public void Update(GameTime gameTime)
         {
@@ -67,13 +67,13 @@ namespace Hex.Helpers
 
         public void Center()
         {
-            var (cameraMin, cameraMax) = this.GetBounds();
+            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
             this.Position = Vector2.Floor((cameraMin + cameraMax) / 2);
         }
 
         public void CenterOn(Vector2 position)
         {
-            var (cameraMin, cameraMax) = this.GetBounds();
+            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
             var cameraCenter = (cameraMin + cameraMax) / 2f;
 
             this.Position = Vector2.Clamp(position, cameraMin, cameraMax);
@@ -83,15 +83,14 @@ namespace Hex.Helpers
 
         #region Helper Methods
 
-        protected (Vector2 CameraMin, Vector2 CameraMax) GetBounds()
+        protected (Vector2 CameraMin, Vector2 CameraMax) GetBoundaryCorners()
         {
-            var mapSize = this.MapSizeGetter();
+            var boundarySize = this.BoundarySizeGetter();
             var viewportSize = this.ViewportSizeGetter();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
 
             var cameraMin = scaledViewportCenter;
-            var cameraMax = mapSize - scaledViewportCenter;
-
+            var cameraMax = boundarySize - scaledViewportCenter;
             return (cameraMin, cameraMax);
         }
 
@@ -114,8 +113,8 @@ namespace Hex.Helpers
 
                     if (this.ZoomScaleFactor != currentZoom)
                     {
-                        // zoom on a point defined on the line between previous zoom center and cursor
                         var zoomPosition = this.FromScreen(mousePosition);
+                        // this zooms on a point defined on the line between previous zoom center and cursor (looks 'natural')
                         this.Position = zoomPosition + (currentZoom / this.ZoomScaleFactor) * (this.Position - zoomPosition);
                     }
 
@@ -173,7 +172,7 @@ namespace Hex.Helpers
 
         protected void Move(Vector2 amount)
         {
-            var (cameraMin, cameraMax) = this.GetBounds();
+            var (cameraMin, cameraMax) = this.GetBoundaryCorners();
             this.Position = Vector2.Clamp(this.Position + amount, cameraMin, cameraMax);
         }
 
