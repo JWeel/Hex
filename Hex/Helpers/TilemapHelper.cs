@@ -119,7 +119,7 @@ namespace Hex.Helpers
 
             // TODO:
             // Load preset tilemaps
-            var axials = this.Spawn(13, 40);
+            var axials = this.Spawn(33, 40);
 
             this.HexagonMap = axials
                 .Select(axial =>
@@ -173,8 +173,8 @@ namespace Hex.Helpers
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R)[] Spawn(int n, int m)
         {
-            var shape = DefaultShape.Hexagon;
-            // var shape = DefaultShape.Rectangle;
+            // var shape = DefaultShape.Hexagon;
+            var shape = DefaultShape.Rectangle;
             // var shape = DefaultShape.Triangle;
             // var shape = DefaultShape.Parallelogram;
             // var shape = DefaultShape.Line;
@@ -225,11 +225,9 @@ namespace Hex.Helpers
                     for (var r = 0; r < m; r++)
                     {
                         var r_offset = (int) Math.Floor(r / 2f);
-                        for (var q = -r_offset; q < n - r_offset; q++)
-                        {
-                            // TODO square board with odd rows having 1 less
+                        var r_end = (r % 2 == 1) ? r_offset : r_offset - 1;
+                        for (var q = -r_offset; q < n - r_end; q++)
                             axials.Add((q, r));
-                        }
                     }
                     break;
                 case DefaultShape.Line:
@@ -294,10 +292,9 @@ namespace Hex.Helpers
                         }
                     }
                 }
+                // clear after leaving container
                 else if (this.CursorHexagon != default)
-                {
                     this.CursorHexagon = default;
-                }
             }
 
             if (!this.CalculatedVisibility && (this.SourceHexagon != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
@@ -354,7 +351,7 @@ namespace Hex.Helpers
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.TrueSize.ToRectangle(), Color.DarkSlateGray, .05f);
+            spriteBatch.DrawTo(this.BlankTexture, this.TrueSize.ToRectangle(), new Color(20, 60, 80), .05f);
 
             foreach (var hex in this.HexagonMap.Values)
             {
@@ -434,11 +431,6 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
                 }
             }
-
-            var m = this.Camera.FromScreen(this.Input.CurrentVirtualMouseVector);
-            spriteBatch.DrawAt(this.BlankTexture, m - new Vector2(2), Color.BlanchedAlmond, scale: 3f, depth: .99f);
-
-            spriteBatch.DrawAt(this.BlankTexture, this.Camera.Position - new Vector2(2), Color.Firebrick, scale: 3f, depth: .96f);
         }
 
         public (Cube Coordinates, Vector2 Position) Info(Hexagon hexagon) =>
