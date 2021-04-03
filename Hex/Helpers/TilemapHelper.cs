@@ -41,7 +41,7 @@ namespace Hex.Helpers
 
         public TilemapHelper(ClientWindow client, InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
-            this.Camera = new CameraHelper(() => this.TrueSize, () => this.ContainerSize, () => this.Rotation, input, client);
+            this.Camera = new CameraHelper(() => this.TrueSize, () => this.ContainerSize, () => this.Rotation, input);
 
             this.Input = input;
             this.BlankTexture = blankTexture;
@@ -115,6 +115,7 @@ namespace Hex.Helpers
         public void Arrange(Vector2 containerSize)
         {
             this.ContainerSize = containerSize;
+            // this.ContainerSize = new Vector2(containerSize.X / 1.3f, containerSize.Y / 1.1f);
 
             // TODO:
             // Load preset tilemaps
@@ -172,9 +173,9 @@ namespace Hex.Helpers
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R)[] Spawn(int n, int m)
         {
-            // var shape = DefaultShape.Hexagon;
+            var shape = DefaultShape.Hexagon;
             // var shape = DefaultShape.Rectangle;
-            var shape = DefaultShape.Triangle;
+            // var shape = DefaultShape.Triangle;
             // var shape = DefaultShape.Parallelogram;
             // var shape = DefaultShape.Line;
             var axials = new List<(int Q, int R)>();
@@ -196,32 +197,29 @@ namespace Hex.Helpers
                         var r1 = Math.Max(-n, -q - n);
                         var r2 = Math.Min(n, -q + n);
                         for (var r = r1; r <= r2; r++)
-                        {
-                            // not sure why q and r are flipped here
-                            axials.Add((r, q));
-                        }
-                        if (n < 3) break;
-                        // DONUT
-                        axials.Remove(default);
-                        axials.Remove((-1, 0));
-                        axials.Remove((-1, 1));
-                        axials.Remove((0, -1));
-                        axials.Remove((0, 1));
-                        axials.Remove((1, -1));
-                        axials.Remove((1, 0));
-                        axials.Remove((0, -2));
-                        axials.Remove((1, -2));
-                        axials.Remove((2, -2));
-                        axials.Remove((-1, -1));
-                        axials.Remove((2, -1));
-                        axials.Remove((-2, 0));
-                        axials.Remove((2, 0));
-                        axials.Remove((-2, 1));
-                        axials.Remove((1, 1));
-                        axials.Remove((-2, 2));
-                        axials.Remove((-1, 2));
-                        axials.Remove((0, 2));
+                            axials.Add((q, r));
                     }
+                    if (n < 3) break;
+                    // DONUT
+                    axials.Remove(default);
+                    axials.Remove((-1, 0));
+                    axials.Remove((-1, 1));
+                    axials.Remove((0, -1));
+                    axials.Remove((0, 1));
+                    axials.Remove((1, -1));
+                    axials.Remove((1, 0));
+                    axials.Remove((0, -2));
+                    axials.Remove((1, -2));
+                    axials.Remove((2, -2));
+                    axials.Remove((-1, -1));
+                    axials.Remove((2, -1));
+                    axials.Remove((-2, 0));
+                    axials.Remove((2, 0));
+                    axials.Remove((-2, 1));
+                    axials.Remove((1, 1));
+                    axials.Remove((-2, 2));
+                    axials.Remove((-1, 2));
+                    axials.Remove((0, 2));
                     break;
                 case DefaultShape.Rectangle:
                     for (var r = 0; r < m; r++)
@@ -264,7 +262,7 @@ namespace Hex.Helpers
                 {
                     var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
                     var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
-                    var newPos = Vector2.Round(transPos + this.Camera.MagicOffset);
+                    var newPos = Vector2.Round(transPos);
                     this.Camera.CenterOn(newPos);
                 }
             }
@@ -349,7 +347,7 @@ namespace Hex.Helpers
 
             if (this.Input.KeyPressed(Keys.V))
             {
-                // rotate back to 0
+                // subtract current rotation to reset it
                 this.Rotate(-this.Rotation);
             }
         }
@@ -437,17 +435,10 @@ namespace Hex.Helpers
                 }
             }
 
-            // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin - new Vector2(2), Color.DarkOrange, scale: 5f, depth: .9f);
-            // spriteBatch.DrawAt(this.BlankTexture, this.RotationOrigin, Color.DarkGray, depth: .91f);
-            // spriteBatch.DrawText(this.Font, this.RotationOrigin.ToString(), this.RotationOrigin);
+            var m = this.Camera.FromScreen(this.Input.CurrentVirtualMouseVector);
+            spriteBatch.DrawAt(this.BlankTexture, m - new Vector2(2), Color.BlanchedAlmond, scale: 3f, depth: .99f);
 
-            spriteBatch.DrawAt(this.BlankTexture, -this.Camera.MagicOffset + this.Camera.Position - new Vector2(2), Color.Firebrick, scale: 3f, depth: .96f);
-            // spriteBatch.DrawAt(this.BlankTexture, this.Camera.Position - new Vector2(26), Color.Firebrick, scale: 53f, depth: .96f);
-            // if (null != this.SourceHexagon)
-            // {
-            //     var transPos = this.SourceHexagon.Position.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
-            //     spriteBatch.DrawText(this.Font, transPos.ToString(), transPos);
-            // }
+            spriteBatch.DrawAt(this.BlankTexture, this.Camera.Position - new Vector2(2), Color.Firebrick, scale: 3f, depth: .96f);
         }
 
         public (Cube Coordinates, Vector2 Position) Info(Hexagon hexagon) =>
@@ -479,19 +470,14 @@ namespace Hex.Helpers
 
         protected void Rotate(float radians)
         {
-            // var rotationOriginVector = this.Translate(this.ContainerSize / 2);
-            // var cubeAtRotationOrigin = this.ToCubeCoordinates(rotationOriginVector);
-            // this.RotationHexagon = this.HexagonMap.GetOrDefault(cubeAtRotationOrigin);
-
             this.Rotation += radians;
             this.Rotation %= (float) (360 * Math.PI / 180);
 
-            // TODO do this based off container middle, not sourcehexagon position
             if (this.SourceHexagon != null)
             {
                 var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
                 var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
-                var newPos = Vector2.Round(transPos + this.Camera.MagicOffset);
+                var newPos = Vector2.Round(transPos);
                 this.Camera.CenterOn(newPos);
             }
         }

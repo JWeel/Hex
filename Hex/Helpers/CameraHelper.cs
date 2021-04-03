@@ -2,7 +2,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
-using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using System;
@@ -22,12 +21,11 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, Func<float> rotationGetter, InputHelper input, ClientWindow window)
+        public CameraHelper(Func<Vector2> mapSizeGetter, Func<Vector2> viewportSizeGetter, Func<float> rotationGetter, InputHelper input)
         {
             this.MapSizeGetter = mapSizeGetter;
             this.ViewportSizeGetter = viewportSizeGetter;
             this.Input = input;
-            this.Window = window;
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
         }
@@ -39,7 +37,6 @@ namespace Hex.Helpers
         protected Func<Vector2> MapSizeGetter { get; }
         protected Func<Vector2> ViewportSizeGetter { get; }
         protected InputHelper Input { get; }
-        protected ClientWindow Window { get; }
 
         protected bool IsMoving { get; set; }
         protected Vector2 LastMovePosition { get; set; }
@@ -50,20 +47,7 @@ namespace Hex.Helpers
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
-            Matrix.CreateTranslation(new Vector3(this.MapSizeGetter() / 2f, 0));
-
-        // not sure why this works, but without this when tilemapsize > viewport camera goes out of bounds top left
-        public Vector2 MagicOffset
-        {
-            get
-            {
-                var mapSize = this.MapSizeGetter();
-                var viewportSize = this.ViewportSizeGetter();
-                return new Vector2(
-                    (mapSize.X > viewportSize.X) ? (mapSize.X - viewportSize.X) / 2f / this.ZoomScaleFactor : 0,
-                    (mapSize.Y > viewportSize.Y) ? (mapSize.Y - viewportSize.Y) / 2f / this.ZoomScaleFactor : 0);
-            }
-        }
+            Matrix.CreateTranslation(new Vector3(this.ViewportSizeGetter() / 2f, 0));
 
         #endregion
 
@@ -95,19 +79,6 @@ namespace Hex.Helpers
             this.Position = Vector2.Clamp(position, cameraMin, cameraMax);
         }
 
-        public bool RequiresClamping(Vector2 cameraPosition)
-        {
-            var (cameraMin, cameraMax) = this.GetBounds();
-            return ((cameraPosition.X < cameraMin.X) || (cameraPosition.Y < cameraMin.Y) ||
-                    (cameraPosition.X > cameraMax.X) || (cameraPosition.Y > cameraMax.Y));
-        }
-
-        public void Clamp()
-        {
-            var (cameraMin, cameraMax) = this.GetBounds();
-            this.Position = Vector2.Clamp(this.Position, cameraMin, cameraMax);
-        }
-
         #endregion
 
         #region Helper Methods
@@ -118,27 +89,35 @@ namespace Hex.Helpers
             var viewportSize = this.ViewportSizeGetter();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
 
-            var cameraMin = scaledViewportCenter + this.MagicOffset;
-            var cameraMax = mapSize - scaledViewportCenter + this.MagicOffset;
+            var cameraMin = scaledViewportCenter;
+            var cameraMax = mapSize - scaledViewportCenter;
 
             return (cameraMin, cameraMax);
         }
 
         protected void HandleMouse()
         {
-            var mousePosition = this.Input.CurrentMouseVector;
+            var mousePosition = this.Input.CurrentVirtualMouseVector;
             if (this.IsMoving && this.ZoomScaleFactor >= 1f)
             {
                 this.Move(-(mousePosition - this.LastMovePosition));
                 this.LastMovePosition = mousePosition;
                 this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
             }
-            if (this.ViewportSizeGetter().ToRectangle().Contains(this.Window.Translate(this.Input.CurrentMouseVector)))
+            if (this.ViewportSizeGetter().ToRectangle().Contains(mousePosition))
             {
                 if (this.Input.MouseScrolled())
                 {
+                    var currentZoom = this.ZoomScaleFactor;
                     var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (this.Input.MouseScrolledUp() ? 2 : -2);
                     this.Zoom(zoomAmount);
+
+                    if (this.ZoomScaleFactor != currentZoom)
+                    {
+                        // zoom on a point defined on the line between previous zoom center and cursor
+                        var zoomPosition = this.FromScreen(mousePosition);
+                        this.Position = zoomPosition + (currentZoom / this.ZoomScaleFactor) * (this.Position - zoomPosition);
+                    }
 
                     if (this.ZoomScaleFactor < 1f)
                         this.Center();
@@ -157,15 +136,9 @@ namespace Hex.Helpers
                 return;
 
             if (this.Input.KeyDown(Keys.Q))
-                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
-                else
-                    this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
+                this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
             if (this.Input.KeyDown(Keys.E))
-                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
-                else
-                    this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
+                this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
 
             if (this.ZoomScaleFactor < 1f)
             {
@@ -195,7 +168,6 @@ namespace Hex.Helpers
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
             this.ZoomScaleFactor = Math.Clamp(this.ZoomScaleFactor + amount, minAmount, maxAmount);
-            // TODO: preserve camera center after zooming
             this.Move(Vector2.Zero);
         }
 

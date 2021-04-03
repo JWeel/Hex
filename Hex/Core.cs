@@ -275,11 +275,12 @@ namespace Hex
 
             // Indication of container size - can be removed
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
-            // var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
-            // var rect1 = new Rectangle(difference.X, 0, difference.X, difference.Y);
-            // var rect2 = new Rectangle(0, difference.Y, difference.X * 2, difference.Y);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
+            var baseWindow = BASE_WINDOW_SIZE.ToPoint();
+            var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
+            var rect1 = new Rectangle(baseWindow.X - difference.X, 0, baseWindow.X, baseWindow.Y);
+            var rect2 = new Rectangle(0, baseWindow.Y - difference.Y, baseWindow.X, baseWindow.Y);
+            this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
+            this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
             this.SpriteBatch.End();
 
 
