@@ -364,9 +364,9 @@ namespace Hex.Helpers
         public void Draw(SpriteBatch spriteBatch)
         {
             // this draws a background color in exactly only the viewport. small rounding error so add tiny offset
-            var offset = new Vector2(-2) * this.Camera.ZoomScaleFactor;
-            var cameraCorner = this.Camera.Position - this.ContainerSize / 2 / this.Camera.ZoomScaleFactor + offset;
-            var cameraBoxSize = this.ContainerSize / this.Camera.ZoomScaleFactor - offset * 2;
+            var roundingOffset = new Vector2(2) * this.Camera.ZoomScaleFactor;
+            var cameraCorner = this.Camera.Position - this.ContainerSize / 2 / this.Camera.ZoomScaleFactor - roundingOffset;
+            var cameraBoxSize = this.ContainerSize / this.Camera.ZoomScaleFactor + roundingOffset * 2;
             var cameraBox = new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
             spriteBatch.DrawTo(this.BlankTexture, cameraBox, new Color(20, 60, 80), .05f);
 

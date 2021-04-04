@@ -124,6 +124,8 @@ namespace Hex
             this.Architect = dependency.Register<Architect>();
             this.Tilemap = dependency.Register<TilemapHelper>();
 
+            dependency.Register<ActorHelper>();
+
             this.Tilemap.Arrange(BASE_WINDOW_SIZE);
             // this.Tilemap.Orientation.Advance();
             // this.Tilemap.Orientation.Advance();

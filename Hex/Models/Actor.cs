@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Mogi.Extensions;
 
 namespace Hex.Models
 {
@@ -7,14 +8,17 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Actor()
+        public Actor(Texture2D texture, Vector2 position)
         {
+            this.Texture = texture;
+            this.Position = position;
         }
 
         #endregion
 
         #region Properties
 
+        public Texture2D Texture { get; }
         public Cube Coordinates { get; set; }
         public Vector2 Position { get; set; }
 
@@ -24,6 +28,7 @@ namespace Hex.Models
 
         public void Draw(SpriteBatch spriteBatch)
         {
+            spriteBatch.DrawAt(this.Texture, this.Position);
         }
 
         #endregion
