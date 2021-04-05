@@ -23,14 +23,5 @@ namespace Hex.Models
         public Vector2 Position { get; set; }
 
         #endregion
-
-        #region Methods
-
-        public void Draw(SpriteBatch spriteBatch)
-        {
-            spriteBatch.DrawAt(this.Texture, this.Position);
-        }
-
-        #endregion
     }
 }

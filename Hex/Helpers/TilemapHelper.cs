@@ -89,7 +89,7 @@ namespace Hex.Helpers
         protected CameraHelper Camera { get; }
 
         protected Vector2 RenderPosition { get; set; }
-        protected float Rotation { get; set; }
+        public float Rotation { get; set; }
 
         protected Hexagon OriginHexagon { get; set; }
         protected Hexagon CenterHexagon { get; set; }
@@ -112,10 +112,10 @@ namespace Hex.Helpers
         protected Texture2D BlankTexture { get; set; }
         protected SpriteFont Font { get; set; }
 
-        protected Matrix TilemapRotationMatrix =>
+        public Matrix TilemapRotationMatrix =>
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
             Matrix.CreateRotationZ(this.Rotation) *
-            Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition, 1));
+            Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
 
         #endregion
 
@@ -271,7 +271,7 @@ namespace Hex.Helpers
                 if (null != this.SourceHexagon)
                 {
                     var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
-                    var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
+                    var transPos = pos.Transform(this.TilemapRotationMatrix);// + this.TilemapOffset;
                     var newPos = Vector2.Round(transPos);
                     this.Camera.CenterOn(newPos);
                 }
@@ -374,7 +374,9 @@ namespace Hex.Helpers
             {
                 var cube = hex.Cube;
                 var basePosition = hex.Position;
-                var position = this.TilemapOffset + basePosition.Transform(this.TilemapRotationMatrix);
+                var position =  basePosition.Transform(this.TilemapRotationMatrix);
+
+                spriteBatch.DrawAt(this.BlankTexture, position, Color.Purple, scale: 3f, depth: .4f);
 
                 spriteBatch.DrawAt(this.HexagonBorderPointyTexture, position, Color.Sienna, this.Rotation, depth: .075f);
 
@@ -412,9 +414,9 @@ namespace Hex.Helpers
                         _ => Vector2.Zero
                     };
 
-                    var innerBorderPosition1 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 5)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition2 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 9)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition3 = this.TilemapOffset - rotationOffset + (basePosition - new Vector2(0, 13)).Transform(this.TilemapRotationMatrix);
+                    var innerBorderPosition1 = - rotationOffset + (basePosition - new Vector2(0, 5)).Transform(this.TilemapRotationMatrix);
+                    var innerBorderPosition2 = - rotationOffset + (basePosition - new Vector2(0, 9)).Transform(this.TilemapRotationMatrix);
+                    var innerBorderPosition3 = - rotationOffset + (basePosition - new Vector2(0, 13)).Transform(this.TilemapRotationMatrix);
 
                     spriteBatch.DrawAt(borderTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
                     spriteBatch.DrawAt(borderTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
@@ -479,7 +481,7 @@ namespace Hex.Helpers
             if (this.SourceHexagon != null)
             {
                 var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
-                var transPos = pos.Transform(this.TilemapRotationMatrix) + this.TilemapOffset;
+                var transPos = pos.Transform(this.TilemapRotationMatrix);// + this.TilemapOffset;
                 var newPos = Vector2.Round(transPos);
                 this.Camera.CenterOn(newPos);
             }
@@ -487,7 +489,7 @@ namespace Hex.Helpers
 
         protected Cube ToCubeCoordinates(Vector2 position)
         {
-            var positionRelativeToOrigin = position - this.TilemapOffset;
+            var positionRelativeToOrigin = position ;//- this.TilemapOffset;
             var invertedPosition = positionRelativeToOrigin.Transform(this.TilemapRotationMatrix.Invert());
 
             var (mx, my) = invertedPosition - this.HexagonSize / 2;

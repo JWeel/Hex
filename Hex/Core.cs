@@ -127,8 +127,6 @@ namespace Hex
             dependency.Register<ActorHelper>();
 
             this.Tilemap.Arrange(BASE_WINDOW_SIZE);
-            // this.Tilemap.Orientation.Advance();
-            // this.Tilemap.Orientation.Advance();
 
             this.PanelTexture = this.Content.Load<Texture2D>("panel");
             this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
