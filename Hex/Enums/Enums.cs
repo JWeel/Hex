@@ -15,4 +15,13 @@ namespace Hex.Enums
         Mountain,
         Sea
     }
+
+    public enum Shape
+    {
+        Hexagon,
+        Rectangle,
+        Triangle,
+        Parallelogram,
+        Line
+    }
 }

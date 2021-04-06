@@ -5,6 +5,7 @@ using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
@@ -46,7 +47,7 @@ namespace Hex.Helpers
 
         public void Update(GameTime gameTime)
         {
-            if (this.Input.MousePressed(MouseButton.Left))
+            if (this.Input.KeyPressed(Keys.K))
             {
                 this.Actors.Add(new Actor(this.ActorTexture,
                     this.Tilemap.HexagonMap.Values.Random().Position));
@@ -62,12 +63,14 @@ namespace Hex.Helpers
 
             this.Actors.Each(actor =>
             {
-                var position = (actor.Position + new Vector2(25 / 2f, 29 / 2f))
-                    .Transform(this.Tilemap.TilemapRotationMatrix * this.Tilemap.CameraTranslationMatrix);
+                var hexagonSize = new Vector2(25, 29); // shouldnt be magic number
+                var position = (actor.Position + hexagonSize / 2)
+                    .Transform(this.Tilemap.TilemapRotationMatrix)
+                    .Transform(this.Tilemap.CameraTranslationMatrix);
 
-                var size = new Vector2(actor.Texture.Width, actor.Texture.Height);
-                var matrix = Matrix.CreateRotationZ(this.Tilemap.Rotation);
-                spriteBatch.DrawAt(actor.Texture, position - size/2);
+                var offset = actor.Texture.ToVector() / 2 * this.Tilemap.Camera.ZoomScaleFactor;
+
+                spriteBatch.DrawAt(actor.Texture, position - offset, scale: this.Tilemap.Camera.ZoomScaleFactor);
             });
         }
 

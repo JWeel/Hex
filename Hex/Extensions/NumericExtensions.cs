@@ -2,18 +2,12 @@ namespace Hex.Extensions
 {
     public static class NumericExtensions
     {
-        public static int IfOddAddOne(this int value) =>
-            value % 2 == 0 ? value : value + 1;
-
-        public static int IfOddSubtractOne(this int value) =>
-            value % 2 == 0 ? value : value - 1;
-
-        /// <summary> Determines whether or not this integer is even. </summary>
-        public static bool IsEven(this int value) =>
-            (value % 2 == 0);
-
-        /// <summary> Determines whether or not this integer is odd. </summary>
-        public static bool IsOdd(this int value) =>
-            (value % 2 != 0);
+        /// <summary> Performs modular arithmetic of this integer with the specified modulus. </summary>
+        /// <param name="n"> The input value. </param>
+        /// <param name="m"> The modulus. </param>
+        /// <returns> The result of the modulo operation of <paramref name="n"/> with modulus <paramref name="m"/>. </returns>
+        /// <exception cref="System.DivideByZeroException"> The modulus is 0. </exception>
+        public static int Modulo(this int n, int m) =>
+            ((n %= m) < 0) ? n + m : n;
     }
 }

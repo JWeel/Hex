@@ -51,8 +51,8 @@ namespace Hex.Helpers
             this.HexagonBorderPointyTexture = content.Load<Texture2D>("xbp");
             this.HexagonBorderFlattyTexture = content.Load<Texture2D>("xbf");
 
-            this.HexagonSize = new Vector2(this.HexagonOuterTexture.Width, this.HexagonOuterTexture.Height);
-            this.HexagonSizeAdjusted = (this.HexagonOuterTexture.Width / SHORT_OVERLAP_DIVISOR, this.HexagonOuterTexture.Height / LONG_OVERLAP_DIVISOR);
+            this.HexagonSize = this.HexagonOuterTexture.ToVector();
+            this.HexagonSizeAdjusted = (this.HexagonSize.X / SHORT_OVERLAP_DIVISOR, this.HexagonSize.Y / LONG_OVERLAP_DIVISOR);
 
             this.HexagonMap = new Dictionary<Cube, Hexagon>();
         }
@@ -86,7 +86,8 @@ namespace Hex.Helpers
         public Vector2 TilemapOffset { get; protected set; }
 
         protected InputHelper Input { get; }
-        protected CameraHelper Camera { get; }
+        // move to other helper
+        public CameraHelper Camera { get; }
 
         protected Vector2 RenderPosition { get; set; }
         public float Rotation { get; set; }
@@ -116,6 +117,10 @@ namespace Hex.Helpers
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
+
+        // move to other helper
+        public Matrix CameraTranslationMatrix =>
+            this.Camera.TranslationMatrix;
 
         #endregion
 
@@ -173,37 +178,29 @@ namespace Hex.Helpers
             this.FogOfWarMap = this.HexagonMap.Values.ToDictionary(x => x, x => false);
         }
 
-        protected enum DefaultShape
-        {
-            Hexagon,
-            Rectangle,
-            Triangle,
-            Parallelogram,
-            Line
-        }
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R)[] Spawn(int n, int m)
         {
-            // var shape = DefaultShape.Hexagon;
-            var shape = DefaultShape.Rectangle;
-            // var shape = DefaultShape.Triangle;
-            // var shape = DefaultShape.Parallelogram;
-            // var shape = DefaultShape.Line;
+            // var shape = Shape.Hexagon;
+            var shape = Shape.Rectangle;
+            // var shape = Shape.Triangle;
+            // var shape = Shape.Parallelogram;
+            // var shape = Shape.Line;
             var axials = new List<(int Q, int R)>();
             switch (shape)
             {
-                case DefaultShape.Triangle:
+                case Shape.Triangle:
                     for (int q = 0; q <= n; q++)
                         for (int r = 0; r <= n - q; r++)
                             axials.Add((q, r));
                     break;
-                case DefaultShape.Parallelogram:
+                case Shape.Parallelogram:
                     for (int q = 0; q <= n; q++)
                         for (int r = 0; r <= m; r++)
                             axials.Add((q, r));
                     break;
-                case DefaultShape.Hexagon:
+                case Shape.Hexagon:
                     for (var q = -n; q <= n; q++)
                     {
                         var r1 = Math.Max(-n, -q - n);
@@ -233,7 +230,7 @@ namespace Hex.Helpers
                     axials.Remove((-1, 2));
                     axials.Remove((0, 2));
                     break;
-                case DefaultShape.Rectangle:
+                case Shape.Rectangle:
                     for (var r = 0; r < m - 1; r++)
                     {
                         var r_offset = (int) Math.Floor(r / 2f);
@@ -242,7 +239,7 @@ namespace Hex.Helpers
                             axials.Add((q, r));
                     }
                     break;
-                case DefaultShape.Line:
+                case Shape.Line:
                     for (var q = -n; q <= n; q++)
                         axials.Add((q, 0));
                     break;
@@ -271,7 +268,7 @@ namespace Hex.Helpers
                 if (null != this.SourceHexagon)
                 {
                     var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
-                    var transPos = pos.Transform(this.TilemapRotationMatrix);// + this.TilemapOffset;
+                    var transPos = pos.Transform(this.TilemapRotationMatrix);
                     var newPos = Vector2.Round(transPos);
                     this.Camera.CenterOn(newPos);
                 }
@@ -374,13 +371,9 @@ namespace Hex.Helpers
             {
                 var cube = hex.Cube;
                 var basePosition = hex.Position;
-                var position =  basePosition.Transform(this.TilemapRotationMatrix);
+                var position = basePosition.Transform(this.TilemapRotationMatrix);
 
-                spriteBatch.DrawAt(this.BlankTexture, position, Color.Purple, scale: 3f, depth: .4f);
-
-                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, position, Color.Sienna, this.Rotation, depth: .075f);
-
-                var color = ((hex == this.CursorHexagon) && (hex == this.SourceHexagon)) ? new Color(255, 170, 130)
+                var innerColor = ((hex == this.CursorHexagon) && (hex == this.SourceHexagon)) ? new Color(255, 170, 130)
                     : (hex == this.CursorHexagon) ? Color.LightYellow
                     : (hex == this.SourceHexagon) ? Color.Coral
                     : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
@@ -391,44 +384,51 @@ namespace Hex.Helpers
                         TileType.Sea => new Color(100, 200, 220, 80),
                         _ => new Color(190, 230, 160)
                     };
+                spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
-                spriteBatch.DrawAt(this.HexagonInnerTexture, position, color, this.Rotation, depth: .15f);
 
-                // TODO if mountain tiles are on top of each other it looks bad, calculate
-                // TODO calculate border hexagons and only draw for them, note it changes by orientation!
+                
+                // separate rotations in intervals of 60 degrees, with the intervals shifted by 30 degrees
+                var baseDegrees = (int) (this.Rotation * 180 / Math.PI);
+                var degrees = baseDegrees.Modulo(360);
+                var rotationInterval = degrees switch
+                {
+                    var x when (x < 30) => 0,
+                    var x when (x < 90) => 1,
+                    var x when (x < 150) => 2,
+                    var x when (x < 210) => 3,
+                    var x when (x < 270) => 4,
+                    var x when (x < 330) => 5,
+                    _ => 0
+                };
+
+                // convert this to radians to get rotation offset to subtract from tilemap rotation
+                var rotationOffset = (float) (rotationInterval * 60 * Math.PI / 180);
+                var borderRotation = (this.Rotation % (float) (360 * Math.PI / 180)) - rotationOffset;
+                var borderRotationMatrix = Matrix.CreateRotationZ(borderRotation);
+
+                // offset center of hexagon to preserve rotational origin for overlay sprites
+                var borderBasePosition = (basePosition + this.HexagonSize / 2).Transform(this.TilemapRotationMatrix);
+                var borderTextureOffset = (this.HexagonSize / 2).Transform(borderRotationMatrix);
+                var borderPosition = borderBasePosition - borderTextureOffset;
+                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, borderRotation, depth: .075f);
+
                 if (hex.TileType == TileType.Mountain)
                 {
-                    // var degrees = Math.Round(this.Rotation * 180 / Math.PI);
-                    // var modulo = degrees % 60;
-                    // var borderTexture = modulo == 0 ? this.HexagonBorderPointyTexture : this.HexagonBorderFlattyTexture;
-
-                    var borderTexture = this.HexagonBorderPointyTexture;
-                    // var borderRotation = (float) (this.Rotation % (60 * Math.PI / 180));
-                    var borderRotation = this.Rotation;
-
-                    var degrees = this.Rotation * 180 / Math.PI;
-                    var rotationOffset = degrees switch
-                    {
-                        // var x when (degrees < 180) => Vector2.Zero,
-                        // var x when (degrees < 210) => new Vector2(this.HexagonSize.X, this.HexagonSize.Y*1.5f),
-                        _ => Vector2.Zero
-                    };
-
-                    var innerBorderPosition1 = - rotationOffset + (basePosition - new Vector2(0, 5)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition2 = - rotationOffset + (basePosition - new Vector2(0, 9)).Transform(this.TilemapRotationMatrix);
-                    var innerBorderPosition3 = - rotationOffset + (basePosition - new Vector2(0, 13)).Transform(this.TilemapRotationMatrix);
-
-                    spriteBatch.DrawAt(borderTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
-                    spriteBatch.DrawAt(borderTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
-                    spriteBatch.DrawAt(borderTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
+                    var innerBorderPosition1 = borderPosition - new Vector2(0, 5).Transform(borderRotationMatrix);
+                    var innerBorderPosition2 = borderPosition - new Vector2(0, 9).Transform(borderRotationMatrix);
+                    var innerBorderPosition3 = borderPosition - new Vector2(0, 13).Transform(borderRotationMatrix);
+                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
+                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
+                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
                 }
 
-                color = hex.TileType switch
+                innerColor = hex.TileType switch
                 {
                     TileType.Mountain => new Color(130, 100, 60),
                     _ => new Color(100, 140, 70)
                 };
-                spriteBatch.DrawAt(this.HexagonOuterTexture, position, color, this.Rotation, depth: .25f);
+                spriteBatch.DrawAt(this.HexagonOuterTexture, position, innerColor, this.Rotation, depth: .25f);
 
                 if (this.PrintCoords)
                 {
@@ -450,9 +450,6 @@ namespace Hex.Helpers
 
         public Vector2 Translate(Vector2 vector) =>
             this.Camera.FromScreen(vector);
-
-        public Matrix CameraTranslationMatrix =>
-            this.Camera.TranslationMatrix;
 
         #endregion
 
@@ -481,7 +478,7 @@ namespace Hex.Helpers
             if (this.SourceHexagon != null)
             {
                 var pos = this.SourceHexagon.Position + this.HexagonSize / 2;
-                var transPos = pos.Transform(this.TilemapRotationMatrix);// + this.TilemapOffset;
+                var transPos = pos.Transform(this.TilemapRotationMatrix);
                 var newPos = Vector2.Round(transPos);
                 this.Camera.CenterOn(newPos);
             }
@@ -489,8 +486,7 @@ namespace Hex.Helpers
 
         protected Cube ToCubeCoordinates(Vector2 position)
         {
-            var positionRelativeToOrigin = position ;//- this.TilemapOffset;
-            var invertedPosition = positionRelativeToOrigin.Transform(this.TilemapRotationMatrix.Invert());
+            var invertedPosition = position.Transform(this.TilemapRotationMatrix.Invert());
 
             var (mx, my) = invertedPosition - this.HexagonSize / 2;
 
