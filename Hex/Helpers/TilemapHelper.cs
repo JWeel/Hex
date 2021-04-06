@@ -38,7 +38,7 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public TilemapHelper(ClientWindow client, InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
+        public TilemapHelper(InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
             this.Camera = new CameraHelper(() => this.CameraBounds, () => this.ContainerSize, input);
 
@@ -182,8 +182,8 @@ namespace Hex.Helpers
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R)[] Spawn(int n, int m)
         {
-            // var shape = Shape.Hexagon;
-            var shape = Shape.Rectangle;
+            var shape = Shape.Hexagon;
+            // var shape = Shape.Rectangle;
             // var shape = Shape.Triangle;
             // var shape = Shape.Parallelogram;
             // var shape = Shape.Line;
