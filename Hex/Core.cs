@@ -8,6 +8,7 @@ using Mogi.Extensions;
 using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using Mogi.Scopes;
 using System.Text;
 
 namespace Hex
@@ -17,31 +18,18 @@ namespace Hex
         #region Constants
 
         private const string CONTENT_ROOT_DIRECTORY = "Content";
-        private const float BASE_GLOBAL_SCALE = 1.5f;
-        private const float MAX_GLOBAL_SCALE = 5f;
-        private const float MIN_GLOBAL_SCALE = 0.25f;
+
         private const int BASE_WINDOW_WIDTH = 1280;
-        private const int BASE_WINDOW_WIDTH_INCREMENT = BASE_WINDOW_WIDTH / 8; // used for keyboard-based scaling
-        private const int BASE_WINDOW_WIDTH_MIN = BASE_WINDOW_WIDTH / 4; // minimum for keyboard-based scaling (not for mouse)
         private const int BASE_WINDOW_HEIGHT = 720;
         private const int BASE_MAP_PANEL_WIDTH = 790; // 1280 / 1.618 = 791.10 : using 790 for even number
         private const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
         private const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
         private const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
-        private const float BASE_ASPECT_RATIO = BASE_WINDOW_WIDTH / (float) BASE_WINDOW_HEIGHT;
-        private const float GOLDEN_RATIO = 1.618f;
 
         private static readonly Vector2 BASE_WINDOW_SIZE = new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
         private static readonly Vector2 BASE_WINDOW_INCREMENT = BASE_WINDOW_SIZE / 8; // used for keyboard-based scaling
         private static readonly Rectangle BASE_WINDOW_RECTANGLE = BASE_WINDOW_SIZE.ToRectangle();
         private static readonly Vector2 BASE_MAP_PANEL_SIZE = new Vector2(BASE_MAP_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT);
-        private const int BASE_MAP_PADDING = 30;
-
-        // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
-        // without them there are small gaps or overlap between hexagons, especially as coordinates increase
-        // note that these are specific to 25/29 (pointy) and 29/25 (flatty) sizes!
-        private const double SHORT_OVERLAP_DIVISOR = 1.80425; // this seems to be the offset for odd rows(pointy)/cols(flat)
-        private const double LONG_OVERLAP_DIVISOR = 2.07137; // but this one no idea, doesn't seem to match any offset
 
         #endregion
 
@@ -80,6 +68,7 @@ namespace Hex
         /// <summary> Stage translation is needed when stage camera is zoomed. </summary>
         protected Vector2 StageCameraTranslatedMouseVector { get; set; }
 
+        RasterizerState ScissorRasterizer { get; } = new RasterizerState() { ScissorTestEnable = true };
         protected string CalculatedDebug;
 
         #endregion
@@ -104,10 +93,8 @@ namespace Hex
         {
             this.Content.RootDirectory = CONTENT_ROOT_DIRECTORY;
             this.SpriteBatch = new SpriteBatch(this.GraphicsDevice);
-
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
-
             this.Font = this.Content.Load<SpriteFont>("Alphabet/saga");
 
             var dependency = Dependency.Start(this);
@@ -119,10 +106,11 @@ namespace Hex
             dependency.Register<FramerateHelper>();
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
-
             this.Stage = dependency.Register<StageHelper>();
 
-            var stageContainer = BASE_WINDOW_SIZE.ToRectangle();
+            // TODO fix non-origin location
+            // right now with non-origin location camera is off. can go further right than left when zoomed.
+            var stageContainer = new Rectangle(new Point(0, 0), (BASE_WINDOW_SIZE / 1.3f).ToPoint());
             this.Stage.Arrange(stageContainer, "tilemap1");
 
             // temporary panel stuff
@@ -225,7 +213,7 @@ namespace Hex
             this.IsMouseVisible = true;
 
             // if (this.Input.KeyPressed(Keys.Enter))
-            //     this.Tilemap.Arrange(BASE_WINDOW_SIZE, BASE_MAP_PADDING);
+            //     this.Stage.Arrange(BASE_WINDOW_SIZE.ToRectangle(), "tilemap1");
 
             if (this.Input.KeyPressed(Keys.Tab))
                 this.Side.Toggle();
@@ -247,8 +235,8 @@ namespace Hex
                 this.Log.AppendLine($"M3: {this.StageCameraTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
                 // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
-                this.Log.AppendLine($"Cursor: {this.Stage.CursorHexagon?.Cube.ToString() ?? "n/a"}");
-                this.Log.AppendLine($"Source: {this.Stage.SourceHexagon?.Cube.ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Cursor: {this.Stage.CursorTile?.Cube.ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Source: {this.Stage.SourceTile?.Cube.ToString() ?? "n/a"}");
                 this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 this.Log.AppendLine(this.CalculatedDebug);
@@ -260,20 +248,27 @@ namespace Hex
             // clears the backbuffer, giving the GPU a reliable internal state to work with
             this.GraphicsDevice.Clear(Color.Black);
 
-
-            // // try other SamplerStates
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Stage.TranslationMatrix);
-            this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
+            this.SpriteBatch.DrawTo(this.BlankTexture, this.Stage.Container, Color.Ivory);
             this.SpriteBatch.End();
+
+            using (new ScissorScope(this.GraphicsDevice, this.Stage.Container))
+            {
+                // // try other SamplerStates
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap,
+                    rasterizerState: ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
+                this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
+                this.SpriteBatch.End();
+            }
 
             // Indication of container size - can be removed
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
-            var baseWindow = BASE_WINDOW_SIZE.ToPoint();
-            var difference = (BASE_WINDOW_SIZE - this.Stage.ContainerSize).ToPoint();
-            var rect1 = new Rectangle(baseWindow.X - difference.X, 0, baseWindow.X, baseWindow.Y);
-            var rect2 = new Rectangle(0, baseWindow.Y - difference.Y, baseWindow.X, baseWindow.Y);
-            this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
-            this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
+            // var baseWindow = BASE_WINDOW_SIZE.ToPoint();
+            // var difference = (BASE_WINDOW_SIZE - this.Stage.ContainerSize).ToPoint();
+            // var rect1 = new Rectangle(baseWindow.X - difference.X, 0, baseWindow.X, baseWindow.Y);
+            // var rect2 = new Rectangle(0, baseWindow.Y - difference.Y, baseWindow.X, baseWindow.Y);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
+            // this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
             this.SpriteBatch.End();
 
 
@@ -320,5 +315,7 @@ namespace Hex
         // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
         // selected-tile-centered-rotating should be a toggle
         // slow pulse button press -> press and held, after 1 second pulse every .10? until released
+        // font helper -> exposes Font to dependencies and can switch to other fonts
+        // make abstract Tile -> can be hexagon or rectangle, maybe triangle
     }
 }

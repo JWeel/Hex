@@ -50,7 +50,7 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.K))
             {
                 this.Actors.Add(new Actor(this.ActorTexture,
-                    this.Tilemap.HexagonMap.Values.Random().Position));
+                    this.Tilemap.Map.Values.Random().Position));
             }
         }
 

@@ -21,10 +21,10 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> boundarySizeGetter, Func<Vector2> viewportSizeGetter, InputHelper input)
+        public CameraHelper(Func<Vector2> boundarySizeGetter, Func<Rectangle> viewportGetter, InputHelper input)
         {
             this.BoundarySizeGetter = boundarySizeGetter;
-            this.ViewportSizeGetter = viewportSizeGetter;
+            this.ViewportGetter = viewportGetter;
             this.Input = input;
             this.Position = Vector2.Zero;
             this.ZoomScaleFactor = 1.0f;
@@ -35,19 +35,31 @@ namespace Hex.Helpers
         #region Properties
 
         protected Func<Vector2> BoundarySizeGetter { get; }
-        protected Func<Vector2> ViewportSizeGetter { get; }
+        protected Func<Rectangle> ViewportGetter { get; }
         protected InputHelper Input { get; }
-
         protected bool IsMoving { get; set; }
-        protected Vector2 LastMovePosition { get; set; }
+        protected Vector2 Position { get; set; }
+        protected float ZoomScaleFactor { get; set; }
 
-        public Vector2 Position { get; protected set; }
-        public float ZoomScaleFactor { get; protected set; }
-
+        /// <summary> A transform matrix that scales and moves to relative camera position. </summary>
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
-            Matrix.CreateTranslation(new Vector3(this.ViewportSizeGetter() / 2f, 0));
+            Matrix.CreateTranslation(new Vector3(this.ViewportGetter().Size.ToVector2() / 2f, 0));
+
+        /// <summary> Returns a rectangle which spans what the camera shows with its current translation matrix. </summary>
+        public Rectangle CameraBox
+        {
+            get
+            {
+                // there is a small rounding(?) error so add offset
+                var roundingOffset = new Vector2(1) * this.ZoomScaleFactor;
+                var viewportSize = this.ViewportGetter().Size.ToVector2();
+                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor - roundingOffset;
+                var cameraBoxSize = viewportSize / this.ZoomScaleFactor + roundingOffset * 2;
+                return new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
+            }
+        }
 
         #endregion
 
@@ -94,23 +106,24 @@ namespace Hex.Helpers
             // |     | x |  -> if camera is in bottom right, position will be 4,4
             // + - - + - +
             var boundarySize = this.BoundarySizeGetter();
-            var viewportSize = this.ViewportSizeGetter();
+            var viewport = this.ViewportGetter();
+            var viewportSize = viewport.Size.ToVector2();
+            var viewportLocation = viewport.Location.ToVector2();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
-            var minimum = scaledViewportCenter;
-            var maximum = boundarySize - scaledViewportCenter;
+            var minimum = scaledViewportCenter;// + viewportLocation;
+            var maximum = boundarySize - scaledViewportCenter;// + viewportLocation;
             return (minimum, maximum);
         }
 
         protected void HandleMouse()
         {
             var mousePosition = this.Input.CurrentVirtualMouseVector;
-            if (this.IsMoving && this.ZoomScaleFactor >= 1f)
+            if (this.IsMoving)
             {
-                this.Move(-(mousePosition - this.LastMovePosition));
-                this.LastMovePosition = mousePosition;
+                this.Move(-(mousePosition - this.Input.PreviousVirtualMouseVector));
                 this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
             }
-            if (this.ViewportSizeGetter().ToRectangle().Contains(mousePosition))
+            if (this.ViewportGetter().Contains(mousePosition))
             {
                 if (this.Input.MouseScrolled())
                 {
@@ -131,7 +144,6 @@ namespace Hex.Helpers
                 if (!this.IsMoving && this.Input.MousePressed(MouseButton.Right))
                 {
                     this.IsMoving = true;
-                    this.LastMovePosition = mousePosition;
                 }
             }
         }
@@ -145,12 +157,6 @@ namespace Hex.Helpers
                 this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
             if (this.Input.KeyDown(Keys.E))
                 this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
-
-            if (this.ZoomScaleFactor < 1f)
-            {
-                this.Center();
-                return;
-            }
 
             var cameraMovement = Vector2.Zero;
             if (this.Input.KeyDown(Keys.A))
