@@ -38,10 +38,9 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public TilemapHelper(InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
+        public TilemapHelper(InputHelper input, CameraHelper camera, ContentManager content, Texture2D blankTexture, SpriteFont font)
         {
-            this.Camera = new CameraHelper(() => this.CameraBounds, () => this.ContainerSize, input);
-
+            this.Camera = camera;
             this.Input = input;
             this.BlankTexture = blankTexture;
             this.Font = font;
@@ -87,7 +86,7 @@ namespace Hex.Helpers
 
         protected InputHelper Input { get; }
         // move to other helper
-        public CameraHelper Camera { get; }
+        protected CameraHelper Camera { get; }
 
         protected Vector2 RenderPosition { get; set; }
         public float Rotation { get; set; }
@@ -118,10 +117,6 @@ namespace Hex.Helpers
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
 
-        // move to other helper
-        public Matrix CameraTranslationMatrix =>
-            this.Camera.TranslationMatrix;
-
         #endregion
 
         #region Methods
@@ -133,7 +128,7 @@ namespace Hex.Helpers
 
             // TODO:
             // Load preset tilemaps
-            var axials = this.Spawn(2, 8);
+            var axials = this.Spawn(4, 8);
 
             this.HexagonMap = axials
                 .Select(axial =>
@@ -387,7 +382,6 @@ namespace Hex.Helpers
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
 
-                
                 // separate rotations in intervals of 60 degrees, with the intervals shifted by 30 degrees
                 var baseDegrees = (int) (this.Rotation * 180 / Math.PI);
                 var degrees = baseDegrees.Modulo(360);
@@ -418,9 +412,9 @@ namespace Hex.Helpers
                     var innerBorderPosition1 = borderPosition - new Vector2(0, 5).Transform(borderRotationMatrix);
                     var innerBorderPosition2 = borderPosition - new Vector2(0, 9).Transform(borderRotationMatrix);
                     var innerBorderPosition3 = borderPosition - new Vector2(0, 13).Transform(borderRotationMatrix);
-                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
-                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
-                    spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
+                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
+                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
+                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
                 }
 
                 innerColor = hex.TileType switch

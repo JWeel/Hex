@@ -61,17 +61,17 @@ namespace Hex.Helpers
             // this class contains the camera and applies it to both.
             // it also handles the separate background and foreground in its own draw, uses camera matrix for both
 
-            this.Actors.Each(actor =>
-            {
-                var hexagonSize = new Vector2(25, 29); // shouldnt be magic number
-                var position = (actor.Position + hexagonSize / 2)
-                    .Transform(this.Tilemap.TilemapRotationMatrix)
-                    .Transform(this.Tilemap.CameraTranslationMatrix);
+            // this.Actors.Each(actor =>
+            // {
+            //     var hexagonSize = new Vector2(25, 29); // shouldnt be magic number
+            //     var position = (actor.Position + hexagonSize / 2)
+            //         .Transform(this.Tilemap.TilemapRotationMatrix)
+            //         .Transform(this.Tilemap.CameraTranslationMatrix);
 
-                var offset = actor.Texture.ToVector() / 2 * this.Tilemap.Camera.ZoomScaleFactor;
+            //     var offset = actor.Texture.ToVector() / 2 * this.Tilemap.Camera.ZoomScaleFactor;
 
-                spriteBatch.DrawAt(actor.Texture, position - offset, scale: this.Tilemap.Camera.ZoomScaleFactor);
-            });
+            //     spriteBatch.DrawAt(actor.Texture, position - offset, scale: this.Tilemap.Camera.ZoomScaleFactor);
+            // });
         }
 
         #endregion

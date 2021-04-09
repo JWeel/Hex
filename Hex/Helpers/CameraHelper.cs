@@ -84,7 +84,7 @@ namespace Hex.Helpers
 
         protected (Vector2 Minimum, Vector2 Maximum) GetPositionExtrema()
         {
-            // 'corners' are relative as camera position is the middle of viewport
+            // 'corners' are relative as camera position is the center of the camera viewport
             // example: viewport of 3 by 3 in boundary of 6 by 6
             // the actual corners are 0,0 and 5,5, but camera position corners are not
             // + - + - - +
@@ -121,7 +121,7 @@ namespace Hex.Helpers
                     if (this.ZoomScaleFactor != currentZoom)
                     {
                         var zoomPosition = this.FromScreen(mousePosition);
-                        // this zooms on a point defined on the line between previous zoom center and cursor (looks 'natural')
+                        // to make zooming look natural: set position relatively between previous zoom center and cursor
                         this.Position = zoomPosition + (currentZoom / this.ZoomScaleFactor) * (this.Position - zoomPosition);
                     }
 

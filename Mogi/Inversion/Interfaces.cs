@@ -19,7 +19,7 @@ namespace Mogi.Inversion
     public interface IRegister
     {
         /// <summary> Loads dependencies using a specified dependency map. </summary>
-        void Register(DependencyMap dependencyMap);
+        void Register(DependencyHandler dependencyHandler);
     }
 
     /// <summary> Exposes a method that should update state. </summary>

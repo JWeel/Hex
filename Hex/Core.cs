@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using Extended.Extensions;
-using Hex.Extensions;
+﻿using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -11,7 +9,6 @@ using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using System.Text;
-using Hex.Models;
 
 namespace Hex
 {
@@ -67,7 +64,7 @@ namespace Hex
 
         protected FramerateHelper Framerate { get; set; }
         protected InputHelper Input { get; set; }
-        protected TilemapHelper Tilemap { get; set; }
+        protected StageHelper Stage { get; set; }
 
         protected Architect Architect { get; set; }
 
@@ -77,11 +74,11 @@ namespace Hex
         /// <summary> Mouse position relative to window. </summary>
         protected Vector2 BaseMouseVector { get; set; }
 
-        /// <summary> Resolution translation is needed only when in windowed mode client resolution does not match virtual resolution (in fullscreen mode they always match). </summary>
-        protected Vector2 ResolutionTranslatedMouseVector { get; set; }
+        /// <summary> Resolution translation is needed when client resolution does not match virtual resolution. </summary>
+        protected Vector2 ClientResolutionTranslatedMouseVector { get; set; }
 
-        /// <summary> Tilemap uses a camera, therefore translation is needed when the camera is zoomed. </summary>
-        protected Vector2 TilemapTranslatedMouseVector { get; set; }
+        /// <summary> Stage translation is needed when stage camera is zoomed. </summary>
+        protected Vector2 StageCameraTranslatedMouseVector { get; set; }
 
         protected string CalculatedDebug;
 
@@ -113,7 +110,7 @@ namespace Hex
 
             this.Font = this.Content.Load<SpriteFont>("Alphabet/saga");
 
-            var dependency = DependencyHelper.Create(this);
+            var dependency = Dependency.Start(this);
             dependency.Register(this.Content);
             dependency.Register(this.Client);
             dependency.Register(this.SpriteBatch);
@@ -122,62 +119,65 @@ namespace Hex
             dependency.Register<FramerateHelper>();
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
-            this.Tilemap = dependency.Register<TilemapHelper>();
 
-            dependency.Register<ActorHelper>();
+            this.Stage = dependency.Register<StageHelper>();
 
-            this.Tilemap.Arrange(BASE_WINDOW_SIZE);
+            var stageContainer = BASE_WINDOW_SIZE.ToRectangle();
+            this.Stage.Arrange(stageContainer, "tilemap1");
 
-            this.PanelTexture = this.Content.Load<Texture2D>("panel");
-            this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
-            this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
-
-            var exitConfirmationPanelSize = new Vector2(400, 100);
-            var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
-            var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
-            this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
-            this.ExitConfirmation.Append(new Basic(BASE_WINDOW_RECTANGLE, this.BlankTexture, new Color(100, 100, 100, 100)));
-            this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
-
-            var exitConfirmationText = "Are you sure you want to quit?";
-            var exitConformationTextScale = 1.5f;
-            var exitConformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
-            var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitConformationTextSize / 2) - new Vector2(0, 30);
-            this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
-
-            var noYesButtonSize = new Vector2(40);
-            var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
-            var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
-            noButton.WithInput(this.Input);
-            noButton.OnClick += button =>
+            // temporary panel stuff
             {
-                this.ExitConfirmation.Toggle();
-                this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
-            };
-            this.ExitConfirmation.Append(noButton);
+                this.PanelTexture = this.Content.Load<Texture2D>("panel");
+                this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
+                this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
 
-            var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
-            var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
-            yesButton.WithInput(this.Input);
-            yesButton.OnClick += button => this.Exit();
-            this.ExitConfirmation.Append(yesButton);
+                var exitConfirmationPanelSize = new Vector2(400, 100);
+                var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
+                var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
+                this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
+                this.ExitConfirmation.Append(new Basic(BASE_WINDOW_RECTANGLE, this.BlankTexture, new Color(100, 100, 100, 100)));
+                this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
-            this.Log = new StringBuilder();
-            this.Side = new Panel(new Rectangle());
-            this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.BurlyWood));
-            this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
-            this.Side.Append(this.SideLabel);
+                var exitConfirmationText = "Are you sure you want to quit?";
+                var exitConformationTextScale = 1.5f;
+                var exitConformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
+                var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitConformationTextSize / 2) - new Vector2(0, 30);
+                this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
 
-            var toggleSize = new Vector2(40);
-            var toggleLocation = new Vector2(1220, 20);
-            this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, Color.BurlyWood);
-            this.Toggle.WithInput(this.Input);
-            this.Toggle.OnClick += button => this.Side.Toggle();
+                var noYesButtonSize = new Vector2(40);
+                var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
+                var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
+                noButton.WithInput(this.Input);
+                noButton.OnClick += button =>
+                {
+                    this.ExitConfirmation.Toggle();
+                    this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
+                };
+                this.ExitConfirmation.Append(noButton);
 
-            var exitWrapper = new PhasedWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
-            this.Attach(exitWrapper);
-            this.Attach(this.Side);
-            this.Attach(this.Toggle);
+                var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
+                var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
+                yesButton.WithInput(this.Input);
+                yesButton.OnClick += button => this.Exit();
+                this.ExitConfirmation.Append(yesButton);
+
+                this.Log = new StringBuilder();
+                this.Side = new Panel(new Rectangle());
+                this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.BurlyWood));
+                this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
+                this.Side.Append(this.SideLabel);
+
+                var toggleSize = new Vector2(40);
+                var toggleLocation = new Vector2(1220, 20);
+                this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, Color.BurlyWood);
+                this.Toggle.WithInput(this.Input);
+                this.Toggle.OnClick += button => this.Side.Toggle();
+
+                var exitWrapper = new PhasedWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
+                this.Attach(exitWrapper);
+                this.Attach(this.Side);
+                this.Attach(this.Toggle);
+            }
 
             var clientWindowWrapper = new PhasedUpdateWrapper<NormalUpdate>(gametime =>
             {
@@ -232,10 +232,9 @@ namespace Hex
 
             if (this.Input.MouseMoved())
             {
-                this.BaseMouseVector = this.Input.CurrentVirtualMouseVector;
-                this.ResolutionTranslatedMouseVector = this.Input.CurrentVirtualMouseVector;
-                // this.ResolutionTranslatedMouseVector = new Vector2(this.ResolutionTranslatedMouseVector.X, 500);
-                this.TilemapTranslatedMouseVector = this.Tilemap.Translate(this.ResolutionTranslatedMouseVector);
+                this.BaseMouseVector = this.Input.CurrentMouseVector;
+                this.ClientResolutionTranslatedMouseVector = this.Input.CurrentVirtualMouseVector;
+                this.StageCameraTranslatedMouseVector = this.ClientResolutionTranslatedMouseVector.Transform(this.Stage.TranslationMatrix.Invert());
             }
 
             this.OnUpdate?.Invoke<NormalUpdate>(gameTime);
@@ -243,15 +242,15 @@ namespace Hex
             if (this.Side.IsActive)
             {
                 this.Log.Clear();
-                // this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
-                this.Log.AppendLine($"M2: {this.ResolutionTranslatedMouseVector.PrintRounded()}");
-                this.Log.AppendLine($"M3: {this.TilemapTranslatedMouseVector.PrintRounded()}");
+                this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
+                this.Log.AppendLine($"M2: {this.ClientResolutionTranslatedMouseVector.PrintRounded()}");
+                this.Log.AppendLine($"M3: {this.StageCameraTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
                 // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
-                this.Log.AppendLine($"Cursor: {this.Tilemap.CursorHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
-                this.Log.AppendLine($"Source: {this.Tilemap.SourceHexagon?.Into(this.Tilemap.Info).Coordinates.ToString() ?? "n/a"}");
-                this.Log.AppendLine($"Hexagons: {this.Tilemap.HexagonMap.Count}");
-                this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
+                this.Log.AppendLine($"Cursor: {this.Stage.CursorHexagon?.Cube.ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Source: {this.Stage.SourceHexagon?.Cube.ToString() ?? "n/a"}");
+                this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
+                // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }
         }
@@ -262,18 +261,15 @@ namespace Hex
             this.GraphicsDevice.Clear(Color.Black);
 
 
-            // try other SamplerStates
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Tilemap.CameraTranslationMatrix);
-
+            // // try other SamplerStates
+            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap, transformMatrix: this.Stage.TranslationMatrix);
             this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
-
             this.SpriteBatch.End();
-
 
             // Indication of container size - can be removed
             this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
             var baseWindow = BASE_WINDOW_SIZE.ToPoint();
-            var difference = (BASE_WINDOW_SIZE - this.Tilemap.ContainerSize).ToPoint();
+            var difference = (BASE_WINDOW_SIZE - this.Stage.ContainerSize).ToPoint();
             var rect1 = new Rectangle(baseWindow.X - difference.X, 0, baseWindow.X, baseWindow.Y);
             var rect2 = new Rectangle(0, baseWindow.Y - difference.Y, baseWindow.X, baseWindow.Y);
             this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
