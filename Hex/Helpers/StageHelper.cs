@@ -1,4 +1,3 @@
-using System;
 using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -90,8 +89,7 @@ namespace Hex.Helpers
                 var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
                 if (this.Container.Contains(virtualMouseVector))
                     this.Tilemap.TrackTiles(cameraTranslatedMouseVector);
-                // clear after leaving container
-                else if (this.CursorTile != default)
+                else
                     this.Tilemap.UntrackTiles();
             }
         }

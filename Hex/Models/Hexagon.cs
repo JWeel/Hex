@@ -1,7 +1,5 @@
-using Extended.Extensions;
 using Hex.Enums;
 using Microsoft.Xna.Framework;
-using System.Linq;
 
 namespace Hex.Models
 {
@@ -14,9 +12,9 @@ namespace Hex.Models
             this.Cube = cube;
             this.Position = position;
 
-            this.TileType = 
+            this.TileType =
                 (cube.X % 7 == cube.Z) ? TileType.Mountain :
-                // (cube.Z % 3 == cube.Y-1) ? TileType.Sea :
+                (cube.Z % 3 == cube.Y+5) ? TileType.Sea :
                 TileType.Grass;
         }
 

@@ -58,6 +58,7 @@ namespace Hex.Helpers
 
         #region Properties
 
+        /// <summary> Raised when tilemap rotation changes. </summary>
         public event Action OnRotate;
 
         /// <summary> The mapping of all tiles by cube-coordinates. </summary>
@@ -130,7 +131,7 @@ namespace Hex.Helpers
         {
             // TODO:
             // Load preset tilemaps
-            var axials = this.Spawn(4, 8, Shape.Rectangle);
+            var axials = this.Spawn(8, 8, Shape.Rectangle);
 
             this.Map = axials
                 .Select(axial =>
@@ -236,7 +237,8 @@ namespace Hex.Helpers
         {
         }
 
-        /// <summary> Calculates distance between top left corner of container and top left position of tilemap. </summary>
+        /// <summary> Determines the distance from origin necessary to render the tilemap so that it is centered on a specified position.
+        /// <br/> The result is stored in <see cref="TilemapOffset"/>. </summary>
         public void CalculateOffset(Vector2 center)
         {
             // Get distance from top left (renderposition) to tilemap middle

@@ -1,6 +1,6 @@
 namespace Hex.Extensions
 {
-    public static class NumericExtensions
+    public static class IntExtensions
     {
         /// <summary> Performs modular arithmetic of this integer with the specified modulus. </summary>
         /// <param name="n"> The input value. </param>

@@ -62,14 +62,14 @@ namespace Mogi.Framework
         protected bool WasPreviouslyFullScreen { get; set; }
         protected Vector2 LastWindowedResolution { get; set; }
 
+        /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinates. </summary>
+        protected Vector2 RelativeResolution { get; set; }
+
         /// <summary> The aspect ratio of the virtual resolution (width / height). </summary>
         protected float VirtualAspectRatio => this.VirtualResolution.X / this.VirtualResolution.Y;
 
         /// <summary> A vector that contains the screen resolution. </summary>
         protected Vector2 MonitorResolution => this.Graphics.GraphicsDevice.Adapter.CurrentDisplayMode.ToSizeVector();
-
-        /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinates. </summary>
-        protected Vector2 RelativeResolution { get; set; }
 
         #endregion
 

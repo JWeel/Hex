@@ -47,15 +47,15 @@ namespace Hex.Helpers
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
             Matrix.CreateTranslation(new Vector3(this.ViewportGetter().Size.ToVector2() / 2f + this.ViewportGetter().Location.ToVector2(), 0));
 
-        /// <summary> Returns a rectangle which spans what the camera shows with its current translation matrix. </summary>
+        /// <summary> Returns a rectangle which spans the area shown by the current camera translation matrix. </summary>
         public Rectangle CameraBox
         {
             get
             {
-                // there is a small rounding(?) error so add offset
-                var roundingOffset = new Vector2(1) * this.ZoomScaleFactor;
+                // there is a small rounding error so add offset
+                var roundingOffset = new Vector2(2);
                 var viewportSize = this.ViewportGetter().Size.ToVector2();
-                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor - roundingOffset;
+                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor- roundingOffset;
                 var cameraBoxSize = viewportSize / this.ZoomScaleFactor + roundingOffset * 2;
                 return new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
             }
@@ -148,13 +148,15 @@ namespace Hex.Helpers
 
         protected void HandleKeys()
         {
-            if (!this.Input.KeysDownAny(Keys.Q, Keys.E, Keys.A, Keys.D, Keys.W, Keys.S))
+            if (!this.Input.KeysDownAny(Keys.Q, Keys.E, Keys.A, Keys.D, Keys.W, Keys.S, Keys.B))
                 return;
 
             if (this.Input.KeyDown(Keys.Q))
                 this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
             if (this.Input.KeyDown(Keys.E))
                 this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
+            if (this.Input.KeyDown(Keys.B))
+                this.ZoomScaleFactor = 1f;
 
             var cameraMovement = Vector2.Zero;
             if (this.Input.KeyDown(Keys.A))
