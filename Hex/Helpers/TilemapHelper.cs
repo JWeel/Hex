@@ -131,7 +131,7 @@ namespace Hex.Helpers
         {
             // TODO:
             // Load preset tilemaps
-            var axials = this.Spawn(8, 8, Shape.Rectangle);
+            var axials = this.Spawn(3, 12, Shape.Parallelogram);
 
             this.Map = axials
                 .Select(axial =>
@@ -152,8 +152,6 @@ namespace Hex.Helpers
 
             // var centerCube = this.FindCenterCube();
             // this.CenterTile = this.Map.GetOrDefault(centerCube);
-            // if (this.CenterTile != null)
-            //     this.CenterTile.Color = Color.Aquamarine;
 
             if (this.Map.Any())
                 this.RenderPosition = this.Map.Values
@@ -261,7 +259,7 @@ namespace Hex.Helpers
                     .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(hexagon.Cube, sourceCoordinates, IsVisible)))
                     .Where(tuple => !this.VisibilityByHexagonMap.ContainsKey(tuple.Hexagon))
                     .Each(this.VisibilityByHexagonMap.Add);
-                bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType == TileType.Grass);
+                bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
             };
 
             if (this.Input.MousePressed(MouseButton.Left))
@@ -321,7 +319,7 @@ namespace Hex.Helpers
                 var innerColor = ((hex == this.CursorTile) && (hex == this.SourceTile)) ? new Color(255, 170, 130)
                     : (hex == this.CursorTile) ? Color.LightYellow
                     : (hex == this.SourceTile) ? Color.Coral
-                    : this.VisibilityByHexagonMap.TryGetValue(hex, out var visible) ? (visible ? new Color(205, 235, 185) : new Color(175, 195, 160))
+                    : (hex == this.CenterTile) ? Color.Aquamarine
                     : hex.Color != default ? hex.Color
                     : hex.TileType switch
                     {
@@ -331,6 +329,15 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
+                if (this.VisibilityByHexagonMap.TryGetValue(hex, out var visibility))
+                {
+                    var visiblityOverlayColor = visibility ?
+                        new Color(255, 255, 255, 80) :
+                        new Color(0, 0, 0, 55);
+                    // new Color(205, 235, 185, 100) :
+                    // new Color(175, 195, 160, 100);
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, visiblityOverlayColor, this.Rotation, depth: .175f);
+                }
 
                 // separate rotations in intervals of 60 degrees, with the intervals shifted by (30n+1) degrees
                 var baseDegrees = (int) (this.Rotation * 180 / Math.PI);
@@ -383,6 +390,7 @@ namespace Hex.Helpers
 
                 if (this.SourceTile != null)
                 {
+                    // if (!this.VisibilityByHexagonMap.Any())
                     if (!this.FogOfWarMap[hex])
                         spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
                 }
@@ -422,7 +430,7 @@ namespace Hex.Helpers
                         .Select(tuple => (Hexagon: this.Map.GetOrDefault(tuple.Cube), tuple.Visible))
                         .Where(tuple => (tuple.Hexagon != default))
                         .Each(this.VisibilityByHexagonMap.Add);
-                    bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType == TileType.Grass);
+                    bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
                 }
             }
         }
@@ -522,7 +530,7 @@ namespace Hex.Helpers
                     return false;
                 return this.DeterminePointIsVisibleFrom(targetCube, sourceCube, IsVisible);
             }
-            bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType == TileType.Grass);
+            bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
         }
 
         // not really sure what center is useful for
