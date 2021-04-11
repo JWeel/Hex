@@ -58,6 +58,8 @@ namespace Hex.Helpers
 
         #region Properties
 
+        public event Action OnRotate;
+
         /// <summary> The mapping of all tiles by cube-coordinates. </summary>
         public IDictionary<Cube, Hexagon> Map { get; protected set; }
 
@@ -85,7 +87,7 @@ namespace Hex.Helpers
                 return Vector2.Round(rotated);
             }
         }
-        
+
         /// <summary> A transform matrix that rotates and moves to relative render position. </summary>
         public Matrix RotationMatrix =>
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
@@ -124,11 +126,8 @@ namespace Hex.Helpers
 
         #region Methods
 
-        Vector2 StageOffset;
-        public void Arrange(Vector2 stageOffset)
+        public void Arrange()
         {
-            this.StageOffset = stageOffset;
-
             // TODO:
             // Load preset tilemaps
             var axials = this.Spawn(4, 8, Shape.Rectangle);
@@ -243,7 +242,7 @@ namespace Hex.Helpers
             // Get distance from top left (renderposition) to tilemap middle
             var relativeMiddle = this.TilemapSize / 2 + this.RenderPosition;
             // Subtract this distance from center to get offset for centered tilemap rendering
-            this.TilemapOffset = Vector2.Round(center - relativeMiddle) + this.StageOffset;
+            this.TilemapOffset = Vector2.Round(center - relativeMiddle);
         }
 
         public void Update(GameTime gameTime)
@@ -278,6 +277,34 @@ namespace Hex.Helpers
             {
                 this.VisibilityByHexagonMap.Clear();
                 this.CalculatedVisibility = false;
+            }
+
+            if (this.Input.KeyPressed(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: -30);
+                else
+                    this.Rotate(degrees: -60);
+            else if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeyDown(Keys.Z) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: -3);
+                else if (this.Input.KeyDown(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: -1);
+
+            if (this.Input.KeyPressed(Keys.X) && !this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: 30);
+                else
+                    this.Rotate(degrees: 60);
+            else if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if (this.Input.KeyDown(Keys.X) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: 3);
+                else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                    this.Rotate(degrees: 1);
+
+            if (this.Input.KeyPressed(Keys.V))
+            {
+                // subtract to set to 0
+                this.Rotate(-this.Rotation);
             }
         }
 
@@ -373,6 +400,12 @@ namespace Hex.Helpers
             return Cube.Round(q, (-q - r), r);
         }
 
+        public void TrackTiles(Vector2 position)
+        {
+            var coordinates = this.ToTileCoordinates(position);
+            this.TrackTiles(coordinates);
+        }
+
         public void TrackTiles(Cube coordinates)
         {
             this.LastCursorTile = this.CursorTile;
@@ -397,20 +430,22 @@ namespace Hex.Helpers
             this.CursorTile = default;
         }
 
-        public void Rotate(float radians)
-        {
-            this.Rotation += radians;
-            this.Rotation %= (float) (360 * Math.PI / 180);
-        }
-
-        public void ResetRotation()
-        {
-            this.Rotation = 0;
-        }
-
         #endregion
 
         #region Helper Methods
+
+        protected void Rotate(int degrees)
+        {
+            var radians = (float) (degrees * Math.PI / 180);
+            this.Rotate(radians);
+        }
+
+        protected void Rotate(float radians)
+        {
+            this.Rotation += radians;
+            this.Rotation %= (float) (360 * Math.PI / 180);
+            this.OnRotate?.Invoke();
+        }
 
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
             this.Lerp(a.ToVector3(), b.ToVector3(), t);

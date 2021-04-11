@@ -45,7 +45,7 @@ namespace Hex.Helpers
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
-            Matrix.CreateTranslation(new Vector3(this.ViewportGetter().Size.ToVector2() / 2f, 0));
+            Matrix.CreateTranslation(new Vector3(this.ViewportGetter().Size.ToVector2() / 2f + this.ViewportGetter().Location.ToVector2(), 0));
 
         /// <summary> Returns a rectangle which spans what the camera shows with its current translation matrix. </summary>
         public Rectangle CameraBox
@@ -106,12 +106,10 @@ namespace Hex.Helpers
             // |     | x |  -> if camera is in bottom right, position will be 4,4
             // + - - + - +
             var boundarySize = this.BoundarySizeGetter();
-            var viewport = this.ViewportGetter();
-            var viewportSize = viewport.Size.ToVector2();
-            var viewportLocation = viewport.Location.ToVector2();
+            var viewportSize = this.ViewportGetter().Size.ToVector2();
             var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
-            var minimum = scaledViewportCenter;// + viewportLocation;
-            var maximum = boundarySize - scaledViewportCenter;// + viewportLocation;
+            var minimum = scaledViewportCenter;
+            var maximum = boundarySize - scaledViewportCenter;
             return (minimum, maximum);
         }
 
@@ -160,13 +158,13 @@ namespace Hex.Helpers
 
             var cameraMovement = Vector2.Zero;
             if (this.Input.KeyDown(Keys.A))
-                cameraMovement.X = +1;
-            if (this.Input.KeyDown(Keys.D))
                 cameraMovement.X = -1;
+            if (this.Input.KeyDown(Keys.D))
+                cameraMovement.X = +1;
             if (this.Input.KeyDown(Keys.W))
-                cameraMovement.Y = +1;
-            if (this.Input.KeyDown(Keys.S))
                 cameraMovement.Y = -1;
+            if (this.Input.KeyDown(Keys.S))
+                cameraMovement.Y = +1;
 
             // normalizing is needed when changing two directions at once
             if (cameraMovement != Vector2.Zero)

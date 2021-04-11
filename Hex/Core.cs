@@ -108,9 +108,7 @@ namespace Hex
             this.Architect = dependency.Register<Architect>();
             this.Stage = dependency.Register<StageHelper>();
 
-            // TODO fix non-origin location
-            // right now with non-origin location camera is off. can go further right than left when zoomed.
-            var stageContainer = new Rectangle(new Point(0, 0), (BASE_WINDOW_SIZE / 1.3f).ToPoint());
+            var stageContainer = new Rectangle(new Point(290, 50), (BASE_WINDOW_SIZE / 2.3f).ToPoint());
             this.Stage.Arrange(stageContainer, "tilemap1");
 
             // temporary panel stuff

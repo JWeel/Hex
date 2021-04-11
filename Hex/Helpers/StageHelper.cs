@@ -57,14 +57,14 @@ namespace Hex.Helpers
         {
             dependency.Register(this.Camera);
             this.Tilemap = dependency.Register<TilemapHelper>();
+            this.Tilemap.OnRotate += this.CenterOnSourceTile;
             this.Actor = dependency.Register<ActorHelper>();
         }
 
         public void Arrange(Rectangle container, string placeholder)
         {
             this.Container = container;
-
-            this.Tilemap.Arrange(container.Location.ToVector2());
+            this.Tilemap.Arrange();
 
             // boundingbox should be all 4 corners of the bounding rectangle (the diagonal of tilemap size)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)
@@ -82,75 +82,28 @@ namespace Hex.Helpers
         {
             if (this.Input.KeyPressed(Keys.C))
                 this.Camera.Center();
-
             if (this.Input.KeyPressed(Keys.H))
                 this.CenterOnSourceTile();
-
             if (this.Input.MouseMoved())
             {
-                var mouseVector = this.Input.CurrentVirtualMouseVector;
-                var cameraTranslatedMouseVector = this.Camera.FromScreen(mouseVector);
-
-                if (this.Container.Contains(mouseVector))
-                {
-                    var coordinatesAtMouse = this.Tilemap.ToTileCoordinates(cameraTranslatedMouseVector);
-                    this.Tilemap.TrackTiles(coordinatesAtMouse);
-                }
+                var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
+                var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
+                if (this.Container.Contains(virtualMouseVector))
+                    this.Tilemap.TrackTiles(cameraTranslatedMouseVector);
                 // clear after leaving container
                 else if (this.CursorTile != default)
                     this.Tilemap.UntrackTiles();
-            }
-
-            if (this.Input.KeyPressed(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: -30);
-                else
-                    this.RotateTilemap(degrees: -60);
-            else if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-                if (this.Input.KeyDown(Keys.Z) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: -3);
-                else if (this.Input.KeyDown(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: -1);
-
-            if (this.Input.KeyPressed(Keys.X) && !this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-                if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: 30);
-                else
-                    this.RotateTilemap(degrees: 60);
-            else if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-                if (this.Input.KeyDown(Keys.X) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: 3);
-                else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-                    this.RotateTilemap(degrees: 1);
-
-            if (this.Input.KeyPressed(Keys.V))
-            {
-                this.Tilemap.ResetRotation();
-                this.CenterOnSourceTile();
             }
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            var location = this.Container.Location.ToVector2().Transform(this.Camera.TranslationMatrix.Invert());
-            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox.Relocate(location.ToPoint()), new Color(20, 60, 80), depth: .05f);
+            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(20, 60, 90), depth: .05f);
         }
 
         #endregion
 
         #region Helper Methods
-
-        protected void RotateTilemap(int degrees)
-        {
-            var radians = (float) (degrees * Math.PI / 180);
-            this.RotateTilemap(radians);
-        }
-
-        protected void RotateTilemap(float radians)
-        {
-            this.Tilemap.Rotate(radians);
-            this.CenterOnSourceTile();
-        }
 
         protected void CenterOnSourceTile()
         {
