@@ -9,6 +9,7 @@ using Mogi.Framework;
 using Mogi.Helpers;
 using Mogi.Inversion;
 using Mogi.Scopes;
+using System.IO;
 using System.Text;
 
 namespace Hex
@@ -95,7 +96,7 @@ namespace Hex
             this.SpriteBatch = new SpriteBatch(this.GraphicsDevice);
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
-            this.Font = this.Content.Load<SpriteFont>("Alphabet/saga");
+            this.Font = this.Content.Load<SpriteFont>("Graphics/Alphabet/saga");
 
             var dependency = Dependency.Start(this);
             dependency.Register(this.Content);
@@ -109,13 +110,13 @@ namespace Hex
             this.Stage = dependency.Register<StageHelper>();
 
             var stageContainer = new Rectangle(new Point(290, 50), (BASE_WINDOW_SIZE / 2.3f).ToPoint());
-            this.Stage.Arrange(stageContainer, "tilemap1");
+            this.Stage.Arrange(stageContainer, this.GetStagePath("grove"));
 
             // temporary panel stuff
             {
-                this.PanelTexture = this.Content.Load<Texture2D>("panel");
-                this.YesTexture = this.Content.Load<Texture2D>("buttonYes");
-                this.NoTexture = this.Content.Load<Texture2D>("buttonNo");
+                this.PanelTexture = this.Content.Load<Texture2D>("Graphics/panel");
+                this.YesTexture = this.Content.Load<Texture2D>("Graphics/buttonYes");
+                this.NoTexture = this.Content.Load<Texture2D>("Graphics/buttonNo");
 
                 var exitConfirmationPanelSize = new Vector2(400, 100);
                 var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
@@ -299,6 +300,11 @@ namespace Hex
             this.SpriteBatch.Draw(this.Client.RenderTarget, this.GraphicsDevice.Viewport.Bounds, Color.White);
             this.SpriteBatch.End();
             base.EndDraw();
+        }
+
+        protected string GetStagePath(string name)
+        {
+            return Path.Combine(CONTENT_ROOT_DIRECTORY, "Level", Path.ChangeExtension(name, ".csv"));
         }
 
         #endregion

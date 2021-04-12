@@ -7,15 +7,12 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Hexagon(Cube cube, Vector2 position)
+        public Hexagon(Cube cube, Vector2 position, TileType type)
         {
             this.Cube = cube;
             this.Position = position;
 
-            this.TileType =
-                (cube.X % 7 == cube.Z) ? TileType.Mountain :
-                (cube.Z % 3 == cube.Y+5) ? TileType.Sea :
-                TileType.Grass;
+            this.TileType = type;
         }
 
         #endregion

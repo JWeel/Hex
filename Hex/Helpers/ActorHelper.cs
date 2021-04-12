@@ -1,15 +1,13 @@
-using System.Collections.Generic;
-using System.Linq;
 using Extended.Extensions;
 using Hex.Models;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using System.Collections.Generic;
 
 namespace Hex.Helpers
 {
@@ -23,7 +21,7 @@ namespace Hex.Helpers
             this.Tilemap = tilemap;
             this.Actors = new List<Actor>();
 
-            this.ActorTexture = content.Load<Texture2D>("spook");
+            this.ActorTexture = content.Load<Texture2D>("Graphics/spook");
         }
 
 

@@ -14,35 +14,35 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin Alphabet/bomon.spritefont
+#begin Graphics/Alphabet/bomon.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Alphabet/bomon.spritefont
+/build:Graphics/Alphabet/bomon.spritefont
 
-#begin Alphabet/saga.spritefont
+#begin Graphics/Alphabet/saga.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Alphabet/saga.spritefont
+/build:Graphics/Alphabet/saga.spritefont
 
-#begin Alphabet/iso8.spritefont
+#begin Graphics/Alphabet/iso8.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Alphabet/iso8.spritefont
+/build:Graphics/Alphabet/iso8.spritefont
 
-#begin Alphabet/seraphimb1.spritefont
+#begin Graphics/Alphabet/seraphimb1.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Alphabet/seraphimb1.spritefont
+/build:Graphics/Alphabet/seraphimb1.spritefont
 
-#begin Forms/btnBlueLeft.png
+#begin Graphics/Forms/btnBlueLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -52,9 +52,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnBlueLeft.png
+/build:Graphics/Forms/btnBlueLeft.png
 
-#begin Forms/btnBlueMiddle.png
+#begin Graphics/Forms/btnBlueMiddle.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -64,9 +64,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnBlueMiddle.png
+/build:Graphics/Forms/btnBlueMiddle.png
 
-#begin Forms/btnBlueRight.png
+#begin Graphics/Forms/btnBlueRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -76,9 +76,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnBlueRight.png
+/build:Graphics/Forms/btnBlueRight.png
 
-#begin Forms/btnGreyLeft.png
+#begin Graphics/Forms/btnGreyLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -88,9 +88,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnGreyLeft.png
+/build:Graphics/Forms/btnGreyLeft.png
 
-#begin Forms/btnGreyMiddle.png
+#begin Graphics/Forms/btnGreyMiddle.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -100,9 +100,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnGreyMiddle.png
+/build:Graphics/Forms/btnGreyMiddle.png
 
-#begin Forms/btnGreyRight.png
+#begin Graphics/Forms/btnGreyRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -112,9 +112,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnGreyRight.png
+/build:Graphics/Forms/btnGreyRight.png
 
-#begin Forms/btnRedLeft.png
+#begin Graphics/Forms/btnRedLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -124,9 +124,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnRedLeft.png
+/build:Graphics/Forms/btnRedLeft.png
 
-#begin Forms/btnRedMiddle.png
+#begin Graphics/Forms/btnRedMiddle.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -136,9 +136,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnRedMiddle.png
+/build:Graphics/Forms/btnRedMiddle.png
 
-#begin Forms/btnRedRight.png
+#begin Graphics/Forms/btnRedRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -148,9 +148,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnRedRight.png
+/build:Graphics/Forms/btnRedRight.png
 
-#begin Forms/btnYellowLeft.png
+#begin Graphics/Forms/btnYellowLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -160,9 +160,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnYellowLeft.png
+/build:Graphics/Forms/btnYellowLeft.png
 
-#begin Forms/btnYellowMiddle.png
+#begin Graphics/Forms/btnYellowMiddle.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -172,9 +172,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnYellowMiddle.png
+/build:Graphics/Forms/btnYellowMiddle.png
 
-#begin Forms/btnYellowRight.png
+#begin Graphics/Forms/btnYellowRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -184,23 +184,23 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/btnYellowRight.png
+/build:Graphics/Forms/btnYellowRight.png
 
-#begin Forms/defaultFont.spritefont
+#begin Graphics/Forms/defaultFont.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Forms/defaultFont.spritefont
+/build:Graphics/Forms/defaultFont.spritefont
 
-#begin Forms/largeFont.spritefont
+#begin Graphics/Forms/largeFont.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:Forms/largeFont.spritefont
+/build:Graphics/Forms/largeFont.spritefont
 
-#begin Forms/winBottom.png
+#begin Graphics/Forms/winBottom.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -210,9 +210,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winBottom.png
+/build:Graphics/Forms/winBottom.png
 
-#begin Forms/winBottomLeft.png
+#begin Graphics/Forms/winBottomLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -222,9 +222,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winBottomLeft.png
+/build:Graphics/Forms/winBottomLeft.png
 
-#begin Forms/winBottomRight.png
+#begin Graphics/Forms/winBottomRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -234,9 +234,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winBottomRight.png
+/build:Graphics/Forms/winBottomRight.png
 
-#begin Forms/winGreenTop.png
+#begin Graphics/Forms/winGreenTop.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -246,9 +246,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winGreenTop.png
+/build:Graphics/Forms/winGreenTop.png
 
-#begin Forms/winGreenTopLeft.png
+#begin Graphics/Forms/winGreenTopLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -258,9 +258,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winGreenTopLeft.png
+/build:Graphics/Forms/winGreenTopLeft.png
 
-#begin Forms/winGreenTopRight.png
+#begin Graphics/Forms/winGreenTopRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -270,9 +270,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winGreenTopRight.png
+/build:Graphics/Forms/winGreenTopRight.png
 
-#begin Forms/winLeft.png
+#begin Graphics/Forms/winLeft.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -282,9 +282,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winLeft.png
+/build:Graphics/Forms/winLeft.png
 
-#begin Forms/winRight.png
+#begin Graphics/Forms/winRight.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -294,9 +294,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Forms/winRight.png
+/build:Graphics/Forms/winRight.png
 
-#begin portraits.png
+#begin Graphics/portraits.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -306,9 +306,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:portraits.png
+/build:Graphics/portraits.png
 
-#begin xbf.png
+#begin Graphics/xbf.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -318,9 +318,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xbf.png
+/build:Graphics/xbf.png
 
-#begin xbp.png
+#begin Graphics/xbp.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -330,9 +330,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xbp.png
+/build:Graphics/xbp.png
 
-#begin xif.png
+#begin Graphics/xif.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -342,9 +342,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xif.png
+/build:Graphics/xif.png
 
-#begin xip.png
+#begin Graphics/xip.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -354,9 +354,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xip.png
+/build:Graphics/xip.png
 
-#begin xof.png
+#begin Graphics/xof.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -366,9 +366,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xof.png
+/build:Graphics/xof.png
 
-#begin xop.png
+#begin Graphics/xop.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -378,9 +378,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:xop.png
+/build:Graphics/xop.png
 
-#begin panel.png
+#begin Graphics/panel.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -390,9 +390,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:panel.png
+/build:Graphics/panel.png
 
-#begin buttonYes.png
+#begin Graphics/buttonYes.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -402,9 +402,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:buttonYes.png
+/build:Graphics/buttonYes.png
 
-#begin buttonNo.png
+#begin Graphics/buttonNo.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -414,9 +414,9 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:buttonNo.png
+/build:Graphics/buttonNo.png
 
-#begin spook.png
+#begin Graphics/spook.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -426,4 +426,4 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:spook.png
+/build:Graphics/spook.png

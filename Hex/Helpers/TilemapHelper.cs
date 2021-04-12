@@ -13,6 +13,7 @@ using Mogi.Helpers;
 using Mogi.Inversion;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Hex.Helpers
@@ -43,10 +44,10 @@ namespace Hex.Helpers
             this.BlankTexture = blankTexture;
             this.Font = font;
 
-            this.HexagonOuterTexture = content.Load<Texture2D>("xop");
-            this.HexagonInnerTexture = content.Load<Texture2D>("xip");
-            this.HexagonBorderPointyTexture = content.Load<Texture2D>("xbp");
-            this.HexagonBorderFlattyTexture = content.Load<Texture2D>("xbf");
+            this.HexagonOuterTexture = content.Load<Texture2D>("Graphics/xop");
+            this.HexagonInnerTexture = content.Load<Texture2D>("Graphics/xip");
+            this.HexagonBorderPointyTexture = content.Load<Texture2D>("Graphics/xbp");
+            this.HexagonBorderFlattyTexture = content.Load<Texture2D>("Graphics/xbf");
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
             this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
@@ -127,21 +128,23 @@ namespace Hex.Helpers
 
         #region Methods
 
-        public void Arrange()
+        public void Arrange(string path)
         {
-            // TODO:
-            // Load preset tilemaps
-            var axials = this.Spawn(3, 12, Shape.Parallelogram);
+            (int Q, int R, TileType T)[] axials;
+            if (path.IsNullOrWhiteSpace())
+                axials = this.Spawn(8, 12, Shape.Hexagon);
+            else
+                axials = this.Load(path);
 
             this.Map = axials
                 .Select(axial =>
                 {
+                    var (q, r, type) = axial;
                     var cube = Cube.FromAxial(axial.Q, axial.R);
-                    var (q, r) = cube.ToAxial();
                     var positionX = Math.Round(this.HexagonSizeAdjusted.X * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
                     var positionY = Math.Round(this.HexagonSizeAdjusted.Y * (3.0 / 2.0 * r));
                     var position = new Vector2((float) positionX, (float) positionY);
-                    return new Hexagon(cube, position);
+                    return new Hexagon(cube, position, type);
                 })
                 .ToDictionary(x => x.Cube);
 
@@ -164,7 +167,7 @@ namespace Hex.Helpers
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
-        public (int Q, int R)[] Spawn(int n, int m, Shape shape)
+        public (int Q, int R, TileType T)[] Spawn(int n, int m, Shape shape)
         {
             var axials = new List<(int Q, int R)>();
             switch (shape)
@@ -228,11 +231,34 @@ namespace Hex.Helpers
             // var ran = new Random();
             // Enumerable.Range(0, ran.Next(axials.Count))
             //     .Each(i => axials.RemoveAt(ran.Next(axials.Count)));
-            return axials.ToArray();
+            return axials
+                .Select(tuple => (tuple.Q, tuple.R, ToTileType(tuple.Q, tuple.R)))
+                .ToArray();
+
+            static TileType ToTileType(int q, int r)
+            {
+                var cube = Cube.FromAxial(q, r);
+                return
+                    (cube.X % 7 == cube.Z) ? TileType.Mountain :
+                    (cube.Z % 3 == cube.Y+5) ? TileType.Sea :
+                    TileType.Grass;
+            }
         }
 
-        public void Load(string path)
+        public (int Q, int R, TileType T)[] Load(string path)
         {
+            return File.ReadAllLines(path)
+                .Where(line => !line.IsNullOrWhiteSpace())
+                .Select(line =>
+                {
+                    var identifierSplit = line.Split(":");
+                    var axialSplit = identifierSplit[0].Split(", ");
+                    var q = int.Parse(axialSplit[0]);
+                    var r = int.Parse(axialSplit[1]);
+                    var t = Enum.Parse<TileType>(identifierSplit[1].Trim());
+                    return (q, r, t);
+                })
+                .ToArray();
         }
 
         /// <summary> Determines the distance from origin necessary to render the tilemap so that it is centered on a specified position.
@@ -302,26 +328,23 @@ namespace Hex.Helpers
                     this.Rotate(degrees: 1);
 
             if (this.Input.KeyPressed(Keys.V))
-            {
-                // subtract to set to 0
-                this.Rotate(-this.Rotation);
-            }
+                this.Rotation = 0;
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            foreach (var hex in this.Map.Values)
+            foreach (var tile in this.Map.Values)
             {
-                var cube = hex.Cube;
-                var basePosition = hex.Position;
+                var cube = tile.Cube;
+                var basePosition = tile.Position;
                 var position = basePosition.Transform(this.RotationMatrix);
 
-                var innerColor = ((hex == this.CursorTile) && (hex == this.SourceTile)) ? new Color(255, 170, 130)
-                    : (hex == this.CursorTile) ? Color.LightYellow
-                    : (hex == this.SourceTile) ? Color.Coral
-                    : (hex == this.CenterTile) ? Color.Aquamarine
-                    : hex.Color != default ? hex.Color
-                    : hex.TileType switch
+                var innerColor = ((tile == this.CursorTile) && (tile == this.SourceTile)) ? new Color(255, 170, 130)
+                    : (tile == this.CursorTile) ? Color.LightYellow
+                    : (tile == this.SourceTile) ? Color.Coral
+                    : (tile == this.CenterTile) ? Color.Aquamarine
+                    : tile.Color != default ? tile.Color
+                    : tile.TileType switch
                     {
                         TileType.Mountain => Color.Tan,
                         TileType.Sea => new Color(100, 200, 220, 80),
@@ -329,11 +352,11 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
-                if (this.VisibilityByHexagonMap.TryGetValue(hex, out var visibility))
+                if (this.VisibilityByHexagonMap.TryGetValue(tile, out var visibility))
                 {
                     var visiblityOverlayColor = visibility ?
                         new Color(255, 255, 255, 80) :
-                        new Color(0, 0, 0, 55);
+                        new Color(0, 0, 0, 50);
                     // new Color(205, 235, 185, 100) :
                     // new Color(175, 195, 160, 100);
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, visiblityOverlayColor, this.Rotation, depth: .175f);
@@ -364,7 +387,7 @@ namespace Hex.Helpers
                 var borderPosition = borderBasePosition - borderTextureOffset;
                 spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, borderRotation, depth: .075f);
 
-                if (hex.TileType == TileType.Mountain)
+                if (tile.TileType == TileType.Mountain)
                 {
                     var innerBorderPosition1 = borderPosition - new Vector2(0, 5).Transform(borderRotationMatrix);
                     var innerBorderPosition2 = borderPosition - new Vector2(0, 9).Transform(borderRotationMatrix);
@@ -374,7 +397,7 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
                 }
 
-                innerColor = hex.TileType switch
+                innerColor = tile.TileType switch
                 {
                     TileType.Mountain => new Color(130, 100, 60),
                     _ => new Color(100, 140, 70)
@@ -391,7 +414,7 @@ namespace Hex.Helpers
                 if (this.SourceTile != null)
                 {
                     // if (!this.VisibilityByHexagonMap.Any())
-                    if (!this.FogOfWarMap[hex])
+                    if (!this.FogOfWarMap[tile])
                         spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
                 }
             }

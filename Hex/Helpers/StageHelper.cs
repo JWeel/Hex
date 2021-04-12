@@ -60,10 +60,10 @@ namespace Hex.Helpers
             this.Actor = dependency.Register<ActorHelper>();
         }
 
-        public void Arrange(Rectangle container, string placeholder)
+        public void Arrange(Rectangle container, string stagePath)
         {
             this.Container = container;
-            this.Tilemap.Arrange();
+            this.Tilemap.Arrange(stagePath);
 
             // boundingbox should be all 4 corners of the bounding rectangle (the diagonal of tilemap size)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)

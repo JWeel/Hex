@@ -32,4 +32,9 @@
     <ProjectReference Include = "../Forms/Forms.csproj" />
     <ProjectReference Include = "../Mogi/Mogi.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Content\Level\**\*.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>  
+  </ItemGroup>
 </Project>
