@@ -109,7 +109,7 @@ namespace Hex
             this.Architect = dependency.Register<Architect>();
             this.Stage = dependency.Register<StageHelper>();
 
-            var stageContainer = new Rectangle(new Point(290, 50), (BASE_WINDOW_SIZE / 2.3f).ToPoint());
+            var stageContainer = new Rectangle(new Point(290, 50), (BASE_WINDOW_SIZE / 1.7f).ToPoint());
             this.Stage.Arrange(stageContainer, this.GetStagePath("grove"));
 
             // temporary panel stuff
@@ -253,34 +253,17 @@ namespace Hex
 
             using (new ScissorScope(this.GraphicsDevice, this.Stage.Container))
             {
-                // // try other SamplerStates
+                // try other SamplerStates
                 this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap,
                     rasterizerState: ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
                 this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
                 this.SpriteBatch.End();
+
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp,
+                    rasterizerState: ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
+                this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
+                this.SpriteBatch.End();
             }
-
-            // Indication of container size - can be removed
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap);
-            // var baseWindow = BASE_WINDOW_SIZE.ToPoint();
-            // var difference = (BASE_WINDOW_SIZE - this.Stage.ContainerSize).ToPoint();
-            // var rect1 = new Rectangle(baseWindow.X - difference.X, 0, baseWindow.X, baseWindow.Y);
-            // var rect2 = new Rectangle(0, baseWindow.Y - difference.Y, baseWindow.X, baseWindow.Y);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rect1, Color.DimGray);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, rect2, Color.DimGray);
-            this.SpriteBatch.End();
-
-
-            this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp);
-            // var mapToPanelSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, 1, BASE_WINDOW_HEIGHT);
-            // var panelToLogSeparator = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, 1);
-            // var panelOverlay = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_WINDOW_HEIGHT);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, mapToPanelSeparator, Color.BurlyWood, depth: 0.9f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, panelToLogSeparator, Color.BurlyWood, depth: 0.9f);
-            // this.SpriteBatch.DrawTo(this.BlankTexture, panelOverlay, Color.SlateGray, depth: 0.85f);
-            this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
-            this.SpriteBatch.End();
-
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
             this.OnDraw?.Invoke<MenuDraw>(this.SpriteBatch);

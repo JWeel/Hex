@@ -54,22 +54,16 @@ namespace Hex.Helpers
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            // this works but doesnt scale!
-            // really both helpers need to be inside a third helper 'WorldHelper' name tbd
-            // this class contains the camera and applies it to both.
-            // it also handles the separate background and foreground in its own draw, uses camera matrix for both
-
-            // this.Actors.Each(actor =>
-            // {
-            //     var hexagonSize = new Vector2(25, 29); // shouldnt be magic number
-            //     var position = (actor.Position + hexagonSize / 2)
-            //         .Transform(this.Tilemap.TilemapRotationMatrix)
-            //         .Transform(this.Tilemap.CameraTranslationMatrix);
-
-            //     var offset = actor.Texture.ToVector() / 2 * this.Tilemap.Camera.ZoomScaleFactor;
-
-            //     spriteBatch.DrawAt(actor.Texture, position - offset, scale: this.Tilemap.Camera.ZoomScaleFactor);
-            // });
+            foreach (var actor in this.Actors)
+            {
+                // TODO hexagonsize should not be random number
+                // dunno if texture fits in Hexagon class but maybe size does
+                // and definitely middle position should
+                var hexagonSize = new Vector2(25, 29);
+                var position = (actor.Position + hexagonSize / 2).Transform(this.Tilemap.RotationMatrix);
+                var offset = actor.Texture.ToVector() / 2;
+                spriteBatch.DrawAt(actor.Texture, position - offset);
+            }
         }
 
         #endregion

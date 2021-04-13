@@ -38,7 +38,7 @@ namespace Mogi.Framework
         #region Properties
 
         /// <summary> Raised when the size of the window changes for any reason (including toggling fullscreen mode). </summary>
-        public event Action OnResize;
+        public event Action<ClientWindow> OnResize;
 
         /// <summary> A render target that is meant to be set and unset on the GraphicsDevice before and after drawing, respectively. This will cause all graphics to be scaled from virtual resolution to client size. </summary>
         public RenderTarget2D RenderTarget { get; protected set; }
@@ -107,13 +107,13 @@ namespace Mogi.Framework
         /// <summary> Used to toggle between fullscreen mode and windowed mode. </summary>
         public void ToggleFullscreen()
         {
-            // GraphicsDeviceManager.ToggleFullScreen internally calls GraphicsDeviceManager.ApplyChanges
+            // GraphicsDeviceManager.ToggleFullScreen internally calls GraphicsDeviceManager.ApplyChanges.
             // It then triggers OnWindowResize. This calls ResizeBackBuffer, which calls ApplyChanges again.
             // To avoid the double call, OnWindowResize is called here directly.
             this.IsFullscreen = !this.IsFullscreen;
             this.OnWindowResize(default, default);
 
-            // IDEA: Maybe instead of Monogame fullscreen toggle do it using this.Resize(this.MonitorResolution)
+            // TBD: Maybe instead of Monogame fullscreen toggle do it using this.Resize(this.MonitorResolution)
             // That should stop the double triggered OnWindowResize, but may have some side effects
         }
 
@@ -128,7 +128,7 @@ namespace Mogi.Framework
 
             var oldResolution = this.CurrentResolution;
             var newResolution = Vector2.Clamp(resolution, min: this.MinimumResolution, max: Vector2.Max(this.VirtualResolution, this.MonitorResolution));
-            var wasCentered = (this.Window.Position == (this.MonitorResolution / 2 - this.CurrentResolution / 2).ToPoint());
+            var wasCentered = (this.Window.Position == this.GetCenteredPosition());
 
             // ResizeBackBuffer will be leveraged to handle preserving aspect ratio and raising ClientWindow.OnResize
             this.ResizeBackBuffer(newResolution);
@@ -146,7 +146,7 @@ namespace Mogi.Framework
         /// <summary> Centers the window to the middle of the screen. </summary>
         public void CenterWindow()
         {
-            this.Window.Position = (this.MonitorResolution / 2 - this.CurrentResolution / 2).ToPoint();
+            this.Window.Position = this.GetCenteredPosition();
         }
 
         /// <summary> Translates a screen coordinate to a coordinate relative to the virtual resolution. </summary>
@@ -156,6 +156,10 @@ namespace Mogi.Framework
         #endregion
 
         #region Protected Methods
+
+        /// <summary> Returns the position that would put the window at its current size in the middle of the screen. </summary>
+        protected Point GetCenteredPosition() =>
+            (this.MonitorResolution / 2 - this.CurrentResolution / 2).ToPoint();
 
         // Note: ClientSizeChanged gets raised twice when going to fullscreen, but only once when going back
         protected void OnWindowResize(object sender, EventArgs e)
@@ -204,7 +208,7 @@ namespace Mogi.Framework
             // This could also be a calculated property.
             this.RelativeResolution = this.CurrentResolution / this.VirtualResolution;
 
-            this.OnResize?.Invoke();
+            this.OnResize?.Invoke(this);
         }
 
         #endregion

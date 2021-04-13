@@ -11,7 +11,6 @@ namespace Hex.Models
         {
             this.Cube = cube;
             this.Position = position;
-
             this.TileType = type;
         }
 
