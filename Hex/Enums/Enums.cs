@@ -24,4 +24,14 @@ namespace Hex.Enums
         Parallelogram,
         Line
     }
+
+    public enum PointyHexagonDirection
+    {
+        Left,
+        UpLeft,
+        UpRight,
+        Right,
+        DownRight,
+        DownLeft
+    }
 }

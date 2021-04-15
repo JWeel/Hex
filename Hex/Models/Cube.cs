@@ -28,6 +28,9 @@ namespace Hex.Models
         /// <summary> Returns a <see cref="Cube"/> instance with axes flipped to simulate a -60° rotation. </summary>
         public Cube Rotate() =>
             new Cube(-this.Z, -this.X, -this.Y);
+
+        public (int Q, int R) ToAxial() =>
+            (this.X, this.Z);
             
         #endregion
 
@@ -35,9 +38,6 @@ namespace Hex.Models
 
         public static Cube FromAxial(int q, int r) =>
             new Cube(q, -q - r, r);
-
-        public (int Q, int R) ToAxial() =>
-            (this.X, this.Z);
 
         public static Cube Round(double x, double y, double z)
         {
@@ -89,6 +89,12 @@ namespace Hex.Models
 
         public static bool operator !=(Cube left, Cube right) =>
             !left.Equals(right);
+
+        public static implicit operator Cube((int X, int Y, int Z) tuple) =>
+            new Cube(tuple.X, tuple.Y, tuple.Z);
+
+        public static implicit operator Cube((int Q, int R) tuple) =>
+            Cube.FromAxial(tuple.Q, tuple.R);
 
         #endregion
     }
