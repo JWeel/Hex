@@ -7,10 +7,12 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Hexagon(Cube cube, Vector2 position, TileType type)
+        public Hexagon(Cube cube, Vector2 position, Vector2 size, TileType type)
         {
             this.Cube = cube;
             this.Position = position;
+            this.Size = size;
+            this.Middle = position + size / 2;
             this.TileType = type;
         }
 
@@ -20,6 +22,8 @@ namespace Hex.Models
 
         public Cube Cube { get; }
         public Vector2 Position { get; }
+        public Vector2 Size { get; }
+        public Vector2 Middle { get; }
         public TileType TileType { get; }
         public Color Color { get; set; }
 

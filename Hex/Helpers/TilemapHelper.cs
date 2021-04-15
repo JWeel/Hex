@@ -144,7 +144,7 @@ namespace Hex.Helpers
                     var positionX = Math.Round(this.HexagonSizeAdjusted.X * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
                     var positionY = Math.Round(this.HexagonSizeAdjusted.Y * (3.0 / 2.0 * r));
                     var position = new Vector2((float) positionX, (float) positionY);
-                    return new Hexagon(cube, position, type);
+                    return new Hexagon(cube, position, this.TileSize, type);
                 })
                 .ToDictionary(x => x.Cube);
 

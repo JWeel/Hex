@@ -1,6 +1,4 @@
-using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Mogi.Extensions;
 
 namespace Hex.Models
 {
@@ -8,10 +6,10 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Actor(Texture2D texture, Vector2 position)
+        public Actor(Texture2D texture, Hexagon tile)
         {
             this.Texture = texture;
-            this.Position = position;
+            this.Tile = tile;
         }
 
         #endregion
@@ -19,8 +17,7 @@ namespace Hex.Models
         #region Properties
 
         public Texture2D Texture { get; }
-        public Cube Coordinates { get; set; }
-        public Vector2 Position { get; set; }
+        public Hexagon Tile { get; set; }
 
         #endregion
     }

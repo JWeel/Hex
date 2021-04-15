@@ -304,5 +304,6 @@ namespace Hex
         // slow pulse button press -> press and held, after 1 second pulse every .10? until released
         // font helper -> exposes Font to dependencies and can switch to other fonts
         // make abstract Tile -> can be hexagon or rectangle, maybe triangle
+        // content zipped, use custom ContentManager that handles zipped
     }
 }

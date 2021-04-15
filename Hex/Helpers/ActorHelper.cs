@@ -24,7 +24,6 @@ namespace Hex.Helpers
             this.ActorTexture = content.Load<Texture2D>("Graphics/spook");
         }
 
-
         #endregion
 
         #region Properties
@@ -48,7 +47,7 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.K))
             {
                 this.Actors.Add(new Actor(this.ActorTexture,
-                    this.Tilemap.Map.Values.Random().Position));
+                    this.Tilemap.Map.Values.Random()));
             }
         }
 
@@ -56,13 +55,9 @@ namespace Hex.Helpers
         {
             foreach (var actor in this.Actors)
             {
-                // TODO hexagonsize should not be random number
-                // dunno if texture fits in Hexagon class but maybe size does
-                // and definitely middle position should
-                var hexagonSize = new Vector2(25, 29);
-                var position = (actor.Position + hexagonSize / 2).Transform(this.Tilemap.RotationMatrix);
-                var offset = actor.Texture.ToVector() / 2;
-                spriteBatch.DrawAt(actor.Texture, position - offset);
+                var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RotationMatrix);
+                var sizeOffset = actor.Texture.ToVector() / 2;
+                spriteBatch.DrawAt(actor.Texture, sourcePosition - sizeOffset);
             }
         }
 
