@@ -160,7 +160,7 @@ namespace Hex.Helpers
                 })
                 .ToDictionary(x => x.Cube);
 
-            this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 2);
+            this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((-1, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((-2, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((1, 0))?.Into(h => h.Elevation = 2);
@@ -172,10 +172,8 @@ namespace Hex.Helpers
             this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
 
-            this.OriginTile = this.Map.GetOrDefault(default);
-            if (this.OriginTile != null)
-                this.OriginTile.Color = Color.Gold;
-            this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
+            // this.OriginTile = this.Map.GetOrDefault(default);
+            // this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
 
             // var centerCube = this.FindCenterCube();
             // this.CenterTile = this.Map.GetOrDefault(centerCube);
@@ -368,8 +366,9 @@ namespace Hex.Helpers
                 var innerColor = ((tile == this.CursorTile) && (tile == this.SourceTile)) ? new Color(255, 170, 130)
                     : (tile == this.CursorTile) ? Color.LightYellow
                     : (tile == this.SourceTile) ? Color.Coral
+                    : (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
-                    // : tile.Color != default ? tile.Color
+                    : tile.Color != default ? tile.Color
                     : tile.TileType switch
                     {
                         // TileType.Mountain => Color.Tan,
@@ -426,28 +425,52 @@ namespace Hex.Helpers
                 }
 
 
-                foreach (var direction in new[] { PointyHexagonDirection.Left, PointyHexagonDirection.DownLeft, PointyHexagonDirection.DownRight, PointyHexagonDirection.Right })
+                foreach (var direction in new[] { PointyHexagonDirection.Left, PointyHexagonDirection.DownLeft,
+                    PointyHexagonDirection.DownRight, PointyHexagonDirection.Right,
+                    PointyHexagonDirection.UpLeft, PointyHexagonDirection.UpRight })
                 {
                     var neighbor = this.GetNeighbor(tile, direction);
-                    if ((neighbor == null) || (tile.Elevation <= neighbor.Elevation))
+                    if ((neighbor != null) && (tile.Elevation <= neighbor.Elevation))
                         continue;
 
                     var texture = direction switch
                     {
                         PointyHexagonDirection.Left => this.HexagonBorderLeftTexture,
+                        PointyHexagonDirection.Right => this.HexagonBorderLeftTexture,
                         PointyHexagonDirection.DownLeft => this.HexagonBorderDownLeftTexture,
-                        PointyHexagonDirection.DownRight => this.HexagonBorderDownRightTexture,
-                        PointyHexagonDirection.Right => this.HexagonBorderRightTexture,
+                        PointyHexagonDirection.DownRight => this.HexagonBorderDownLeftTexture,
+                        PointyHexagonDirection.UpLeft => this.HexagonBorderDownLeftTexture,
+                        PointyHexagonDirection.UpRight => this.HexagonBorderDownLeftTexture,
                         _ => default
                     };
-                    var directionPosition = position - new Vector2(0, 3).Transform(Matrix.CreateRotationZ(this.Rotation));
-                    spriteBatch.DrawAt(texture, directionPosition, Color.Sienna, this.Rotation, depth: .3f);
+                    var effects = direction switch
+                    {
+                        PointyHexagonDirection.Right => SpriteEffects.FlipHorizontally,
+                        PointyHexagonDirection.DownRight => SpriteEffects.FlipHorizontally,
+                        PointyHexagonDirection.UpLeft => SpriteEffects.FlipVertically,
+                        PointyHexagonDirection.UpRight => SpriteEffects.FlipHorizontally | SpriteEffects.FlipVertically,
+                        _ => default
+                    };
+                    var offset = direction switch
+                    {
+                        PointyHexagonDirection.Left => new Vector2(0, 4),
+                        PointyHexagonDirection.Right => new Vector2(0, 4),
+                        PointyHexagonDirection.DownLeft => new Vector2(0, 4),
+                        PointyHexagonDirection.DownRight => new Vector2(0, 4),
+                        _ => Vector2.Zero
+                    };
+                    var elevationSteps = (neighbor == null) ? tile.Elevation : tile.Elevation - neighbor.Elevation;
+                    for (int i = 1; i < elevationSteps + 1; i++)
+                    {
+                        var directionPosition = position - (offset * i).Transform(Matrix.CreateRotationZ(this.Rotation));
+                        spriteBatch.DrawAt(texture, directionPosition, Color.Sienna, this.Rotation, depth: .3f, effects: effects);
+                    }
                 }
 
 
                 innerColor = tile.TileType switch
                 {
-                    TileType.Mountain => new Color(130, 100, 60),
+                    // TileType.Mountain => new Color(130, 100, 60),
                     _ => new Color(100, 140, 70)
                 };
                 var outerDepth = (TileType.Mountain == tile.TileType) ? .26f : .25f;

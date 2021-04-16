@@ -7,7 +7,10 @@ namespace Mogi.Extensions
     {
         #region Draw Methods
 
-        public static void DrawAt(this SpriteBatch spriteBatch, Texture2D texture, Vector2 position, Color? color = default, float rotation = 0f, float scale = 1f, float depth = 0f) =>
+        public static void DrawAt(this SpriteBatch spriteBatch, Texture2D texture, Vector2 position,
+            Color? color = default, float rotation = 0f, float scale = 1f, float depth = 0f,
+            SpriteEffects effects = SpriteEffects.None)
+        {
             spriteBatch.Draw(
                 texture: texture,
                 position: position,
@@ -16,9 +19,10 @@ namespace Mogi.Extensions
                 rotation: rotation,
                 origin: Vector2.Zero,
                 scale: scale,
-                effects: SpriteEffects.None,
+                effects: effects,
                 layerDepth: depth
             );
+        }
 
         public static void DrawTo(this SpriteBatch spriteBatch, Texture2D texture, Rectangle destinationRectangle, Color? color = default, float depth = 0f) =>
             spriteBatch.Draw(

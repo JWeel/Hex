@@ -305,5 +305,12 @@ namespace Hex
         // font helper -> exposes Font to dependencies and can switch to other fonts
         // make abstract Tile -> can be hexagon or rectangle, maybe triangle
         // content zipped, use custom ContentManager that handles zipped
+        // when looking from above to below:
+        //  distance from tile to tile where elevation change starts
+        //  equals distance until lower tile elevation tiles become visible
+        //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
+        // when looking from below to above:
+        //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
+        //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
     }
 }
