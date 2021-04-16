@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -174,10 +175,11 @@ namespace Hex.Helpers
             this.OriginTile = this.Map.GetOrDefault(default);
             if (this.OriginTile != null)
                 this.OriginTile.Color = Color.Gold;
-            this.Map.GetOrDefault(new Cube(1, -2, 1))?.Into(x => x.Color = Color.Silver);
+            this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
 
             // var centerCube = this.FindCenterCube();
             // this.CenterTile = this.Map.GetOrDefault(centerCube);
+            // this.SourceTile = this.Map.GetOrDefault((-5, -3));
 
             if (this.Map.Any())
                 this.RenderPosition = this.Map.Values
@@ -305,12 +307,11 @@ namespace Hex.Helpers
             {
                 this.CalculatedVisibility = true;
                 this.VisibilityByHexagonMap.Clear();
-                var sourceCoordinates = this.SourceTile.Cube;
+                var sourceCube = this.SourceTile.Cube;
                 this.Map.Values
-                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(hexagon.Cube, sourceCoordinates, IsVisible)))
-                    .Where(tuple => !this.VisibilityByHexagonMap.ContainsKey(tuple.Hexagon))
+                    // .Where(hexagon => !this.VisibilityByHexagonMap.ContainsKey(hexagon))
+                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(sourceCube, hexagon.Cube, this.IsVisible)))
                     .Each(this.VisibilityByHexagonMap.Add);
-                bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
             };
 
             if (this.Input.MousePressed(MouseButton.Left))
@@ -368,7 +369,7 @@ namespace Hex.Helpers
                     : (tile == this.CursorTile) ? Color.LightYellow
                     : (tile == this.SourceTile) ? Color.Coral
                     : (tile == this.CenterTile) ? Color.Aquamarine
-                    : tile.Color != default ? tile.Color
+                    // : tile.Color != default ? tile.Color
                     : tile.TileType switch
                     {
                         // TileType.Mountain => Color.Tan,
@@ -497,11 +498,10 @@ namespace Hex.Helpers
                 if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
                 {
                     this.VisibilityByHexagonMap.Clear();
-                    this.DefineLineVisibility(this.SourceTile.Cube, coordinates, IsVisible)
+                    this.DefineLineVisibility(this.SourceTile.Cube, coordinates, this.IsVisible)
                         .Select(tuple => (Hexagon: this.Map.GetOrDefault(tuple.Cube), tuple.Visible))
                         .Where(tuple => (tuple.Hexagon != default))
                         .Each(this.VisibilityByHexagonMap.Add);
-                    bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
                 }
             }
         }
@@ -559,50 +559,60 @@ namespace Hex.Helpers
         protected float Lerp(float a, float b, float t) =>
             a + (b - a) * t;
 
-        protected IEnumerable<(Cube Cube, bool Visible)> DefineLineVisibility(Cube start, Cube end, Predicate<Cube> determineIsVisible)
+        protected IEnumerable<(Cube Cube, bool Visible)> DefineLineVisibility(Cube start, Cube end, Func<Cube, Cube, bool> determineIsVisible)
         {
             var restIsStillVisible = true;
             var totalDistance = (int) Cube.Distance(start, end);
-            return Generate.RangeDescending(totalDistance - 1) // -1 will exclude start tile from visibility check
+            var lastCube = start;
+            return Generate.Range(totalDistance + 1) // +1 to include end
                 .Select(stepDistance =>
                 {
-                    var lerp = this.Lerp(end, start, 1f / totalDistance * stepDistance);
+                    var lerp = this.Lerp(start, end, 1f / totalDistance * stepDistance);
                     var cubePositive = (lerp + EPSILON).ToRoundCube();
                     if (!restIsStillVisible)
                         return (cubePositive, Visible: false);
-
-                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
-                    if (cubePositive == cubeNegative)
+                    if (determineIsVisible(lastCube, cubePositive))
                     {
-                        if (!determineIsVisible(cubePositive))
-                            restIsStillVisible = false;
+                        lastCube = cubePositive;
                         return (cubePositive, Visible: restIsStillVisible);
                     }
-
-                    var positiveIsVisible = determineIsVisible(cubePositive);
-                    var negativeIsVisible = determineIsVisible(cubeNegative);
-                    if (!positiveIsVisible && !negativeIsVisible)
+                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
+                    if ((cubePositive != cubeNegative) && determineIsVisible(lastCube, cubeNegative))
+                    {
+                        lastCube = cubeNegative;
+                        return (cubeNegative, Visible: restIsStillVisible);
+                    }
+                    else
                         restIsStillVisible = false;
-                    else if (!positiveIsVisible)
-                        return (cubeNegative, Visible: true);
-                    else if (!negativeIsVisible)
-                        return (cubePositive, Visible: true);
                     return (cubePositive, Visible: restIsStillVisible);
                 });
         }
 
-        protected bool DeterminePointIsVisibleFrom(Cube target, Cube from, Predicate<Cube> determineIsVisible)
+        protected bool DeterminePointIsVisibleFrom(Cube from, Cube target, Func<Cube, Cube, bool> determineIsVisible)
         {
             var stillVisible = true;
             var totalDistance = (int) Cube.Distance(target, from);
-            Generate.Range(totalDistance)
+            var lastCube = from;
+            Generate.Range(totalDistance + 1)
                 .TakeWhile(_ => stillVisible)
                 .Each(stepDistance =>
                 {
-                    var lerp = this.Lerp(target, from, 1f / totalDistance * stepDistance);
+                    var lerp = this.Lerp(from, target, 1f / totalDistance * stepDistance);
                     var cubePositive = (lerp + EPSILON).ToRoundCube();
+                    if (determineIsVisible(lastCube, cubePositive))
+                    {
+                        lastCube = cubePositive;
+                        stillVisible = true;
+                        return;
+                    }
                     var cubeNegative = (lerp - EPSILON).ToRoundCube();
-                    stillVisible = (determineIsVisible(cubePositive) || determineIsVisible(cubeNegative));
+                    if ((cubePositive != cubeNegative) && determineIsVisible(lastCube, cubeNegative))
+                    {
+                        lastCube = cubeNegative;
+                        stillVisible = true;
+                        return;
+                    }
+                    stillVisible = false;
                 });
             return stillVisible;
         }
@@ -621,9 +631,8 @@ namespace Hex.Helpers
                 var withinView = (distance < viewDistance);
                 if (!withinView)
                     return false;
-                return this.DeterminePointIsVisibleFrom(targetCube, sourceCube, IsVisible);
+                return this.DeterminePointIsVisibleFrom(sourceCube, targetCube, this.IsVisible);
             }
-            bool IsVisible(Cube cube) => (this.Map.GetOrDefault(cube)?.TileType != TileType.Mountain);
         }
 
         // not really sure what center is useful for
@@ -651,6 +660,20 @@ namespace Hex.Helpers
                         Math.Min(aggregate.MinY, (int) vector.Y),
                         Math.Max(aggregate.MaxY, (int) vector.Y + height)));
             return new Vector2(maxX - minX, maxY - minY);
+        }
+
+        protected bool IsVisible(Cube source, Cube target)
+        {
+            var sourceTile = this.Map.GetOrDefault(source);
+            if (sourceTile == default)
+                return false;
+            var targetTile = this.Map.GetOrDefault(target);
+            if (targetTile == default)
+                return false;
+            if (targetTile.Elevation <= sourceTile.Elevation)
+                return true;
+            // Z axis is vertical, if target.Z > source.Z then target is further down than source
+            return (target.Z > source.Z);
         }
 
         #endregion
