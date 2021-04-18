@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -34,6 +33,8 @@ namespace Hex.Helpers
 
         /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two cubes. </summary>
         private static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
+
+        private static Direction[] DIRECTIONS { get; } = Enum.GetValues<Direction>();
 
         #endregion
 
@@ -126,10 +127,12 @@ namespace Hex.Helpers
         protected Texture2D HexagonBorderPointyTexture { get; set; }
         protected Texture2D HexagonBorderFlattyTexture { get; set; }
 
-        protected Texture2D HexagonBorderLeftTexture { get; set; }
-        protected Texture2D HexagonBorderDownLeftTexture { get; set; }
-        protected Texture2D HexagonBorderDownRightTexture { get; set; }
+        protected Texture2D HexagonBorderUpRightTexture { get; set; }
         protected Texture2D HexagonBorderRightTexture { get; set; }
+        protected Texture2D HexagonBorderDownRightTexture { get; set; }
+        protected Texture2D HexagonBorderDownLeftTexture { get; set; }
+        protected Texture2D HexagonBorderLeftTexture { get; set; }
+        protected Texture2D HexagonBorderUpLeftTexture { get; set; }
 
         protected Vector2 TileSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
@@ -425,38 +428,53 @@ namespace Hex.Helpers
                 }
 
 
-                foreach (var direction in new[] { PointyHexagonDirection.Left, PointyHexagonDirection.DownLeft,
-                    PointyHexagonDirection.DownRight, PointyHexagonDirection.Right,
-                    PointyHexagonDirection.UpLeft, PointyHexagonDirection.UpRight })
+                // TODO:
+                // upleft and upright should be just single line (width one)
+                // length doesnt increase on higher elevation (but maybe color gets darker?)
+                // left and right are vertical lines with length two, doubling for each elevation (up to 4x?)
+                // downleft and downright are diagonal with length 3(?), doubling for each elevation (up to 4x?)
+
+                // visibility should be based on elevation:
+                // when looking from above to below:
+                //  distance from tile to tile where elevation change starts
+                //  equals distance until lower tile elevation tiles become visible
+                //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
+                // when looking from below to above:
+                //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
+                //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
+                foreach (var direction in DIRECTIONS)
                 {
                     var neighbor = this.GetNeighbor(tile, direction);
                     if ((neighbor != null) && (tile.Elevation <= neighbor.Elevation))
                         continue;
 
+                    if ((direction == Direction.UpLeft) || (direction == Direction.UpRight))
+                        continue;
+
                     var texture = direction switch
                     {
-                        PointyHexagonDirection.Left => this.HexagonBorderLeftTexture,
-                        PointyHexagonDirection.Right => this.HexagonBorderLeftTexture,
-                        PointyHexagonDirection.DownLeft => this.HexagonBorderDownLeftTexture,
-                        PointyHexagonDirection.DownRight => this.HexagonBorderDownLeftTexture,
-                        PointyHexagonDirection.UpLeft => this.HexagonBorderDownLeftTexture,
-                        PointyHexagonDirection.UpRight => this.HexagonBorderDownLeftTexture,
-                        _ => default
+                        Direction.Left => this.HexagonBorderLeftTexture,
+                        Direction.Right => this.HexagonBorderLeftTexture,
+                        Direction.DownLeft => this.HexagonBorderDownLeftTexture,
+                        Direction.DownRight => this.HexagonBorderDownLeftTexture,
+                        Direction.UpLeft => this.HexagonBorderDownLeftTexture,
+                        Direction.UpRight => this.HexagonBorderDownLeftTexture,
+                        _ => this.BlankTexture
                     };
                     var effects = direction switch
                     {
-                        PointyHexagonDirection.Right => SpriteEffects.FlipHorizontally,
-                        PointyHexagonDirection.DownRight => SpriteEffects.FlipHorizontally,
-                        PointyHexagonDirection.UpLeft => SpriteEffects.FlipVertically,
-                        PointyHexagonDirection.UpRight => SpriteEffects.FlipHorizontally | SpriteEffects.FlipVertically,
+                        Direction.Right => SpriteEffects.FlipHorizontally,
+                        Direction.DownRight => SpriteEffects.FlipHorizontally,
+                        Direction.UpLeft => SpriteEffects.FlipVertically,
+                        Direction.UpRight => SpriteEffects.FlipHorizontally | SpriteEffects.FlipVertically,
                         _ => default
                     };
                     var offset = direction switch
                     {
-                        PointyHexagonDirection.Left => new Vector2(0, 4),
-                        PointyHexagonDirection.Right => new Vector2(0, 4),
-                        PointyHexagonDirection.DownLeft => new Vector2(0, 4),
-                        PointyHexagonDirection.DownRight => new Vector2(0, 4),
+                        Direction.Left => new Vector2(0, 4),
+                        Direction.Right => new Vector2(0, 4),
+                        Direction.DownLeft => new Vector2(0, 4),
+                        Direction.DownRight => new Vector2(0, 4),
                         _ => Vector2.Zero
                     };
                     var elevationSteps = (neighbor == null) ? tile.Elevation : tile.Elevation - neighbor.Elevation;
@@ -538,23 +556,23 @@ namespace Hex.Helpers
 
         #region Helper Methods
 
-        protected Hexagon GetNeighbor(Hexagon hexagon, PointyHexagonDirection direction)
+        protected Hexagon GetNeighbor(Hexagon hexagon, Direction direction)
         {
             var cube = hexagon.Cube;
             switch (direction)
             {
-                case PointyHexagonDirection.Left:
-                    return this.Map.GetOrDefault((cube.X - 1, cube.Y + 1, cube.Z));
-                case PointyHexagonDirection.UpLeft:
-                    return this.Map.GetOrDefault((cube.X, cube.Y + 1, cube.Z - 1));
-                case PointyHexagonDirection.UpRight:
+                case Direction.UpRight:
                     return this.Map.GetOrDefault((cube.X + 1, cube.Y, cube.Z - 1));
-                case PointyHexagonDirection.Right:
+                case Direction.Right:
                     return this.Map.GetOrDefault((cube.X + 1, cube.Y - 1, cube.Z));
-                case PointyHexagonDirection.DownRight:
+                case Direction.DownRight:
                     return this.Map.GetOrDefault((cube.X, cube.Y - 1, cube.Z + 1));
-                case PointyHexagonDirection.DownLeft:
+                case Direction.DownLeft:
                     return this.Map.GetOrDefault((cube.X - 1, cube.Y, cube.Z + 1));
+                case Direction.Left:
+                    return this.Map.GetOrDefault((cube.X - 1, cube.Y + 1, cube.Z));
+                case Direction.UpLeft:
+                    return this.Map.GetOrDefault((cube.X, cube.Y + 1, cube.Z - 1));
                 default:
                     throw new ArgumentException("Invalid enum value.", nameof(direction));
             }
