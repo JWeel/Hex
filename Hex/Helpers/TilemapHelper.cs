@@ -51,10 +51,9 @@ namespace Hex.Helpers
             this.HexagonBorderPointyTexture = content.Load<Texture2D>("Graphics/xbp");
             this.HexagonBorderFlattyTexture = content.Load<Texture2D>("Graphics/xbf");
 
+            this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
             this.HexagonBorderDownLeftTexture = content.Load<Texture2D>("Graphics/xbblp");
-            this.HexagonBorderDownRightTexture = content.Load<Texture2D>("Graphics/xbbrp");
-            this.HexagonBorderRightTexture = content.Load<Texture2D>("Graphics/xbrp");
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
             this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
@@ -127,9 +126,6 @@ namespace Hex.Helpers
         protected Texture2D HexagonBorderPointyTexture { get; set; }
         protected Texture2D HexagonBorderFlattyTexture { get; set; }
 
-        protected Texture2D HexagonBorderUpRightTexture { get; set; }
-        protected Texture2D HexagonBorderRightTexture { get; set; }
-        protected Texture2D HexagonBorderDownRightTexture { get; set; }
         protected Texture2D HexagonBorderDownLeftTexture { get; set; }
         protected Texture2D HexagonBorderLeftTexture { get; set; }
         protected Texture2D HexagonBorderUpLeftTexture { get; set; }
@@ -174,6 +170,7 @@ namespace Hex.Helpers
             this.Map.GetOrDefault((1, -1))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((-1, 2))?.Into(h => h.Elevation = 0);
 
             // this.OriginTile = this.Map.GetOrDefault(default);
             // this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
@@ -445,11 +442,11 @@ namespace Hex.Helpers
                 foreach (var direction in DIRECTIONS)
                 {
                     var neighbor = this.GetNeighbor(tile, direction);
-                    if ((neighbor != null) && (tile.Elevation <= neighbor.Elevation))
+                    if ((neighbor == null) || (tile.Elevation <= neighbor.Elevation))
                         continue;
 
-                    if ((direction == Direction.UpLeft) || (direction == Direction.UpRight))
-                        continue;
+                    // if ((direction == Direction.UpLeft) || (direction == Direction.UpRight))
+                        // continue;
 
                     var texture = direction switch
                     {
@@ -457,24 +454,25 @@ namespace Hex.Helpers
                         Direction.Right => this.HexagonBorderLeftTexture,
                         Direction.DownLeft => this.HexagonBorderDownLeftTexture,
                         Direction.DownRight => this.HexagonBorderDownLeftTexture,
-                        Direction.UpLeft => this.HexagonBorderDownLeftTexture,
-                        Direction.UpRight => this.HexagonBorderDownLeftTexture,
+                        Direction.UpLeft => this.HexagonBorderUpLeftTexture,
+                        Direction.UpRight => this.HexagonBorderUpLeftTexture,
                         _ => this.BlankTexture
                     };
                     var effects = direction switch
                     {
                         Direction.Right => SpriteEffects.FlipHorizontally,
                         Direction.DownRight => SpriteEffects.FlipHorizontally,
-                        Direction.UpLeft => SpriteEffects.FlipVertically,
-                        Direction.UpRight => SpriteEffects.FlipHorizontally | SpriteEffects.FlipVertically,
+                        Direction.UpRight => SpriteEffects.FlipHorizontally,
                         _ => default
                     };
                     var offset = direction switch
                     {
-                        Direction.Left => new Vector2(0, 4),
-                        Direction.Right => new Vector2(0, 4),
-                        Direction.DownLeft => new Vector2(0, 4),
-                        Direction.DownRight => new Vector2(0, 4),
+                        Direction.UpLeft => new Vector2(0, 0),
+                        Direction.UpRight => new Vector2(0, 0),
+                        Direction.Left => new Vector2(0, 0),
+                        Direction.Right => new Vector2(0, 0),
+                        Direction.DownLeft => new Vector2(0, 3),
+                        Direction.DownRight => new Vector2(0, 3),
                         _ => Vector2.Zero
                     };
                     var elevationSteps = (neighbor == null) ? tile.Elevation : tile.Elevation - neighbor.Elevation;
