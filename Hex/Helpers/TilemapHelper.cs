@@ -34,7 +34,7 @@ namespace Hex.Helpers
         /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two cubes. </summary>
         private static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
 
-        private static Direction[] DIRECTIONS { get; } = Enum.GetValues<Direction>();
+        private static Direction[] DIRECTIONS { get; } = new[] { Direction.UpRight, Direction.Right, Direction.DownRight, Direction.DownLeft, Direction.Left, Direction.UpLeft };
 
         #endregion
 
@@ -54,7 +54,7 @@ namespace Hex.Helpers
             this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
             this.HexagonBorderDownLeftTexture = content.Load<Texture2D>("Graphics/xbblp");
-            this.HexagonBorderTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftTexture };
+            this.HexagonBorderTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftTexture, HexagonBorderDownLeftTexture, HexagonBorderLeftTexture, HexagonBorderUpLeftTexture };
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
             this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
@@ -135,6 +135,8 @@ namespace Hex.Helpers
         // TODO is this needed
         protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
 
+        protected IDictionary<Hexagon, Direction> BorderMap { get; set; }
+
         protected Texture2D HexagonOuterTexture { get; set; }
         protected Texture2D HexagonInnerTexture { get; set; }
         protected Texture2D HexagonBorderPointyTexture { get; set; }
@@ -156,7 +158,7 @@ namespace Hex.Helpers
 
         public void Arrange(string path)
         {
-            (int Q, int R, int E, TileType T)[] axials;
+            (int Q, int R, int E, Direction S, TileType T)[] axials;
             if (path.IsNullOrWhiteSpace())
                 axials = this.Spawn(8, 12, Shape.Hexagon);
             else
@@ -165,27 +167,29 @@ namespace Hex.Helpers
             this.Map = axials
                 .Select(axial =>
                 {
-                    var (q, r, elevation, type) = axial;
+                    var (q, r, elevation, slope, type) = axial;
                     var cube = Cube.FromAxial(axial.Q, axial.R);
                     var positionX = Math.Round(this.HexagonSizeAdjusted.X * (Math.Sqrt(3) * q + Math.Sqrt(3) / 2 * r));
                     var positionY = Math.Round(this.HexagonSizeAdjusted.Y * (3.0 / 2.0 * r));
                     var position = new Vector2((float) positionX, (float) positionY);
-                    return new Hexagon(cube, position, this.TileSize, elevation, type);
+                    return new Hexagon(cube, position, this.TileSize, elevation, slope, type);
                 })
                 .ToDictionary(x => x.Cube);
 
-            // this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((-1, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((-2, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((1, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((2, 0))?.Into(h => h.Elevation = 2);
-            // this.Map.GetOrDefault((-2, -1))?.Into(h => h.Elevation = 3);
-            // this.Map.GetOrDefault((-1, -1))?.Into(h => h.Elevation = 3);
-            // this.Map.GetOrDefault((0, -1))?.Into(h => h.Elevation = 3);
-            // this.Map.GetOrDefault((1, -1))?.Into(h => h.Elevation = 3);
-            // this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
-            // this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((-2, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((-1, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((0, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((1, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
+            this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
             // this.Map.GetOrDefault((-1, 2))?.Into(h => h.Elevation = 0);
+            // this.Map.GetOrDefault((-2, 3))?.Into(h => h.Elevation = 0);
+            // this.Map.GetOrDefault((-1, 3))?.Into(h => h.Elevation = 0);
 
             // this.OriginTile = this.Map.GetOrDefault(default);
             // this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
@@ -203,11 +207,12 @@ namespace Hex.Helpers
             this.FogOfWarMap = this.Map.Values.ToDictionary(x => x, x => false);
 
             this.RecalculateRotations();
+            this.RecalculateTileBorders();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
         // TODO tiletype should also come from here, meaning not in the hexagon ctor
-        public (int Q, int R, int E, TileType T)[] Spawn(int n, int m, Shape shape)
+        public (int Q, int R, int E, Direction S, TileType T)[] Spawn(int n, int m, Shape shape)
         {
             var axials = new List<(int Q, int R)>();
             switch (shape)
@@ -272,7 +277,7 @@ namespace Hex.Helpers
             // Enumerable.Range(0, ran.Next(axials.Count))
             //     .Each(i => axials.RemoveAt(ran.Next(axials.Count)));
             return axials
-                .Select(tuple => (tuple.Q, tuple.R, 1, ToTileType(tuple.Q, tuple.R)))
+                .Select(tuple => (tuple.Q, tuple.R, 1, Direction.None, ToTileType(tuple.Q, tuple.R)))
                 .ToArray();
 
             static TileType ToTileType(int q, int r)
@@ -285,7 +290,7 @@ namespace Hex.Helpers
             }
         }
 
-        public (int Q, int R, int E, TileType T)[] Load(string path)
+        public (int Q, int R, int E, Direction S, TileType T)[] Load(string path)
         {
             var random = new Random();
             return File.ReadAllLines(path)
@@ -298,7 +303,7 @@ namespace Hex.Helpers
                     var r = int.Parse(axialSplit[1]);
                     var t = Enum.Parse<TileType>(identifierSplit[1].Trim());
                     // if (random.Next(100) < 40) t = TileType.Mountain;
-                    return (q, r, 1, t);
+                    return (q, r, 1, Direction.None, t);
                 })
                 .ToArray();
         }
@@ -414,25 +419,7 @@ namespace Hex.Helpers
                 var borderPosition = borderBasePosition - borderTextureOffset;
                 spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
 
-                if (tile.TileType == TileType.Mountain)
-                {
-                    // var innerBorderPosition1 = borderPosition - new Vector2(0, 5).Transform(borderRotationMatrix);
-                    // var innerBorderPosition2 = borderPosition - new Vector2(0, 9).Transform(borderRotationMatrix);
-                    // var innerBorderPosition3 = borderPosition - new Vector2(0, 13).Transform(borderRotationMatrix);
-                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition1, Color.Sienna, borderRotation, depth: .2f);
-                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition2, Color.Sienna, borderRotation, depth: .21f);
-                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, innerBorderPosition3, Color.Sienna, borderRotation, depth: .22f);
-
-                    // spriteBatch.DrawAt(this.HexagonBorderPointyTexture, position - new Vector2(0, 5).Transform(Matrix.CreateRotationZ(this.Rotation)), Color.Sienna, this.Rotation, depth: .2f);
-                }
-
-
                 // TODO:
-                // upleft and upright should be just single line (width one)
-                // length doesnt increase on higher elevation (but maybe color gets darker?)
-                // left and right are vertical lines with length two, doubling for each elevation (up to 4x?)
-                // downleft and downright are diagonal with length 3(?), doubling for each elevation (up to 4x?)
-
                 // visibility should be based on elevation:
                 // when looking from above to below:
                 //  distance from tile to tile where elevation change starts
@@ -441,7 +428,7 @@ namespace Hex.Helpers
                 // when looking from below to above:
                 //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
                 //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
-                foreach (var direction in DIRECTIONS)
+                foreach (var direction in this.EnumerateDirectionalBorders(tile))
                 {
                     var neighbor = this.GetNeighbor(tile, direction);
                     if ((neighbor == null) || (tile.Elevation <= neighbor.Elevation))
@@ -450,22 +437,11 @@ namespace Hex.Helpers
                     var (texture, flip) = this.GetDirectionalBorderTexture(direction);
                     var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
-                    var offset = direction switch
+                    spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
+
+                    if ((tile.Elevation - neighbor.Elevation) > 1)
                     {
-                        // Direction.UpLeft => new Vector2(0, 0),
-                        // Direction.UpRight => new Vector2(0, 0),
-                        // Direction.Left => new Vector2(0, 0),
-                        // Direction.Right => new Vector2(0, 0),
-                        // Direction.DownLeft => new Vector2(0, 3),
-                        // Direction.DownRight => new Vector2(0, 3),
-                        _ => Vector2.Zero
-                    };
-                    var elevationSteps = (neighbor == null) ? tile.Elevation : tile.Elevation - neighbor.Elevation;
-                    // for (int i = 1; i < elevationSteps + 1; i++)
-                    for (int i = 1; i != 2; i++)
-                    {
-                        var directionPosition = position - (offset * i).Transform(this.WraparoundRotationMatrix);
-                        spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
+                        // TODO : with elevation difference > 1, add an additional texture
                     }
                 }
 
@@ -600,6 +576,43 @@ namespace Hex.Helpers
             this.WraparoundRotationMatrix = Matrix.CreateRotationZ(this.WraparoundRotation);
         }
 
+        protected void RecalculateTileBorders()
+        {
+            this.BorderMap = this.Map.Values.ToDictionary(tile => tile, tile =>
+            {
+                var border = Direction.None;
+                DIRECTIONS.Each(direction =>
+                {
+                    var neighbor = this.GetNeighbor(tile, direction);
+                    if ((neighbor == null) || (neighbor.Elevation >= tile.Elevation))
+                        return;
+                    if ((tile.Slope & direction) == direction)
+                        return;
+                    border |= direction;
+                });
+                return border;
+            });
+        }
+
+        protected IEnumerable<Direction> EnumerateDirectionalBorders(Hexagon tile)
+        {
+            var border = this.BorderMap[tile];
+            if (border == Direction.None)
+                yield break;
+            if ((border & Direction.UpRight) == Direction.UpRight)
+                yield return Direction.UpRight;
+            if ((border & Direction.Right) == Direction.Right)
+                yield return Direction.Right;
+            if ((border & Direction.DownRight) == Direction.DownRight)
+                yield return Direction.DownRight;
+            if ((border & Direction.DownLeft) == Direction.DownLeft)
+                yield return Direction.DownLeft;
+            if ((border & Direction.Left) == Direction.Left)
+                yield return Direction.Left;
+            if ((border & Direction.UpLeft) == Direction.UpLeft)
+                yield return Direction.UpLeft;
+        }
+
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
             this.Lerp(a.ToVector3(), b.ToVector3(), t);
 
@@ -670,12 +683,12 @@ namespace Hex.Helpers
         protected void DetermineFogOfWar()
         {
             var viewDistance = 9;
-            this.Map.Values.Each(hex => this.FogOfWarMap[hex] = InView(hex));
-            bool InView(Hexagon hexagon)
+            this.Map.Values.Each(tile => this.FogOfWarMap[tile] = InView(tile));
+            bool InView(Hexagon tile)
             {
-                if (hexagon == this.SourceTile)
+                if (tile == this.SourceTile)
                     return true;
-                var targetCube = hexagon.Cube;
+                var targetCube = tile.Cube;
                 var sourceCube = this.SourceTile.Cube;
                 var distance = Cube.Distance(targetCube, sourceCube);
                 var withinView = (distance < viewDistance);
@@ -689,7 +702,7 @@ namespace Hex.Helpers
         protected Cube FindCenterCube()
         {
             var (minX, minY, minZ, maxX, maxY, maxZ) = this.Map.Values
-                .Select(hex => hex.Cube)
+                .Select(tile => tile.Cube)
                 .Aggregate((MinX: int.MaxValue, MinY: int.MaxValue, MinZ: int.MaxValue,
                             MaxX: int.MinValue, MaxY: int.MinValue, MaxZ: int.MaxValue),
                     (t, cube) => (Math.Min(t.MinX, cube.X), Math.Min(t.MinY, cube.Y), Math.Min(t.MinZ, cube.Z),
@@ -702,7 +715,7 @@ namespace Hex.Helpers
         {
             var (width, height) = this.TileSize.ToPoint();
             var (minX, maxX, minY, maxY) = this.Map.Values
-                .Select(hex => hex.Position)
+                .Select(tile => tile.Position)
                 .Aggregate((MinX: int.MaxValue, MaxX: int.MinValue, MinY: int.MaxValue, MaxY: int.MinValue),
                     (aggregate, vector) => (
                         Math.Min(aggregate.MinX, (int) vector.X),
@@ -738,9 +751,9 @@ namespace Hex.Helpers
                 Direction.UpLeft => 5,
                 _ => throw direction.Invalid()
             };
-            var index = (directionIndex + this.WraparoundRotationInterval) % 6;
-            var flip = index < this.HexagonBorderTextureRange.Length;
-            return (this.HexagonBorderTextureRange[index % this.HexagonBorderTextureRange.Length], flip);
+            var index = (directionIndex + this.WraparoundRotationInterval) % this.HexagonBorderTextureRange.Length;
+            var flip = index < this.HexagonBorderTextureRange.Length / 2;
+            return (this.HexagonBorderTextureRange[index], flip);
         }
 
         #endregion

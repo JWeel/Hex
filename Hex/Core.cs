@@ -230,15 +230,16 @@ namespace Hex
             if (this.Side.IsActive)
             {
                 this.Log.Clear();
-                this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
+                // this.Log.AppendLine($"M1: {this.BaseMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M2: {this.ClientResolutionTranslatedMouseVector.PrintRounded()}");
                 this.Log.AppendLine($"M3: {this.StageCameraTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
                 // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
                 this.Log.AppendLine($"Cursor: {this.Stage.CursorTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
                 this.Log.AppendLine($"Source: {this.Stage.SourceTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
-                this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
-                this.Log.AppendLine($"Interval: {this.Stage.TilemapRotationInterval}");
+                // this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
+                // this.Log.AppendLine($"Interval: {this.Stage.TilemapRotationInterval}");
+                // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }

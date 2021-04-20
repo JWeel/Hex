@@ -32,6 +32,7 @@ namespace Hex.Enums
     [Flags]
     public enum Direction
     {
+        None = 0,
         UpRight = 1,    // 0b_000001,
         Right = 2,      // 0b_000010,
         DownRight = 4,  // 0b_000100,
