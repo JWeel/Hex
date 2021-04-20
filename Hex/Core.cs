@@ -238,6 +238,7 @@ namespace Hex
                 this.Log.AppendLine($"Cursor: {this.Stage.CursorTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
                 this.Log.AppendLine($"Source: {this.Stage.SourceTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
                 this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
+                this.Log.AppendLine($"Interval: {this.Stage.TilemapRotationInterval}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 this.Log.AppendLine(this.CalculatedDebug);
             }

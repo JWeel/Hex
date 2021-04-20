@@ -54,6 +54,7 @@ namespace Hex.Helpers
             this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
             this.HexagonBorderDownLeftTexture = content.Load<Texture2D>("Graphics/xbblp");
+            this.HexagonBorderTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftTexture };
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
             this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
@@ -91,22 +92,35 @@ namespace Hex.Helpers
                 if (this.SourceTile == null)
                     return Vector2.Zero;
                 var position = this.SourceTile.Position + this.TileSize / 2;
-                var rotated = position.Transform(this.RotationMatrix);
+                var rotated = position.Transform(this.RenderRotationMatrix);
                 return Vector2.Round(rotated);
             }
         }
 
         /// <summary> A transform matrix that rotates and moves to relative render position. </summary>
-        public Matrix RotationMatrix =>
+        public Matrix RenderRotationMatrix =>
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
+
+        protected Matrix TileRotationMatrix { get; set; }
+        protected Matrix WraparoundRotationMatrix { get; set; }
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
         protected SpriteFont Font { get; }
 
+        /// <summary> The amount of rotation in radians to apply to tile sprites. </summary>
         protected float Rotation { get; set; }
+
+        /// <summary> The amount of rotation in radians to apply to sprites that should maintain a relatively 'upward' orientation. </summary>
+        /// <remarks> This is the result of performing a wraparound on <see cref="Rotation"/>. The amount wraps in range intervals of 60 degrees.
+        /// <br/> E.g. with a degree range of [-29,31] : any rotation within this range of degrees is unaffected, but at 32 degrees the rotation becomes -29, and at -30 the rotation becomes 31. </remarks>
+        public float WraparoundRotation { get; protected set; }
+
+        /// <summary> An index in the range [0,5] which when multiplied by 60 corresponds to a degrees range in which <see cref="Rotation"/> lies.  </summary>
+        public int WraparoundRotationInterval { get; protected set; }
+
         protected Vector2 RenderPosition { get; set; }
 
         protected Hexagon OriginTile { get; set; }
@@ -129,6 +143,7 @@ namespace Hex.Helpers
         protected Texture2D HexagonBorderDownLeftTexture { get; set; }
         protected Texture2D HexagonBorderLeftTexture { get; set; }
         protected Texture2D HexagonBorderUpLeftTexture { get; set; }
+        protected Texture2D[] HexagonBorderTextureRange { get; set; }
 
         protected Vector2 TileSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
@@ -159,18 +174,18 @@ namespace Hex.Helpers
                 })
                 .ToDictionary(x => x.Cube);
 
-            this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((0, 0))?.Into(h => h.Elevation = 3);
             this.Map.GetOrDefault((-1, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((-2, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((1, 0))?.Into(h => h.Elevation = 2);
             this.Map.GetOrDefault((2, 0))?.Into(h => h.Elevation = 2);
-            this.Map.GetOrDefault((-2, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((-1, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((0, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((1, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
-            this.Map.GetOrDefault((-1, 2))?.Into(h => h.Elevation = 0);
+            // this.Map.GetOrDefault((-2, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((-1, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((0, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((1, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((2, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((3, -1))?.Into(h => h.Elevation = 3);
+            // this.Map.GetOrDefault((-1, 2))?.Into(h => h.Elevation = 0);
 
             // this.OriginTile = this.Map.GetOrDefault(default);
             // this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
@@ -186,6 +201,8 @@ namespace Hex.Helpers
 
             this.TilemapSize = this.CalculateTilesCombinedSize();
             this.FogOfWarMap = this.Map.Values.ToDictionary(x => x, x => false);
+
+            this.RecalculateRotations();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -249,7 +266,7 @@ namespace Hex.Helpers
                         axials.Add((q, 0));
                     break;
                 default:
-                    throw new InvalidOperationException($"Invalid shape '{shape}'.");
+                    throw shape.Invalid();
             }
             // var ran = new Random();
             // Enumerable.Range(0, ran.Next(axials.Count))
@@ -352,7 +369,10 @@ namespace Hex.Helpers
                     this.Rotate(degrees: 1);
 
             if (this.Input.KeyPressed(Keys.V))
+            {
                 this.Rotation = 0;
+                this.RecalculateRotations();
+            }
         }
 
         public void Draw(SpriteBatch spriteBatch)
@@ -361,7 +381,8 @@ namespace Hex.Helpers
             {
                 var cube = tile.Cube;
                 var basePosition = tile.Position;
-                var position = basePosition.Transform(this.RotationMatrix);
+                var baseMiddle = tile.Middle;
+                var position = basePosition.Transform(this.RenderRotationMatrix);
 
                 var innerColor = ((tile == this.CursorTile) && (tile == this.SourceTile)) ? new Color(255, 170, 130)
                     : (tile == this.CursorTile) ? Color.LightYellow
@@ -387,30 +408,11 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, visiblityOverlayColor, this.Rotation, depth: .175f);
                 }
 
-                // separate rotations in intervals of 60 degrees, with the intervals shifted by (30n+1) degrees
-                var baseDegrees = (int) (this.Rotation * 180 / Math.PI);
-                var degrees = baseDegrees.Modulo(360);
-                var rotationInterval = degrees switch
-                {
-                    < 31 => 0,
-                    < 91 => 1,
-                    < 151 => 2,
-                    < 211 => 3,
-                    < 271 => 4,
-                    < 331 => 5,
-                    _ => 0
-                };
-
-                // convert this to radians to get rotation offset to subtract from tilemap rotation
-                var rotationOffset = (float) (rotationInterval * 60 * Math.PI / 180);
-                var borderRotation = (this.Rotation % (float) (360 * Math.PI / 180)) - rotationOffset;
-                var borderRotationMatrix = Matrix.CreateRotationZ(borderRotation);
-
                 // offset center of hexagon to preserve rotational origin for overlay sprites
-                var borderBasePosition = (basePosition + this.TileSize / 2).Transform(this.RotationMatrix);
-                var borderTextureOffset = (this.TileSize / 2).Transform(borderRotationMatrix);
+                var borderBasePosition = baseMiddle.Transform(this.RenderRotationMatrix);
+                var borderTextureOffset = (this.TileSize / 2).Transform(this.WraparoundRotationMatrix);
                 var borderPosition = borderBasePosition - borderTextureOffset;
-                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, borderRotation, depth: .075f);
+                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
 
                 if (tile.TileType == TileType.Mountain)
                 {
@@ -445,41 +447,25 @@ namespace Hex.Helpers
                     if ((neighbor == null) || (tile.Elevation <= neighbor.Elevation))
                         continue;
 
-                    // if ((direction == Direction.UpLeft) || (direction == Direction.UpRight))
-                        // continue;
+                    var (texture, flip) = this.GetDirectionalBorderTexture(direction);
+                    var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
-                    var texture = direction switch
-                    {
-                        Direction.Left => this.HexagonBorderLeftTexture,
-                        Direction.Right => this.HexagonBorderLeftTexture,
-                        Direction.DownLeft => this.HexagonBorderDownLeftTexture,
-                        Direction.DownRight => this.HexagonBorderDownLeftTexture,
-                        Direction.UpLeft => this.HexagonBorderUpLeftTexture,
-                        Direction.UpRight => this.HexagonBorderUpLeftTexture,
-                        _ => this.BlankTexture
-                    };
-                    var effects = direction switch
-                    {
-                        Direction.Right => SpriteEffects.FlipHorizontally,
-                        Direction.DownRight => SpriteEffects.FlipHorizontally,
-                        Direction.UpRight => SpriteEffects.FlipHorizontally,
-                        _ => default
-                    };
                     var offset = direction switch
                     {
-                        Direction.UpLeft => new Vector2(0, 0),
-                        Direction.UpRight => new Vector2(0, 0),
-                        Direction.Left => new Vector2(0, 0),
-                        Direction.Right => new Vector2(0, 0),
-                        Direction.DownLeft => new Vector2(0, 3),
-                        Direction.DownRight => new Vector2(0, 3),
+                        // Direction.UpLeft => new Vector2(0, 0),
+                        // Direction.UpRight => new Vector2(0, 0),
+                        // Direction.Left => new Vector2(0, 0),
+                        // Direction.Right => new Vector2(0, 0),
+                        // Direction.DownLeft => new Vector2(0, 3),
+                        // Direction.DownRight => new Vector2(0, 3),
                         _ => Vector2.Zero
                     };
                     var elevationSteps = (neighbor == null) ? tile.Elevation : tile.Elevation - neighbor.Elevation;
-                    for (int i = 1; i < elevationSteps + 1; i++)
+                    // for (int i = 1; i < elevationSteps + 1; i++)
+                    for (int i = 1; i != 2; i++)
                     {
-                        var directionPosition = position - (offset * i).Transform(Matrix.CreateRotationZ(this.Rotation));
-                        spriteBatch.DrawAt(texture, directionPosition, Color.Sienna, this.Rotation, depth: .3f, effects: effects);
+                        var directionPosition = position - (offset * i).Transform(this.WraparoundRotationMatrix);
+                        spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
                     }
                 }
 
@@ -510,7 +496,7 @@ namespace Hex.Helpers
 
         public Cube ToTileCoordinates(Vector2 position)
         {
-            var invertedPosition = position.Transform(this.RotationMatrix.Invert());
+            var invertedPosition = position.Transform(this.RenderRotationMatrix.Invert());
             var (mx, my) = invertedPosition - this.TileSize / 2;
 
             // no idea what this is or why this works but without it the coordinates are off
@@ -572,7 +558,7 @@ namespace Hex.Helpers
                 case Direction.UpLeft:
                     return this.Map.GetOrDefault((cube.X, cube.Y + 1, cube.Z - 1));
                 default:
-                    throw new ArgumentException("Invalid enum value.", nameof(direction));
+                    throw direction.Invalid();
             }
         }
 
@@ -586,7 +572,32 @@ namespace Hex.Helpers
         {
             this.Rotation += radians;
             this.Rotation %= (float) (360 * Math.PI / 180);
+
+            this.RecalculateRotations();
             this.OnRotate?.Invoke();
+        }
+
+        protected void RecalculateRotations()
+        {
+            this.TileRotationMatrix = Matrix.CreateRotationZ(this.Rotation);
+
+            // separate rotations in intervals of 60 degrees, with the intervals shifted by (30n+1) degrees
+            var baseDegrees = (int) (this.Rotation * 180 / Math.PI);
+            var degrees = baseDegrees.Modulo(360);
+            this.WraparoundRotationInterval = degrees switch
+            {
+                < 32 => 0,
+                < 92 => 1,
+                < 152 => 2,
+                < 212 => 3,
+                < 272 => 4,
+                < 332 => 5,
+                _ => 0
+            };
+            var rotationOffset = (float) (this.WraparoundRotationInterval * 60 * Math.PI / 180);
+
+            this.WraparoundRotation = (this.Rotation % (float) (360 * Math.PI / 180)) - rotationOffset;
+            this.WraparoundRotationMatrix = Matrix.CreateRotationZ(this.WraparoundRotation);
         }
 
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
@@ -713,6 +724,23 @@ namespace Hex.Helpers
                 return true;
             // Z axis is vertical, if target.Z > source.Z then target is further down than source
             return (target.Z > source.Z);
+        }
+
+        protected (Texture2D Texture, bool Flip) GetDirectionalBorderTexture(Direction direction)
+        {
+            var directionIndex = direction switch
+            {
+                Direction.UpRight => 0,
+                Direction.Right => 1,
+                Direction.DownRight => 2,
+                Direction.DownLeft => 3,
+                Direction.Left => 4,
+                Direction.UpLeft => 5,
+                _ => throw direction.Invalid()
+            };
+            var index = (directionIndex + this.WraparoundRotationInterval) % 6;
+            var flip = index < this.HexagonBorderTextureRange.Length;
+            return (this.HexagonBorderTextureRange[index % this.HexagonBorderTextureRange.Length], flip);
         }
 
         #endregion

@@ -55,7 +55,7 @@ namespace Hex.Helpers
         {
             foreach (var actor in this.Actors)
             {
-                var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RotationMatrix);
+                var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
                 var sizeOffset = actor.Texture.ToVector() / 2;
                 spriteBatch.DrawAt(actor.Texture, sourcePosition - sizeOffset);
             }

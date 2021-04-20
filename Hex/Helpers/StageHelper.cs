@@ -41,6 +41,7 @@ namespace Hex.Helpers
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
 
         public int TileCount => this.Tilemap.Map.Count;
+        public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
 
         protected InputHelper Input { get; }
         protected CameraHelper Camera { get; }
@@ -56,7 +57,7 @@ namespace Hex.Helpers
         {
             dependency.Register(this.Camera);
             this.Tilemap = dependency.Register<TilemapHelper>();
-            this.Tilemap.OnRotate += this.CenterOnSourceTile;
+            // this.Tilemap.OnRotate += this.CenterOnSourceTile;
             this.Actor = dependency.Register<ActorHelper>();
         }
 
