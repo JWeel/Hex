@@ -54,7 +54,9 @@ namespace Hex.Helpers
             this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
             this.HexagonBorderDownLeftTexture = content.Load<Texture2D>("Graphics/xbblp");
+            this.HexagonBorderDownLeftLargeTexture = content.Load<Texture2D>("Graphics/xbbllp");
             this.HexagonBorderTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftTexture, HexagonBorderDownLeftTexture, HexagonBorderLeftTexture, HexagonBorderUpLeftTexture };
+            this.HexagonBorderLargeTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftLargeTexture, HexagonBorderDownLeftLargeTexture, HexagonBorderLeftTexture, HexagonBorderUpLeftTexture };
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
             this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
@@ -143,9 +145,11 @@ namespace Hex.Helpers
         protected Texture2D HexagonBorderFlattyTexture { get; set; }
 
         protected Texture2D HexagonBorderDownLeftTexture { get; set; }
+        protected Texture2D HexagonBorderDownLeftLargeTexture { get; set; }
         protected Texture2D HexagonBorderLeftTexture { get; set; }
         protected Texture2D HexagonBorderUpLeftTexture { get; set; }
         protected Texture2D[] HexagonBorderTextureRange { get; set; }
+        protected Texture2D[] HexagonBorderLargeTextureRange { get; set; }
 
         protected Vector2 TileSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
@@ -430,19 +434,20 @@ namespace Hex.Helpers
                 //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
                 foreach (var direction in this.EnumerateDirectionalBorders(tile))
                 {
-                    var neighbor = this.GetNeighbor(tile, direction);
-                    if ((neighbor == null) || (tile.Elevation <= neighbor.Elevation))
-                        continue;
-
                     var (texture, flip) = this.GetDirectionalBorderTexture(direction);
                     var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
                     spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
 
+                    var neighbor = this.GetNeighbor(tile, direction);
                     if ((tile.Elevation - neighbor.Elevation) > 1)
                     {
-                        // TODO : with elevation difference > 1, add an additional texture
+                        // TODO : with elevation difference > 1, add an additional texture?
                     }
+                    // TODO maybe it makes more sense to decide the texture in advance, not need to find neighbor tile here
+                    // therefore just use 1 texture, not two.
+                    // this means the EnumerateDirectionBorders and the BorderMap need to use tuple (Direction, BorderSize)
+                    // also all border textures should be drawn with different depth. L/R should definitely go underneath DL/DR
                 }
 
 

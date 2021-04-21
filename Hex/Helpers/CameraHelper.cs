@@ -44,8 +44,13 @@ namespace Hex.Helpers
         /// <summary> A transform matrix that scales and moves to relative camera position. </summary>
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
+            // Matrix.CreateTranslation(new Vector3(
+            //     value: Vector2.Round(this.Position * -1),
+            //     z: 0)) *
             Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
-            Matrix.CreateTranslation(new Vector3(this.ViewportGetter().Size.ToVector2() / 2f + this.ViewportGetter().Location.ToVector2(), 0));
+            Matrix.CreateTranslation(new Vector3(
+                value: Vector2.Round(this.ViewportGetter().Size.ToVector2() / 2f + this.ViewportGetter().Location.ToVector2()),
+                z: 0));
 
         /// <summary> Returns a rectangle which spans the area shown by the current camera translation matrix. </summary>
         public Rectangle CameraBox
@@ -55,7 +60,7 @@ namespace Hex.Helpers
                 // there is a small rounding error so add offset
                 var roundingOffset = new Vector2(2);
                 var viewportSize = this.ViewportGetter().Size.ToVector2();
-                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor- roundingOffset;
+                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor - roundingOffset;
                 var cameraBoxSize = viewportSize / this.ZoomScaleFactor + roundingOffset * 2;
                 return new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
             }
@@ -80,7 +85,7 @@ namespace Hex.Helpers
         public void Center()
         {
             var (minimum, maximum) = this.GetPositionExtrema();
-            this.Position = Vector2.Floor((minimum + maximum) / 2);
+            this.Position = Vector2.Round((minimum + maximum) / 2);
         }
 
         public void CenterOn(Vector2 position)

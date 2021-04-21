@@ -58,7 +58,7 @@ namespace Hex.Helpers
         {
             dependency.Register(this.Camera);
             this.Tilemap = dependency.Register<TilemapHelper>();
-            // this.Tilemap.OnRotate += this.CenterOnSourceTile;
+            this.Tilemap.OnRotate += this.CenterOnSourceTile;
             this.Actor = dependency.Register<ActorHelper>();
         }
 
@@ -74,6 +74,12 @@ namespace Hex.Helpers
 
             // the real size of the stage is the max of the tilemap bounding box and the containing rectangle
             this.StageSize = Vector2.Max(this.TilemapBoundingBoxSize, this.ContainerSize);
+
+            // TBD: right now StageSize and Container are passed to camera.
+            // if this is the only place that they are ever changed, then camera doesnt need the Funcs
+            // and instead add an Arrange to the camera which gets the two values.
+            // benefit: easier to read, no funcs everywhere (infinitesimal performance gain), can now use dependency helper
+            // downside: camera "arrange" method is now coupled, i.e. it doesn't self-update
 
             this.Tilemap.CalculateOffset(center: this.StageSize / 2);
             this.Camera.Center();
@@ -108,7 +114,8 @@ namespace Hex.Helpers
         protected void CenterOnSourceTile()
         {
             // TODO setting to toggle this behavior on/off
-            if (this.SourceTile != null)
+            var setting = false;
+            if (setting && this.SourceTile != null)
                 this.Camera.CenterOn(this.Tilemap.SourceTileMiddle);
         }
 

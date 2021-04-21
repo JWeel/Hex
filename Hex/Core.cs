@@ -239,6 +239,8 @@ namespace Hex
                 this.Log.AppendLine($"Source: {this.Stage.SourceTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
                 // this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
                 // this.Log.AppendLine($"Interval: {this.Stage.TilemapRotationInterval}");
+                // this.Log.AppendLine($"Container: {this.Stage.Container.Location}{this.Stage.Container.Size}");
+                // this.Log.AppendLine($"Camera: {this.Stage.Camera.Position}");
                 // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
                 this.Log.AppendLine(this.CalculatedDebug);
