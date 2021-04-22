@@ -7,7 +7,7 @@ namespace Hex.Models
     {
         #region Constructors
 
-        public Hexagon(Cube cube, Vector2 position, Vector2 size, int elevation, Direction slope, TileType type)
+        public Hexagon(Cube cube, Vector2 position, Vector2 size, int elevation, Direction slopeMask, TileType type)
         {
             this.Cube = cube;
             this.Position = position;
@@ -15,7 +15,7 @@ namespace Hex.Models
             this.Middle = position + size / 2;
             this.Elevation = elevation;
             this.TileType = type;
-            this.Slope = slope;
+            this.SlopeMask = slopeMask;
         }
 
         #endregion
@@ -27,7 +27,7 @@ namespace Hex.Models
         public Vector2 Size { get; }
         public Vector2 Middle { get; }
         public int Elevation { get; set; }
-        public Direction Slope { get;  set; }
+        public Direction SlopeMask { get; set; }
         public TileType TileType { get; }
         public Color Color { get; set; }
 

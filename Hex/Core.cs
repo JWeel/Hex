@@ -110,7 +110,7 @@ namespace Hex
             this.Architect = dependency.Register<Architect>();
             this.Stage = dependency.Register<StageHelper>();
 
-            var stageContainer = new Rectangle(new Point(290, 50), (BASE_WINDOW_SIZE / 1.7f).ToPoint());
+            var stageContainer = new Rectangle(new Point(240, 50), (BASE_WINDOW_SIZE / 1.55f).ToPoint());
             this.Stage.Arrange(stageContainer, this.GetStagePath("grove"));
 
             // temporary panel stuff
@@ -212,8 +212,10 @@ namespace Hex
 
             this.IsMouseVisible = true;
 
-            // if (this.Input.KeyPressed(Keys.Enter))
-            //     this.Stage.Arrange(BASE_WINDOW_SIZE.ToRectangle(), "tilemap1");
+            if (this.Input.KeyPressed(Keys.F11))
+                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("grove"));
+            if (this.Input.KeyPressed(Keys.F12))
+                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("plateau"));
 
             if (this.Input.KeyPressed(Keys.Tab))
                 this.Side.Toggle();
