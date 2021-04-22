@@ -7,8 +7,8 @@ namespace Extended.Extensions
     {
         #region Invalid
 
-        /// <summary> Creates a <see cref="InvalidEnumException{}"/> from this value. </summary>
-        /// <remarks> This can be used to throw an exception in the default case when switching on an enum. </remarks>
+        /// <summary> Creates an <see cref="InvalidEnumException{}"/> from this value. </summary>
+        /// <remarks> This can be used to throw an exception on unsupported switch cases. </remarks>
         public static InvalidEnumException<T> Invalid<T>(this T value) where T : Enum =>
             new InvalidEnumException<T>(value);
 

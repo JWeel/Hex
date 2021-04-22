@@ -137,7 +137,7 @@ namespace Hex.Helpers
         // TODO is this needed
         protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
 
-        protected IDictionary<Hexagon, Direction> BorderMap { get; set; }
+        protected IDictionary<Hexagon, (Direction Direction, BorderType Type)[]> BorderMap { get; set; }
 
         protected Texture2D HexagonOuterTexture { get; set; }
         protected Texture2D HexagonInnerTexture { get; set; }
@@ -377,6 +377,18 @@ namespace Hex.Helpers
                 else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Rotate(degrees: 1);
 
+            if (this.SourceTile != null)
+            {
+                if (this.Input.KeyPressed(Keys.Right))
+                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.Right) ?? this.SourceTile;
+                if (this.Input.KeyPressed(Keys.Left))
+                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.Left) ?? this.SourceTile;
+                if (this.Input.KeyPressed(Keys.Up))
+                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.UpRight) ?? this.SourceTile;
+                if (this.Input.KeyPressed(Keys.Down))
+                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.DownLeft) ?? this.SourceTile;
+            }
+
             if (this.Input.KeyPressed(Keys.V))
             {
                 this.Rotation = 0;
@@ -423,31 +435,20 @@ namespace Hex.Helpers
                 var borderPosition = borderBasePosition - borderTextureOffset;
                 spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
 
-                // TODO:
-                // visibility should be based on elevation:
-                // when looking from above to below:
-                //  distance from tile to tile where elevation change starts
-                //  equals distance until lower tile elevation tiles become visible
-                //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
-                // when looking from below to above:
-                //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
-                //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
-                foreach (var direction in this.EnumerateDirectionalBorders(tile))
+                foreach (var border in this.EnumerateSmallLargeBorders(tile))
                 {
-                    var (texture, flip) = this.GetDirectionalBorderTexture(direction);
+                    var (direction, borderType) = border;
+                    var (texture, flip) = this.GetDirectionalBorderTexture(direction, borderType);
                     var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
-                    spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
-
-                    var neighbor = this.GetNeighbor(tile, direction);
-                    if ((tile.Elevation - neighbor.Elevation) > 1)
+                    // not sure if this is working
+                    var borderDepth = direction switch
                     {
-                        // TODO : with elevation difference > 1, add an additional texture?
-                    }
-                    // TODO maybe it makes more sense to decide the texture in advance, not need to find neighbor tile here
-                    // therefore just use 1 texture, not two.
-                    // this means the EnumerateDirectionBorders and the BorderMap need to use tuple (Direction, BorderSize)
-                    // also all border textures should be drawn with different depth. L/R should definitely go underneath DL/DR
+                        Direction.Left or Direction.Right => .29f,
+                        _ => .3f
+                    };
+
+                    spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: borderDepth, effects: effects);
                 }
 
 
@@ -583,40 +584,30 @@ namespace Hex.Helpers
 
         protected void RecalculateTileBorders()
         {
-            this.BorderMap = this.Map.Values.ToDictionary(tile => tile, tile =>
+            this.BorderMap = this.Map.Values
+                .ToDictionary(tile => tile, tile => DIRECTIONS
+                    .Select(direction => (direction, Type: DetermineBorderType(tile, direction)))
+                    .Where(border => (border.Type != BorderType.None))
+                    .ToArray());
+
+            BorderType DetermineBorderType(Hexagon tile, Direction direction)
             {
-                var border = Direction.None;
-                DIRECTIONS.Each(direction =>
-                {
-                    var neighbor = this.GetNeighbor(tile, direction);
-                    if ((neighbor == null) || (neighbor.Elevation >= tile.Elevation))
-                        return;
-                    if ((tile.Slope & direction) == direction)
-                        return;
-                    border |= direction;
-                });
-                return border;
-            });
+                var neighbor = this.GetNeighbor(tile, direction);
+                if (neighbor == null)
+                    return BorderType.Edge;
+                if (neighbor.Elevation >= tile.Elevation)
+                    return BorderType.None;
+                if ((tile.Slope & direction) == direction)
+                    return BorderType.Slope;
+                if (tile.Elevation - neighbor.Elevation == 1)
+                    return BorderType.Small;
+                return BorderType.Large;
+            }
         }
 
-        protected IEnumerable<Direction> EnumerateDirectionalBorders(Hexagon tile)
-        {
-            var border = this.BorderMap[tile];
-            if (border == Direction.None)
-                yield break;
-            if ((border & Direction.UpRight) == Direction.UpRight)
-                yield return Direction.UpRight;
-            if ((border & Direction.Right) == Direction.Right)
-                yield return Direction.Right;
-            if ((border & Direction.DownRight) == Direction.DownRight)
-                yield return Direction.DownRight;
-            if ((border & Direction.DownLeft) == Direction.DownLeft)
-                yield return Direction.DownLeft;
-            if ((border & Direction.Left) == Direction.Left)
-                yield return Direction.Left;
-            if ((border & Direction.UpLeft) == Direction.UpLeft)
-                yield return Direction.UpLeft;
-        }
+        protected IEnumerable<(Direction Direction, BorderType Type)> EnumerateSmallLargeBorders(Hexagon tile) =>
+            this.BorderMap[tile]
+                .Where(border => ((border.Type == BorderType.Small) || (border.Type == BorderType.Large)));
 
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
             this.Lerp(a.ToVector3(), b.ToVector3(), t);
@@ -687,6 +678,15 @@ namespace Hex.Helpers
 
         protected void DetermineFogOfWar()
         {
+            // TODO:
+            // visibility should be based on elevation:
+            // when looking from above to below:
+            //  distance from tile to tile where elevation change starts
+            //  equals distance until lower tile elevation tiles become visible
+            //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
+            // when looking from below to above:
+            //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
+            //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
             var viewDistance = 9;
             this.Map.Values.Each(tile => this.FogOfWarMap[tile] = InView(tile));
             bool InView(Hexagon tile)
@@ -744,8 +744,11 @@ namespace Hex.Helpers
             return (target.Z > source.Z);
         }
 
-        protected (Texture2D Texture, bool Flip) GetDirectionalBorderTexture(Direction direction)
+        protected (Texture2D Texture, bool Flip) GetDirectionalBorderTexture(Direction direction, BorderType borderType)
         {
+            if (this.HexagonBorderTextureRange.Length != this.HexagonBorderLargeTextureRange.Length)
+                throw new InvalidOperationException("If this happened, it's time to refactor.");
+
             var directionIndex = direction switch
             {
                 Direction.UpRight => 0,
@@ -758,7 +761,12 @@ namespace Hex.Helpers
             };
             var index = (directionIndex + this.WraparoundRotationInterval) % this.HexagonBorderTextureRange.Length;
             var flip = index < this.HexagonBorderTextureRange.Length / 2;
-            return (this.HexagonBorderTextureRange[index], flip);
+            return borderType switch
+            {
+                BorderType.Small => (this.HexagonBorderTextureRange[index], flip),
+                BorderType.Large => (this.HexagonBorderLargeTextureRange[index], flip),
+                _ => throw borderType.Invalid()
+            };
         }
 
         #endregion

@@ -40,4 +40,14 @@ namespace Hex.Enums
         Left = 16,      // 0b_010000,
         UpLeft = 32,    // 0b_100000,
     }
+
+    [Flags]
+    public enum BorderType
+    {
+        None,
+        Small = 1,
+        Large = 2,
+        Edge = 4,
+        Slope = 8,
+    }
 }

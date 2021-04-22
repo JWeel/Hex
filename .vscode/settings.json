@@ -1,11 +1,13 @@
 {
     "editor.fontSize": 15,
     "workbench.colorCustomizations": {
-        "statusBar.background" : "#262525",
-        "statusBar.noFolderBackground" : "#212121",
+        "statusBar.background": "#262525",
+        "statusBar.noFolderBackground": "#212121",
         "statusBar.debuggingBackground": "#263238",
         "editor.background": "#1b181f",
         "editorGutter.deletedBackground": "#0000",
         "editorOverviewRuler.deletedForeground": "#0000"
-    }
+    },
+    "editor.semanticHighlighting.enabled": true,
+    "csharp.semanticHighlighting.enabled": true,
 }

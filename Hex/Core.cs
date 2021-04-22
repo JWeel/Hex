@@ -259,13 +259,13 @@ namespace Hex
             using (new ScissorScope(this.GraphicsDevice, this.Stage.Container))
             {
                 // try other SamplerStates
-                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointWrap,
-                    rasterizerState: ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointWrap,
+                    rasterizerState: this.ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
                 this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
                 this.SpriteBatch.End();
 
                 this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp,
-                    rasterizerState: ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
+                    rasterizerState: this.ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
                 this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
                 this.SpriteBatch.End();
             }
