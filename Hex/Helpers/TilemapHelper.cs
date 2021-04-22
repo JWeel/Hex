@@ -307,7 +307,8 @@ namespace Hex.Helpers
                     var r = int.Parse(axialSplit[1]);
                     var t = Enum.Parse<TileType>(identifierSplit[1].Trim());
                     // if (random.Next(100) < 40) t = TileType.Mountain;
-                    return (q, r, 1, Direction.None, t);
+                    var s = Direction.None;
+                    return (q, r, 1, s, t);
                 })
                 .ToArray();
         }
@@ -405,25 +406,27 @@ namespace Hex.Helpers
                 var baseMiddle = tile.Middle;
                 var position = basePosition.Transform(this.RenderRotationMatrix);
 
-                var innerColor = ((tile == this.CursorTile) && (tile == this.SourceTile)) ? new Color(255, 170, 130)
-                    : (tile == this.CursorTile) ? Color.LightYellow
-                    : (tile == this.SourceTile) ? Color.Coral
+                var innerColor = 
+                (tile == this.SourceTile) ? Color.Coral
                     : (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
                     : tile.Color != default ? tile.Color
                     : tile.TileType switch
                     {
                         // TileType.Mountain => Color.Tan,
-                        TileType.Sea => new Color(100, 200, 220, 80),
+                        TileType.Sea => new Color(100, 200, 220).Blend(80),
                         _ => new Color(190, 230, 160)
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
+                if (tile == this.CursorTile)
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
+
                 if (this.VisibilityByHexagonMap.TryGetValue(tile, out var visibility))
                 {
                     var visiblityOverlayColor = visibility ?
-                        new Color(255, 255, 255, 80) :
-                        new Color(0, 0, 0, 50);
+                        new Color(255, 255, 255).Blend(80) :
+                        new Color(0, 0, 0).Blend(50);
                     // new Color(205, 235, 185, 100) :
                     // new Color(175, 195, 160, 100);
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, visiblityOverlayColor, this.Rotation, depth: .175f);
@@ -433,24 +436,24 @@ namespace Hex.Helpers
                 var borderBasePosition = baseMiddle.Transform(this.RenderRotationMatrix);
                 var borderTextureOffset = (this.TileSize / 2).Transform(this.WraparoundRotationMatrix);
                 var borderPosition = borderBasePosition - borderTextureOffset;
-                spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
 
-                foreach (var border in this.EnumerateSmallLargeBorders(tile))
+                foreach (var border in this.BorderMap[tile])
                 {
                     var (direction, borderType) = border;
+                    if (borderType == BorderType.Slope)
+                        continue;
+                    if (borderType == BorderType.Edge)
+                    {
+                        spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
+                        continue;
+                    }
+                    if ((borderType != BorderType.Small) && (borderType != BorderType.Large))
+                        throw new NotImplementedException("Missing logic for drawing this border type.");
+
                     var (texture, flip) = this.GetDirectionalBorderTexture(direction, borderType);
                     var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-
-                    // not sure if this is working
-                    var borderDepth = direction switch
-                    {
-                        Direction.Left or Direction.Right => .29f,
-                        _ => .3f
-                    };
-
-                    spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: borderDepth, effects: effects);
+                    spriteBatch.DrawAt(texture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .3f, effects: effects);
                 }
-
 
                 innerColor = tile.TileType switch
                 {
@@ -471,7 +474,7 @@ namespace Hex.Helpers
                 {
                     // if (!this.VisibilityByHexagonMap.Any())
                     if (!this.FogOfWarMap[tile])
-                        spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100, 128), this.Rotation, depth: .3f);
+                        spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
                 }
             }
         }
@@ -604,10 +607,6 @@ namespace Hex.Helpers
                 return BorderType.Large;
             }
         }
-
-        protected IEnumerable<(Direction Direction, BorderType Type)> EnumerateSmallLargeBorders(Hexagon tile) =>
-            this.BorderMap[tile]
-                .Where(border => ((border.Type == BorderType.Small) || (border.Type == BorderType.Large)));
 
         protected Vector3 Lerp(Cube a, Cube b, float t) =>
             this.Lerp(a.ToVector3(), b.ToVector3(), t);
