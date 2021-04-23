@@ -212,9 +212,9 @@ namespace Hex
 
             this.IsMouseVisible = true;
 
-            if (this.Input.KeyPressed(Keys.F11))
+            if (this.Input.KeyPressed(Keys.F8))
                 this.Stage.Arrange(this.Stage.Container, this.GetStagePath("grove"));
-            if (this.Input.KeyPressed(Keys.F12))
+            if (this.Input.KeyPressed(Keys.F9))
                 this.Stage.Arrange(this.Stage.Container, this.GetStagePath("plateau"));
 
             if (this.Input.KeyPressed(Keys.Tab))

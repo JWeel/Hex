@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -195,7 +196,9 @@ namespace Hex.Helpers
             this.TilemapSize = this.CalculateTilesCombinedSize();
             this.FogOfWarMap = this.Map.Values.ToDictionary(x => x, x => false);
             this.VisibilityByHexagonMap.Clear();
-            
+            this.SourceTile = default;
+            this.CursorTile = default;
+
             this.RecalculateRotations();
             this.RecalculateTileBorders();
         }
@@ -322,10 +325,8 @@ namespace Hex.Helpers
             {
                 this.CalculatedVisibility = true;
                 this.VisibilityByHexagonMap.Clear();
-                var sourceCube = this.SourceTile.Cube;
                 this.Map.Values
-                    // .Where(hexagon => !this.VisibilityByHexagonMap.ContainsKey(hexagon))
-                    .Select(hexagon => (Hexagon: hexagon, IsVisible: this.DeterminePointIsVisibleFrom(sourceCube, hexagon.Cube, this.IsVisible)))
+                    .Select(tile => (tile, this.DefineLineOfSight(this.SourceTile, tile, 10).Last().Visible))
                     .Each(this.VisibilityByHexagonMap.Add);
             };
 
@@ -501,10 +502,6 @@ namespace Hex.Helpers
                     if (this.CursorTile != default)
                         this.DefineLineOfSight(this.SourceTile, this.CursorTile, 10)
                             .Each(this.VisibilityByHexagonMap.Add);
-                    // this.DefineLineVisibility(this.SourceTile.Cube, coordinates, this.IsVisible)
-                    //     .Select(tuple => (Hexagon: this.Map.GetOrDefault(tuple.Cube), tuple.Visible))
-                    //     .Where(tuple => (tuple.Hexagon != default))
-                    //     .Each(this.VisibilityByHexagonMap.Add);
                 }
             }
         }
@@ -612,16 +609,8 @@ namespace Hex.Helpers
 
         protected IEnumerable<(Hexagon Tile, bool Visible)> DefineLineOfSight(Hexagon source, Hexagon target, int viewDistance)
         {
-            // reminder:
-            // in the fieldOfVision (shift press) thing, call this method too
-            // only need to call it on all edge tiles. can probably cull further but this is a good start.
-            //  Map.Values.Where(tile => BorderMap[tile].Any(border => (border.Type == BorderType.Edge)))
-            // although not sure if that will work because other side of mountain is invisible? just do all...
-
             if (source == target)
-            {
-                return new[] { (source, true) };
-            }
+                return (source, true).Yield();
 
             // A point can be exactly between two cubes, so both sides should be checked
             //  point + EPSILON  will be called Add
@@ -629,32 +618,45 @@ namespace Hex.Helpers
 
             var highestAddTileElevation = int.MinValue;
             var highestSubTileElevation = int.MinValue;
+            var addTileBeforeElevationLowered = source;
+            var subTileBeforeElevationLowered = source;
 
             var distance = (int) Cube.Distance(source.Cube, target.Cube);
             return Generate.Range(1, distance + 1).Select(distanceStep =>
             {
+                // Use linear interpolation to determine which tiles are on the line
                 var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
+                var addTile = this.Map[(lerp + EPSILON).ToRoundCube()];
+                var subTile = this.Map[(lerp - EPSILON).ToRoundCube()];
 
-                var addCube = (lerp + EPSILON).ToRoundCube();
-                var addTile = this.Map.GetOrDefault(addCube);
-
+                // If the tile is too far away, it is not visible
                 if (distanceStep >= viewDistance)
                     return (addTile, false);
 
-                var subCube = (lerp - EPSILON).ToRoundCube();
-                var subTile = this.Map.GetOrDefault(subCube);
-
-                if ((highestAddTileElevation > addTile.Elevation) || (highestSubTileElevation > subTile.Elevation))
+                // If a previous tile is higher than current, it is obstructed
+                if (highestAddTileElevation > addTile.Elevation)
                     return (addTile, false);
+                if (highestSubTileElevation > subTile.Elevation)
+                    return (subTile, false);
 
+                // Keep track of tiles before lowered elevation
+                if (addTile.Elevation >= source.Elevation)
+                    addTileBeforeElevationLowered = addTile;
+                if (subTile.Elevation >= source.Elevation)
+                    subTileBeforeElevationLowered = subTile;
+
+                // If not obstructed, tiles are visible if they have the same elevation
                 var addTileElevationDifference = addTile.Elevation - source.Elevation;
                 if (addTileElevationDifference == 0)
                     return (addTile, true);
-
                 var subTileElevationDifference = subTile.Elevation - source.Elevation;
                 if (subTileElevationDifference == 0)
                     return (subTile, true);
 
+                // When looking from below to above:
+                // Difference in elevation determines amount of tiles away from elevation for edge tile visibility.
+                // Anything beyond edge tile is not visible unless also higher, in which case same rule applies.
+                //  i.e.    o[x - -     o[[- -      o x[[x -    o x x[[[x -     o[x[x[x -   o[x-[x-
                 if (addTileElevationDifference > 0)
                 {
                     if (addTileElevationDifference <= distanceStep)
@@ -666,7 +668,6 @@ namespace Hex.Helpers
                     }
                     highestAddTileElevation = addTile.Elevation;
                 }
-
                 if (subTileElevationDifference > 0)
                 {
                     if (subTileElevationDifference <= distanceStep)
@@ -679,108 +680,37 @@ namespace Hex.Helpers
                     highestSubTileElevation = subTile.Elevation;
                 }
 
-                // Visibility is based on elevation:
-                // -when looking from below to above:
-                //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
-                //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
-                // -when looking from above to below:
-                //  distance from tile to tile where elevation change starts
-                //  equals distance until lower tile elevation tiles become visible
+                // When looking from above to below:
+                // Distance from tile to edge tile equals distance from edge until lower tiles become visible.
                 //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
+                if (addTileElevationDifference < 0)
+                {
+                    var distanceSourceToEdge = (int) Cube.Distance(source.Cube, addTileBeforeElevationLowered.Cube);
+                    var distanceEdgeToTarget = (int) Cube.Distance(addTile.Cube, addTileBeforeElevationLowered.Cube);
+                    return (addTile, (distanceSourceToEdge < distanceEdgeToTarget));
+                }
+                if (subTileElevationDifference < 0)
+                {
+                    var distanceSourceToEdge = (int) Cube.Distance(source.Cube, subTileBeforeElevationLowered.Cube);
+                    var distanceEdgeToTarget = (int) Cube.Distance(subTile.Cube, subTileBeforeElevationLowered.Cube);
+                    return (subTile, (distanceSourceToEdge < distanceEdgeToTarget));
+                }
 
+                // If no other condition is met, it means the target tile is higher than source,
+                // and the difference is elevation is greater than distance from source to target.
+                // Therefore the target is not visible.
                 return (addTile, false);
             });
         }
 
-        protected IEnumerable<(Cube Cube, bool Visible)> DefineLineVisibility(Cube source, Cube target, Func<Cube, Cube, bool> determineIsVisible)
-        {
-            var restIsStillVisible = true;
-            var totalDistance = (int) Cube.Distance(source, target);
-            var lastCube = source;
-            return Generate.Range(totalDistance + 1) // +1 to include end
-                .Select(stepDistance =>
-                {
-                    var lerp = this.Lerp(source, target, 1f / totalDistance * stepDistance);
-                    var cubePositive = (lerp + EPSILON).ToRoundCube();
-                    if (!restIsStillVisible)
-                        return (cubePositive, Visible: false);
-                    if (determineIsVisible(lastCube, cubePositive))
-                    {
-                        lastCube = cubePositive;
-                        return (cubePositive, Visible: restIsStillVisible);
-                    }
-                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
-                    if ((cubePositive != cubeNegative) && determineIsVisible(lastCube, cubeNegative))
-                    {
-                        lastCube = cubeNegative;
-                        return (cubeNegative, Visible: restIsStillVisible);
-                    }
-                    else
-                        restIsStillVisible = false;
-                    return (cubePositive, Visible: restIsStillVisible);
-                });
-        }
-
-        protected bool DeterminePointIsVisibleFrom(Cube from, Cube target, Func<Cube, Cube, bool> determineIsVisible)
-        {
-            if (from == target)
-                return true;
-            var stillVisible = true;
-            var totalDistance = (int) Cube.Distance(target, from);
-            var lastCube = from;
-            Generate.Range(totalDistance + 1) // +1 to include end
-                .TakeWhile(_ => stillVisible)
-                .Each(stepDistance =>
-                {
-                    var lerp = this.Lerp(from, target, 1f / totalDistance * stepDistance);
-                    var cubePositive = (lerp + EPSILON).ToRoundCube();
-                    if (determineIsVisible(lastCube, cubePositive))
-                    {
-                        lastCube = cubePositive;
-                        stillVisible = true;
-                        return;
-                    }
-                    var cubeNegative = (lerp - EPSILON).ToRoundCube();
-                    if ((cubePositive != cubeNegative) && determineIsVisible(lastCube, cubeNegative))
-                    {
-                        lastCube = cubeNegative;
-                        stillVisible = true;
-                        return;
-                    }
-                    stillVisible = false;
-                });
-            return stillVisible;
-        }
-
         protected void DetermineFogOfWar()
         {
-            // TODO:
-            // visibility should be based on elevation:
-            // when looking from above to below:
-            //  distance from tile to tile where elevation change starts
-            //  equals distance until lower tile elevation tiles become visible
-            //  i.e.    o ] x x x x x x     o x ] - x x x x     o x x ] - - x x     o x x x ] - - -
-            // when looking from below to above:
-            //  difference in elevation determines amount of tiles away from elevation for edge tile to be visible
-            //  i.e.    o [ x - -     o [[- -      o x [[x -    o x x[[[x -
             var viewDistance = 10;
-            this.Map.Values.Each(tile => this.FogOfWarMap[tile] = InView(tile));
-            bool InView(Hexagon tile)
-            {
-                if (tile == this.SourceTile)
-                    return true;
-
-                return this.DefineLineOfSight(this.SourceTile, tile, viewDistance)
-                    .Last().Visible;
-
-                var targetCube = tile.Cube;
-                var sourceCube = this.SourceTile.Cube;
-                var distance = Cube.Distance(targetCube, sourceCube);
-                var withinView = (distance < viewDistance);
-                if (!withinView)
-                    return false;
-                return this.DeterminePointIsVisibleFrom(sourceCube, targetCube, this.IsVisible);
-            }
+            this.Map.Values
+                .Each(tile => this.FogOfWarMap[tile] = this
+                    .DefineLineOfSight(this.SourceTile, tile, viewDistance)
+                    .Last()
+                    .Visible);
         }
 
         // not really sure what center is useful for
