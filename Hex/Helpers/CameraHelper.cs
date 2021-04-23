@@ -21,47 +21,53 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(Func<Vector2> boundarySizeGetter, Func<Rectangle> viewportGetter, InputHelper input)
+        public CameraHelper(InputHelper input)
         {
-            this.BoundarySizeGetter = boundarySizeGetter;
-            this.ViewportGetter = viewportGetter;
             this.Input = input;
-            this.Position = Vector2.Zero;
-            this.ZoomScaleFactor = 1.0f;
+            this.ZoomFactor = 1.0f;
         }
 
         #endregion
 
         #region Properties
 
-        protected Func<Vector2> BoundarySizeGetter { get; }
-        protected Func<Rectangle> ViewportGetter { get; }
         protected InputHelper Input { get; }
-        protected bool IsMoving { get; set; }
+
+        /// <summary> The area in which the camera moves. </summary>
+        /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking origin plus this vector. </remarks>
+        protected Vector2 Plane { get; set; }
+        
+        /// <summary> The area of the plane shown by the camera. </summary>
+        protected Rectangle Viewport { get; set; }
+
+        /// <summary> The position of the camera within the plane. </summary>
         protected Vector2 Position { get; set; }
-        protected float ZoomScaleFactor { get; set; }
+
+        /// <summary> A scale factor that represents camera zoom. </summary>
+        protected float ZoomFactor { get; set; }
+
+        /// <summary> A flag to keep track of movement.  </summary>
+        protected bool IsMoving { get; set; }
+
+        /// <summary> The coordinates of the middle of the viewport. </summary>
+        protected Vector2 ViewportCenter { get; set; }
 
         /// <summary> A transform matrix that scales and moves to relative camera position. </summary>
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
-            // Matrix.CreateTranslation(new Vector3(
-            //     value: Vector2.Round(this.Position * -1),
-            //     z: 0)) *
-            Matrix.CreateScale(this.ZoomScaleFactor, this.ZoomScaleFactor, 1) *
-            Matrix.CreateTranslation(new Vector3(
-                value: Vector2.Round(this.ViewportGetter().Size.ToVector2() / 2f + this.ViewportGetter().Location.ToVector2()),
-                z: 0));
+            Matrix.CreateScale(this.ZoomFactor, this.ZoomFactor, 1) *
+            Matrix.CreateTranslation(this.ViewportCenter.X, this.ViewportCenter.Y, 0);
 
-        /// <summary> Returns a rectangle which spans the area shown by the current camera translation matrix. </summary>
+        /// <summary> A rectangle which spans the area shown by the current camera translation matrix. </summary>
         public Rectangle CameraBox
         {
             get
             {
                 // there is a small rounding error so add offset
                 var roundingOffset = new Vector2(2);
-                var viewportSize = this.ViewportGetter().Size.ToVector2();
-                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomScaleFactor - roundingOffset;
-                var cameraBoxSize = viewportSize / this.ZoomScaleFactor + roundingOffset * 2;
+                var viewportSize = this.Viewport.Size.ToVector2();
+                var cameraCorner = this.Position - viewportSize / 2 / this.ZoomFactor - roundingOffset;
+                var cameraBoxSize = viewportSize / this.ZoomFactor + roundingOffset * 2;
                 return new Rectangle(cameraCorner.ToPoint(), cameraBoxSize.ToPoint());
             }
         }
@@ -75,6 +81,14 @@ namespace Hex.Helpers
 
         public Vector2 FromScreen(Vector2 screenPosition) =>
             screenPosition.Transform(this.TranslationMatrix.Invert());
+
+        public void Arrange(Vector2 plane, Rectangle viewport)
+        {
+            this.Plane = plane;
+            this.Viewport = viewport;
+            this.ViewportCenter = Vector2.Round(this.Viewport.Size.ToVector2() / 2f + this.Viewport.Location.ToVector2());
+            this.Center();
+        }
 
         public void Update(GameTime gameTime)
         {
@@ -110,11 +124,11 @@ namespace Hex.Helpers
             // |     + - +
             // |     | x |  -> if camera is in bottom right, position will be 4,4
             // + - - + - +
-            var boundarySize = this.BoundarySizeGetter();
-            var viewportSize = this.ViewportGetter().Size.ToVector2();
-            var scaledViewportCenter = viewportSize / this.ZoomScaleFactor / 2f;
+            var bottomRightCorner = this.Plane;
+            var viewportSize = this.Viewport.Size.ToVector2();
+            var scaledViewportCenter = viewportSize / this.ZoomFactor / 2f;
             var minimum = scaledViewportCenter;
-            var maximum = boundarySize - scaledViewportCenter;
+            var maximum = bottomRightCorner - scaledViewportCenter;
             return (minimum, maximum);
         }
 
@@ -126,22 +140,22 @@ namespace Hex.Helpers
                 this.Move(-(mousePosition - this.Input.PreviousVirtualMouseVector));
                 this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
             }
-            if (this.ViewportGetter().Contains(mousePosition))
+            if (this.Viewport.Contains(mousePosition))
             {
                 if (this.Input.MouseScrolled())
                 {
-                    var currentZoom = this.ZoomScaleFactor;
+                    var currentZoom = this.ZoomFactor;
                     var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (this.Input.MouseScrolledUp() ? 2 : -2);
                     this.Zoom(zoomAmount);
 
-                    if (this.ZoomScaleFactor != currentZoom)
+                    if (this.ZoomFactor != currentZoom)
                     {
                         var zoomPosition = this.FromScreen(mousePosition);
                         // to make zooming look natural: set position relatively between previous zoom center and cursor
-                        this.Position = zoomPosition + (currentZoom / this.ZoomScaleFactor) * (this.Position - zoomPosition);
+                        this.Position = zoomPosition + (currentZoom / this.ZoomFactor) * (this.Position - zoomPosition);
                     }
 
-                    if (this.ZoomScaleFactor < 1f)
+                    if (this.ZoomFactor < 1f)
                         this.Center();
                 }
                 if (!this.IsMoving && this.Input.MousePressed(MouseButton.Right))
@@ -161,7 +175,7 @@ namespace Hex.Helpers
             if (this.Input.KeyDown(Keys.E))
                 this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
             if (this.Input.KeyDown(Keys.B))
-                this.ZoomScaleFactor = 1f;
+                this.ZoomFactor = 1f;
 
             var cameraMovement = Vector2.Zero;
             if (this.Input.KeyDown(Keys.A))
@@ -178,13 +192,13 @@ namespace Hex.Helpers
                 cameraMovement.Normalize();
 
             cameraMovement *= POSITION_MOVE_INCREMENT;
-            cameraMovement *= this.ZoomScaleFactor;
+            cameraMovement *= this.ZoomFactor;
             this.Move(-cameraMovement);
         }
 
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
-            this.ZoomScaleFactor = Math.Clamp(this.ZoomScaleFactor + amount, minAmount, maxAmount);
+            this.ZoomFactor = Math.Clamp(this.ZoomFactor + amount, minAmount, maxAmount);
             this.Move(Vector2.Zero);
         }
 

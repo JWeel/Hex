@@ -633,17 +633,19 @@ namespace Hex.Helpers
                 if (distanceStep >= viewDistance)
                     return (addTile, false);
 
+                // Keep track of tiles before lowered elevation
+                if (addTile.Elevation >= addTileBeforeElevationLowered.Elevation)
+                    addTileBeforeElevationLowered = addTile;
+                if (subTile.Elevation >= subTileBeforeElevationLowered.Elevation)
+                    subTileBeforeElevationLowered = subTile;
+                // TODO support the following scenario: >1 difference in elevation that lies far away hides 1 tile
+                // i.e.     o]]] x [[x]] - x
+
                 // If a previous tile is higher than current, it is obstructed
                 if (highestAddTileElevation > addTile.Elevation)
                     return (addTile, false);
                 if (highestSubTileElevation > subTile.Elevation)
                     return (subTile, false);
-
-                // Keep track of tiles before lowered elevation
-                if (addTile.Elevation >= source.Elevation)
-                    addTileBeforeElevationLowered = addTile;
-                if (subTile.Elevation >= source.Elevation)
-                    subTileBeforeElevationLowered = subTile;
 
                 // If not obstructed, tiles are visible if they have the same elevation
                 var addTileElevationDifference = addTile.Elevation - source.Elevation;
@@ -738,20 +740,6 @@ namespace Hex.Helpers
                         Math.Min(aggregate.MinY, (int) vector.Y),
                         Math.Max(aggregate.MaxY, (int) vector.Y + height)));
             return new Vector2(maxX - minX, maxY - minY);
-        }
-
-        protected bool IsVisible(Cube source, Cube target)
-        {
-            var sourceTile = this.Map.GetOrDefault(source);
-            if (sourceTile == default)
-                return false;
-            var targetTile = this.Map.GetOrDefault(target);
-            if (targetTile == default)
-                return false;
-            if (targetTile.Elevation <= sourceTile.Elevation)
-                return true;
-            // Z axis is vertical, if target.Z > source.Z then target is further down than source
-            return (target.Z > source.Z);
         }
 
         protected (Texture2D Texture, bool Flip) GetDirectionalBorderTexture(Direction direction, BorderType borderType)

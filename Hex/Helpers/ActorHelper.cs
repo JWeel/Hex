@@ -30,6 +30,7 @@ namespace Hex.Helpers
 
         public InputHelper Input { get; }
 
+        // TODO should actor rely on tilemap?
         public TilemapHelper Tilemap { get; }
 
         public IList<Actor> Actors { get; }

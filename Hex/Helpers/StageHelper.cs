@@ -15,7 +15,6 @@ namespace Hex.Helpers
         public StageHelper(InputHelper input, Texture2D blankTexture)
         {
             this.Input = input;
-            this.Camera = new CameraHelper(() => this.StageSize, () => this.Container, input);
             this.BlankTexture = blankTexture;
         }
 
@@ -29,10 +28,11 @@ namespace Hex.Helpers
         /// <summary> The size of the widget, control, or component that contains this stage. </summary>
         public Vector2 ContainerSize => this.Container.Size.ToVector2();
 
-        /// <summary> The size required to fully contain the tilemap in any rotation. </summary>
-        public Vector2 TilemapBoundingBoxSize { get; protected set; }
+        /// <summary> The bounding box which fully contains the tilemap in any rotation. </summary>
+        /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking origin plus this vector. </remarks>
+        public Vector2 TilemapBoundingBox { get; protected set; }
 
-        /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBoxSize"/> and <see cref="ContainerSize"/>. </summary>
+        /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
         public Vector2 StageSize { get; protected set; }
 
         public Hexagon CursorTile => this.Tilemap.CursorTile;
@@ -45,8 +45,8 @@ namespace Hex.Helpers
         // public string TilemapDebug => this.Tilemap.Debug;
 
         protected InputHelper Input { get; }
-        protected CameraHelper Camera { get; }
         protected Texture2D BlankTexture { get; }
+        protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
         protected ActorHelper Actor { get; set; }
 
@@ -56,7 +56,7 @@ namespace Hex.Helpers
 
         public void Register(DependencyHandler dependency)
         {
-            dependency.Register(this.Camera);
+            this.Camera = dependency.Register<CameraHelper>();
             this.Tilemap = dependency.Register<TilemapHelper>();
             this.Tilemap.OnRotate += this.CenterOnSourceTile;
             this.Actor = dependency.Register<ActorHelper>();
@@ -70,19 +70,14 @@ namespace Hex.Helpers
             // boundingbox should be all 4 corners of the bounding rectangle (the diagonal of tilemap size)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)
             // below formula gives slightly more than necessary (might be tilesize?), but will do for now
-            this.TilemapBoundingBoxSize = new Vector2(this.Tilemap.TilemapSize.Length()) + this.ContainerSize;
+            this.TilemapBoundingBox = new Vector2(this.Tilemap.TilemapSize.Length()) + this.ContainerSize;
 
             // the real size of the stage is the max of the tilemap bounding box and the containing rectangle
-            this.StageSize = Vector2.Max(this.TilemapBoundingBoxSize, this.ContainerSize);
-
-            // TBD: right now StageSize and Container are passed to camera.
-            // if this is the only place that they are ever changed, then camera doesnt need the Funcs
-            // and instead add an Arrange to the camera which gets the two values.
-            // benefit: easier to read, no funcs everywhere (infinitesimal performance gain), can now use dependency helper
-            // downside: camera "arrange" method is now coupled, i.e. it doesn't self-update
+            this.StageSize = Vector2.Max(this.TilemapBoundingBox, this.ContainerSize);
 
             this.Tilemap.CalculateOffset(center: this.StageSize / 2);
-            this.Camera.Center();
+
+            this.Camera.Arrange(this.StageSize, this.Container);
         }
 
         public void Update(GameTime gameTime)
