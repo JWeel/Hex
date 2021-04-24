@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
@@ -204,7 +203,6 @@ namespace Hex.Helpers
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
-        // TODO tiletype should also come from here, meaning not in the hexagon ctor
         public (int Q, int R, int E, Direction S, TileType T)[] Spawn(int n, int m, Shape shape)
         {
             var axials = new List<(int Q, int R)>();
@@ -439,7 +437,7 @@ namespace Hex.Helpers
                         continue;
                     }
                     if ((borderType != BorderType.Small) && (borderType != BorderType.Large))
-                        throw new NotImplementedException("Missing logic for drawing this border type.");
+                        throw new NotImplementedException($"Missing logic for drawing border type '{borderType}'.");
 
                     var (texture, flip) = this.GetDirectionalBorderTexture(direction, borderType);
                     var effects = flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
@@ -699,7 +697,7 @@ namespace Hex.Helpers
                 }
 
                 // If no other condition is met, it means the target tile is higher than source,
-                // and the difference is elevation is greater than distance from source to target.
+                // and the difference in elevation is greater than distance from source to target.
                 // Therefore the target is not visible.
                 return (addTile, false);
             });
@@ -708,11 +706,8 @@ namespace Hex.Helpers
         protected void DetermineFogOfWar()
         {
             var viewDistance = 10;
-            this.Map.Values
-                .Each(tile => this.FogOfWarMap[tile] = this
-                    .DefineLineOfSight(this.SourceTile, tile, viewDistance)
-                    .Last()
-                    .Visible);
+            this.FogOfWarMap = this.Map.Values.ToDictionary(tile => tile, tile =>
+                this.DefineLineOfSight(this.SourceTile, tile, viewDistance).Last().Visible);
         }
 
         // not really sure what center is useful for

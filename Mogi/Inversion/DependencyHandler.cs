@@ -84,7 +84,11 @@ namespace Mogi.Inversion
 
         #endregion
 
-        #region Properties
+        #region Data Members
+
+        /// <summary> Raised when a type is added to the dependency map. </summary>
+        /// <remarks> It should be noted that this is before any eligible interface methods are invoked on the instance of the newly registered type. </remarks>
+        public event Action<Type> OnRegister;
 
         protected DependencyMap DependencyMap { get; }
 
@@ -137,6 +141,7 @@ namespace Mogi.Inversion
                 return instance;
 
             this.DependencyMap.Add(typeof(TDependency), instance);
+            this.OnRegister?.Invoke(typeof(TDependency));
 
             if (instance is IRegister registry)
             {
@@ -144,6 +149,20 @@ namespace Mogi.Inversion
             }
 
             return this.Attach(instance);
+        }
+
+        /// <summary> Removes the specified type from the dependency map. If it did not exist in the map, nothing happens. </summary>
+        /// <typeparam name="TDependency"> The type of the dependency </typeparam>
+        public void Unregister<TDependency>()
+        {
+            this.Unregister(typeof(TDependency));
+        }
+
+        /// <summary> Removes the specified type from the dependency map. If it did not exist in the map, nothing happens. </summary>
+       /// <param name="type"> The type of the dependency. </param>
+        public void Unregister(Type type)
+        {
+            this.DependencyMap.Remove(type);
         }
 
         #endregion

@@ -14,8 +14,8 @@ namespace Mogi.Scopes
         /// <param name="device"> The device on which a scissor will be set. </param>
         /// <param name="rectangle"> The rectangle that will be used as a scissor. </param>
         public ScissorScope(GraphicsDevice device, Rectangle rectangle)
-            : base(preOperation: CreateAction(device, rectangle),
-                postOperation: CreateAction(device, device.ScissorRectangle))
+            : base(preOperation: ScissorScope.CreateAction(device, rectangle),
+                postOperation: ScissorScope.CreateAction(device, device.ScissorRectangle))
         {
         }
 
@@ -23,11 +23,9 @@ namespace Mogi.Scopes
 
         #region Methods
 
+        // The actions are created in advance in order to preserve thte original scissor rectangle.
         protected static Action CreateAction(GraphicsDevice device, Rectangle rectangle) =>
-            () => SetScissorRectangle(device, rectangle);
-
-        protected static void SetScissorRectangle(GraphicsDevice device, Rectangle rectangle) =>
-            device.ScissorRectangle = rectangle;
+            () => device.ScissorRectangle = rectangle;
 
         #endregion
     }

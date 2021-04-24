@@ -38,6 +38,7 @@ namespace Hex.Helpers
         public Hexagon CursorTile => this.Tilemap.CursorTile;
         public Hexagon SourceTile => this.Tilemap.SourceTile;
 
+        /// <summary> A transform matrix that scales and moves the stage relative to camera position. </summary>
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
 
         public int TileCount => this.Tilemap.Map.Count;
@@ -46,6 +47,7 @@ namespace Hex.Helpers
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
+
         protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
         protected ActorHelper Actor { get; set; }
@@ -56,10 +58,13 @@ namespace Hex.Helpers
 
         public void Register(DependencyHandler dependency)
         {
-            this.Camera = dependency.Register<CameraHelper>();
-            this.Tilemap = dependency.Register<TilemapHelper>();
-            this.Tilemap.OnRotate += this.CenterOnSourceTile;
-            this.Actor = dependency.Register<ActorHelper>();
+            using (new DependencyScope(dependency))
+            {
+                this.Camera = dependency.Register<CameraHelper>();
+                this.Tilemap = dependency.Register<TilemapHelper>();
+                this.Tilemap.OnRotate += this.CenterOnSourceTile;
+                this.Actor = dependency.Register<ActorHelper>();
+            }
         }
 
         public void Arrange(Rectangle container, string stagePath)
