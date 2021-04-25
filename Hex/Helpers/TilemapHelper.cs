@@ -185,7 +185,6 @@ namespace Hex.Helpers
 
             // var centerCube = this.FindCenterCube();
             // this.CenterTile = this.Map.GetOrDefault(centerCube);
-            // this.SourceTile = this.Map.GetOrDefault((-5, -3));
 
             if (this.Map.Any())
                 this.RenderPosition = this.Map.Values
@@ -195,8 +194,10 @@ namespace Hex.Helpers
             this.TilemapSize = this.CalculateTilesCombinedSize();
             this.FogOfWarMap = this.Map.Values.ToDictionary(x => x, x => false);
             this.VisibilityByHexagonMap.Clear();
-            this.SourceTile = default;
+
             this.CursorTile = default;
+            this.SourceTile = default;
+            // this.SourceTile = this.Map.GetOrDefault((-5, -3));
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();

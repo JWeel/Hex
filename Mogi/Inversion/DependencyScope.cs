@@ -11,12 +11,12 @@ namespace Mogi.Inversion
         #region Constructors
 
         /// <summary> Creates a scope which removes all dependencies that are registered within the scope from the dependency map when the scope ends. </summary>
+        /// <remarks> Types registered inside the scope are not removed if they had already been registered to the shared dependency map outside the scope. </remarks>
         /// <param name="dependency"> The handler of shared dependencies. </param>
         public DependencyScope(DependencyHandler dependency)
-            : base(new List<Type>()
-                .Into(typeList => new ScopedOperation(
-                    DependencyScope.CreatePreOperation(dependency, typeList),
-                    DependencyScope.CreatePostOperation(dependency, typeList))))
+            : base(new List<Type>().Into(typeList => new ScopedOperation(
+                DependencyScope.CreatePreOperation(dependency, typeList),
+                DependencyScope.CreatePostOperation(dependency, typeList))))
         {
         }
 

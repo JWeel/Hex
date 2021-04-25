@@ -1,4 +1,5 @@
-﻿using Extended.Extensions;
+﻿using System;
+using Extended.Extensions;
 using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
@@ -12,6 +13,7 @@ using Mogi.Inversion;
 using Mogi.Scopes;
 using System.IO;
 using System.Text;
+using Hex.Auxiliary;
 
 namespace Hex
 {
@@ -71,7 +73,6 @@ namespace Hex
         protected Vector2 StageCameraTranslatedMouseVector { get; set; }
 
         RasterizerState ScissorRasterizer { get; } = new RasterizerState() { ScissorTestEnable = true };
-        protected string CalculatedDebug;
 
         #endregion
 
@@ -111,7 +112,7 @@ namespace Hex
             this.Stage = dependency.Register<StageHelper>();
 
             var stageContainer = new Rectangle(new Point(240, 50), (BASE_WINDOW_SIZE / 1.55f).ToPoint());
-            this.Stage.Arrange(stageContainer, this.GetStagePath("grove"));
+            this.Stage.Arrange(stageContainer, this.GetStagePath("plateau"));
 
             // temporary panel stuff
             {
@@ -185,6 +186,8 @@ namespace Hex
                 }
             });
             this.Attach(clientWindowWrapper);
+
+            this.Attach(new PhasedUpdateWrapper<CriticalUpdate>(gametime => Memo.Bin.Clear()));
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
@@ -245,7 +248,7 @@ namespace Hex
                 // this.Log.AppendLine($"Camera: {this.Stage.Camera.Position}");
                 // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                this.Log.AppendLine(this.CalculatedDebug);
+                this.Log.AppendLine(Memo.Bin.ToString());
             }
         }
 

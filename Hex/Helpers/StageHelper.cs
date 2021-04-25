@@ -43,7 +43,6 @@ namespace Hex.Helpers
 
         public int TileCount => this.Tilemap.Map.Count;
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
-        // public string TilemapDebug => this.Tilemap.Debug;
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
