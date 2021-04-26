@@ -1,7 +1,7 @@
 using Hex.Enums;
 using Microsoft.Xna.Framework;
 
-namespace Hex.Models
+namespace Hex.Models.Tiles
 {
     public class Hexagon
     {

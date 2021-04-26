@@ -1,4 +1,6 @@
 using System;
+using Extended.Extensions;
+using Hex.Enums;
 
 namespace Hex.Models
 {
@@ -29,16 +31,34 @@ namespace Hex.Models
         public Cube Rotate() =>
             new Cube(-this.Z, -this.X, -this.Y);
 
+        /// <summary> Converts these cube coordinates to axial coordinates. </summary>
         public (int Q, int R) ToAxial() =>
             (this.X, this.Z);
+
+        /// <summary> Returns a cube that corresponds to neighboring coordinates in the specified direction. </summary>
+        public Cube Neighbor(Direction direction)
+        {
+            return direction switch
+            {
+                Direction.UpRight => (this.X + 1, this.Y, this.Z - 1),
+                Direction.Right => (this.X + 1, this.Y - 1, this.Z),
+                Direction.DownRight => (this.X, this.Y - 1, this.Z + 1),
+                Direction.DownLeft => (this.X - 1, this.Y, this.Z + 1),
+                Direction.Left => (this.X - 1, this.Y + 1, this.Z),
+                Direction.UpLeft => (this.X, this.Y + 1, this.Z - 1),
+                _ => throw direction.Invalid()
+            };
+        }
             
         #endregion
 
         #region Static Methods
 
+        /// <summary> Converts axial coordinates to cube coordinates. </summary>
         public static Cube FromAxial(int q, int r) =>
             new Cube(q, -q - r, r);
 
+        /// <summary> Rounds three floating point coordinates to integral cube coordinates. </summary>
         public static Cube Round(double x, double y, double z)
         {
             var rx = Math.Round(x);
@@ -57,6 +77,7 @@ namespace Hex.Models
             return new Cube((int) rx, (int) ry, (int) rz);
         }
 
+        /// <summary> Calculates the distance between two cubes. </summary>
         public static double Distance(Cube left, Cube right) =>
             (Math.Abs(left.X - right.X) + Math.Abs(left.Y - right.Y) + Math.Abs(left.Z - right.Z)) / 2d;
 

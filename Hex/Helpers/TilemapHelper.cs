@@ -3,6 +3,7 @@ using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
 using Hex.Models;
+using Hex.Models.Tiles;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -456,8 +457,8 @@ namespace Hex.Helpers
                 if (this.PrintCoords)
                 {
                     var (q, r) = cube.ToAxial();
-                    var hexLog = $"{q},{r}";
-                    spriteBatch.DrawText(this.Font, hexLog, position + new Vector2(5), Color.MistyRose, scale: 0.5f, .9f);
+                    var axialPrint = $"{q},{r}";
+                    spriteBatch.DrawText(this.Font, axialPrint, position + new Vector2(5), Color.MistyRose, scale: 0.5f, .9f);
                 }
 
                 if (this.SourceTile != null)
@@ -516,24 +517,7 @@ namespace Hex.Helpers
 
         protected Hexagon GetNeighbor(Hexagon hexagon, Direction direction)
         {
-            var cube = hexagon.Cube;
-            switch (direction)
-            {
-                case Direction.UpRight:
-                    return this.Map.GetOrDefault((cube.X + 1, cube.Y, cube.Z - 1));
-                case Direction.Right:
-                    return this.Map.GetOrDefault((cube.X + 1, cube.Y - 1, cube.Z));
-                case Direction.DownRight:
-                    return this.Map.GetOrDefault((cube.X, cube.Y - 1, cube.Z + 1));
-                case Direction.DownLeft:
-                    return this.Map.GetOrDefault((cube.X - 1, cube.Y, cube.Z + 1));
-                case Direction.Left:
-                    return this.Map.GetOrDefault((cube.X - 1, cube.Y + 1, cube.Z));
-                case Direction.UpLeft:
-                    return this.Map.GetOrDefault((cube.X, cube.Y + 1, cube.Z - 1));
-                default:
-                    throw direction.Invalid();
-            }
+            return this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
         }
 
         protected void Rotate(int degrees)
@@ -560,13 +544,12 @@ namespace Hex.Helpers
             var degrees = baseDegrees.Modulo(360);
             this.WraparoundRotationInterval = degrees switch
             {
-                < 32 => 0,
+                < 32 or >= 332 => 0,
                 < 92 => 1,
                 < 152 => 2,
                 < 212 => 3,
                 < 272 => 4,
-                < 332 => 5,
-                _ => 0
+                < 332 => 5
             };
             var rotationOffset = (float) (this.WraparoundRotationInterval * 60 * Math.PI / 180);
 
@@ -614,7 +597,6 @@ namespace Hex.Helpers
             // A point can be exactly between two cubes, so both sides should be checked
             //  point + EPSILON  will be called Add
             //  point - EPSILON  will be called Sub
-
             var highestAddTileElevation = int.MinValue;
             var highestSubTileElevation = int.MinValue;
             var addTileBeforeElevationLowered = source;

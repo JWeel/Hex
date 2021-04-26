@@ -23,7 +23,7 @@ namespace Mogi.Scopes
 
         #region Methods
 
-        // The actions are created in advance in order to preserve thte original scissor rectangle.
+        // The actions are created in advance in order to preserve the original scissor rectangle.
         protected static Action CreateAction(GraphicsDevice device, Rectangle rectangle) =>
             () => device.ScissorRectangle = rectangle;
 

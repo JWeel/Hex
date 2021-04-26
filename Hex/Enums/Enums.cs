@@ -2,15 +2,6 @@ using System;
 
 namespace Hex.Enums
 {
-    public enum ControlState
-    {
-        Normal,
-        Hover,
-        Click,
-        Disabled,
-        Hidden
-    }
-
     public enum TileType
     {
         Grass,
@@ -21,6 +12,7 @@ namespace Hex.Enums
     public enum Shape
     {
         Hexagon,
+        //Donut, // TODO add donut
         Rectangle,
         Triangle,
         Parallelogram,
@@ -28,7 +20,7 @@ namespace Hex.Enums
     }
 
     // TODO separate Rectangular, Hexagonal and triangular direction enums
-    /// <summary> Represents a hexagonal direction. </summary>
+    /// <summary> Represents a three-dimensional direction in a two-dimensional space. </summary>
     [Flags]
     public enum Direction
     {

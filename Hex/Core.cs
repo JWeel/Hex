@@ -1,5 +1,5 @@
-﻿using System;
-using Extended.Extensions;
+﻿using Extended.Extensions;
+using Hex.Auxiliary;
 using Hex.Extensions;
 using Hex.Helpers;
 using Microsoft.Xna.Framework;
@@ -13,7 +13,6 @@ using Mogi.Inversion;
 using Mogi.Scopes;
 using System.IO;
 using System.Text;
-using Hex.Auxiliary;
 
 namespace Hex
 {
@@ -72,7 +71,9 @@ namespace Hex
         /// <summary> Stage translation is needed when stage camera is zoomed. </summary>
         protected Vector2 StageCameraTranslatedMouseVector { get; set; }
 
-        RasterizerState ScissorRasterizer { get; } = new RasterizerState() { ScissorTestEnable = true };
+        /// <summary> A container of rasterization settings that can be used in spritebatch drawing to enable scissoring. </summary>
+        /// <remarks> When scissoring is enabled, a rectangle can be set to <see cref="GraphicsDevice.ScissorRectangle"/>, which will limit all drawing to inside the rectangle. Textures outside of it are culled (not drawn). <para/> Without these settings, the scissor rectangle is ignored. </remarks>
+        protected RasterizerState ScissorRasterizer { get; } = new RasterizerState { ScissorTestEnable = true };
 
         #endregion
 
@@ -187,7 +188,7 @@ namespace Hex
             });
             this.Attach(clientWindowWrapper);
 
-            this.Attach(new PhasedUpdateWrapper<CriticalUpdate>(gametime => Memo.Bin.Clear()));
+            this.Attach(new PhasedUpdateWrapper<CriticalUpdate>(gametime => Static.Memo.Clear()));
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
@@ -202,7 +203,7 @@ namespace Hex
         {
             this.OnUpdate?.Invoke<CriticalUpdate>(gameTime);
 
-            // class Interrupter, simply contains a boolean that says stop processing
+            // TODO: class Interrupter, simply contains a boolean that says stop processing
             // check it after critical update, if true return
 
             if (this.Input.KeyPressed(Keys.Escape))
@@ -248,7 +249,7 @@ namespace Hex
                 // this.Log.AppendLine($"Camera: {this.Stage.Camera.Position}");
                 // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                this.Log.AppendLine(Memo.Bin.ToString());
+                this.Log.AppendLine(Static.Memo.ToString());
             }
         }
 

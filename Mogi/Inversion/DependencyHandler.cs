@@ -102,6 +102,8 @@ namespace Mogi.Inversion
         /// Creation requires one public constructor. If the constructor has parameters, arguments will be provided so long as their types exist either in the provided array <paramref name="args"/> or in the dependency map. 
         /// If they do not, or if there is not exactly one public constructor, an exception will be thrown.
         /// <para/>
+        /// The optional <paramref name="args"/> array may not contain multiple instances of the same type. If both the dependency map and the <paramref name="args"/> array contain instances of the same type, the instance from <paramref name="args"/> takes precedence.
+        /// <para/>
         /// If the dependency type inherits from specific interfaces (see remarks), the instance will, after instantiation, automatically get subscribed to events on the root instance.
         /// It may also have instance methods invoked which propagate the map.
         /// </summary>
