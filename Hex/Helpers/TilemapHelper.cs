@@ -511,6 +511,12 @@ namespace Hex.Helpers
             this.CursorTile = default;
         }
 
+        public IDictionary<Hexagon, bool> DetermineFogOfWar(Hexagon sourceTile, int viewDistance)
+        {
+            return this.Map.Values.ToDictionary(tile => tile, tile =>
+                this.DefineLineOfSight(sourceTile, tile, viewDistance).Last().Visible);
+        }
+
         #endregion
 
         #region Helper Methods

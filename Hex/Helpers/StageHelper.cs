@@ -1,21 +1,31 @@
+using System.ComponentModel;
+using System.Linq;
+using Extended.Extensions;
+using Hex.Auxiliary;
+using Hex.Extensions;
+using Hex.Models.Actors;
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
 
 namespace Hex.Helpers
 {
-    public class StageHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>
+    public class StageHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IDraw<ForegroundDraw>
     {
         #region Constructors
 
-        public StageHelper(InputHelper input, Texture2D blankTexture)
+        public StageHelper(InputHelper input, Texture2D blankTexture, ContentManager content)
         {
             this.Input = input;
             this.BlankTexture = blankTexture;
+
+            this.BackgroundTexture = content.Load<Texture2D>("graphics/background");
         }
 
         #endregion
@@ -38,6 +48,8 @@ namespace Hex.Helpers
         public Hexagon CursorTile => this.Tilemap.CursorTile;
         public Hexagon SourceTile => this.Tilemap.SourceTile;
 
+        public Actor SourceActor { get; protected set; }
+
         /// <summary> A transform matrix that scales and moves the stage relative to camera position. </summary>
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
 
@@ -46,6 +58,7 @@ namespace Hex.Helpers
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
+        protected Texture2D BackgroundTexture { get; }
 
         protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
@@ -90,6 +103,10 @@ namespace Hex.Helpers
                 this.Camera.Center();
             if (this.Input.KeyPressed(Keys.H))
                 this.CenterOnSourceTile();
+
+            if (this.Input.KeyPressed(Keys.K))
+                this.Actor.Add(this.Tilemap.Map.Values.Random());
+
             if (this.Input.MouseMoved())
             {
                 var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
@@ -99,12 +116,47 @@ namespace Hex.Helpers
                 else
                     this.Tilemap.UntrackTiles();
             }
+            
+            if ((this.Input.MousePressed(MouseButton.Left)) && (this.Tilemap.CursorTile != null))
+            {
+                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.Tilemap.CursorTile));
+
+                if (actorOnTile == this.SourceActor)
+                    this.SourceActor = null;
+                else
+                    this.SourceActor = actorOnTile;
+            }
+
+            if (this.SourceActor != null)
+                Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");
+        }
+
+        void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
+        {
+            // spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(20, 60, 90), depth: .05f);
+            var size = this.Camera.Plane + new Vector2(2); // 1px rounding offset on each side
+            spriteBatch.DrawTo(this.BackgroundTexture, size.ToRectangle(), Color.White, depth: .05f);
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(20, 60, 90), depth: .05f);
+            foreach (var actor in this.Actor.Actors)
+            {
+                var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
+                var sizeOffset = actor.Texture.ToVector() / 2;
+
+                var color = (actor == this.SourceActor) ? Color.Coral : Color.White;
+                spriteBatch.DrawAt(actor.Texture, sourcePosition - sizeOffset, color, depth: .5f);
+            }
         }
+
+        // stage should be the one that tracks the SourceTile, CursorTile, SourceActor, CursorActor, etc
+        // 'annotation' i.e. fog of war for actors should be here
+        // question is how to handle drawing -> tilemap and tiles should give transformed coordinates
+        // the tilemap transform matrix should not need to be used anywhere outside, similar to camera
+
+        // the actorhelper does not draw the actors, the stagehelper should draw instead
+        // actors should be replaced with shaded ? when not visible based on last position they were seen
 
         #endregion
 

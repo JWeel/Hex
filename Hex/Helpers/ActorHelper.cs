@@ -1,21 +1,13 @@
-using Extended.Extensions;
-using Hex.Auxiliary;
-using Hex.Models;
 using Hex.Models.Actors;
-using Microsoft.Xna.Framework;
+using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
-using Mogi.Enums;
-using Mogi.Extensions;
 using Mogi.Helpers;
-using Mogi.Inversion;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Hex.Helpers
 {
-    public class ActorHelper : IUpdate<NormalUpdate>, IDraw<ForegroundDraw>
+    public class ActorHelper
     {
         #region Constructors
 
@@ -26,6 +18,7 @@ namespace Hex.Helpers
             this.Actors = new List<Actor>();
 
             this.ActorTexture = content.Load<Texture2D>("Graphics/spook");
+            this.FogOfWarByActorMap = new Dictionary<Actor, IDictionary<Hexagon, bool>>();
         }
 
         #endregion
@@ -39,7 +32,7 @@ namespace Hex.Helpers
 
         public IList<Actor> Actors { get; }
 
-        public Actor SourceActor { get; protected set; }
+        public IDictionary<Actor, IDictionary<Hexagon, bool>> FogOfWarByActorMap;
 
         protected Texture2D ActorTexture { get; set; }
 
@@ -47,31 +40,11 @@ namespace Hex.Helpers
 
         #region Methods
 
-        public void Update(GameTime gameTime)
+        public void Add(Hexagon tile)
         {
-            if (this.Input.KeyPressed(Keys.K))
-            {
-                this.Actors.Add(new Actor(this.ActorTexture,
-                    this.Tilemap.Map.Values.Random()));
-            }
-            
-            if ((this.Input.MousePressed(MouseButton.Left)) && (this.Tilemap.CursorTile != null))
-                this.SourceActor = this.Actors.FirstOrDefault(actor => (actor.Tile == this.Tilemap.CursorTile));
-
-            if (this.SourceActor != null)
-                Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");
-        }
-
-        public void Draw(SpriteBatch spriteBatch)
-        {
-            foreach (var actor in this.Actors)
-            {
-                var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
-                var sizeOffset = actor.Texture.ToVector() / 2;
-
-                var color = (actor == this.SourceActor) ? Color.Coral : Color.White;
-                spriteBatch.DrawAt(actor.Texture, sourcePosition - sizeOffset, color);
-            }
+            var actor = new Actor(this.ActorTexture, tile);
+            this.Actors.Add(actor);
+            this.FogOfWarByActorMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
         }
 
         #endregion

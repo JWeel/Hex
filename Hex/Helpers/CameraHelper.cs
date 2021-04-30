@@ -34,8 +34,8 @@ namespace Hex.Helpers
         protected InputHelper Input { get; }
 
         /// <summary> The area in which the camera moves. </summary>
-        /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking origin plus this vector. </remarks>
-        protected Vector2 Plane { get; set; }
+        /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking the origin (0,0) as location and this vector as size. </remarks>
+        public Vector2 Plane { get; protected set; }
         
         /// <summary> The area of the plane shown by the camera. </summary>
         protected Rectangle Viewport { get; set; }
@@ -86,7 +86,7 @@ namespace Hex.Helpers
         {
             this.Plane = plane;
             this.Viewport = viewport;
-            this.ViewportCenter = Vector2.Round(this.Viewport.Size.ToVector2() / 2f + this.Viewport.Location.ToVector2());
+            this.ViewportCenter = Vector2.Round(this.Viewport.Center());
             this.Center();
         }
 
@@ -127,8 +127,8 @@ namespace Hex.Helpers
             var bottomRightCorner = this.Plane;
             var viewportSize = this.Viewport.Size.ToVector2();
             var scaledViewportCenter = viewportSize / this.ZoomFactor / 2f;
-            var minimum = scaledViewportCenter;
-            var maximum = bottomRightCorner - scaledViewportCenter;
+            var minimum = Vector2.Round(scaledViewportCenter);
+            var maximum = Vector2.Round(bottomRightCorner - scaledViewportCenter);
             return (minimum, maximum);
         }
 
@@ -179,13 +179,13 @@ namespace Hex.Helpers
 
             var cameraMovement = Vector2.Zero;
             if (this.Input.KeyDown(Keys.A))
-                cameraMovement.X = -1;
-            if (this.Input.KeyDown(Keys.D))
                 cameraMovement.X = +1;
+            if (this.Input.KeyDown(Keys.D))
+                cameraMovement.X = -1;
             if (this.Input.KeyDown(Keys.W))
-                cameraMovement.Y = -1;
-            if (this.Input.KeyDown(Keys.S))
                 cameraMovement.Y = +1;
+            if (this.Input.KeyDown(Keys.S))
+                cameraMovement.Y = -1;
 
             // normalizing is needed when changing two directions at once
             if (cameraMovement != Vector2.Zero)
