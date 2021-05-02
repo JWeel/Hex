@@ -14,7 +14,8 @@ namespace Hex.Helpers
 
         private const float ZOOM_SCALE_FACTOR_INCREMENT = 1 / 16f;
         private const float ZOOM_SCALE_MAXIMUM = 4f;
-        private const float ZOOM_SCALE_MINIMUM = 1f;
+        private const float ZOOM_SCALE_MINIMUM = .5f;
+        private const float ZOOM_SCALE_STANDARD = 1f;
         private const float POSITION_MOVE_INCREMENT = 5f;
 
         #endregion
@@ -24,7 +25,7 @@ namespace Hex.Helpers
         public CameraHelper(InputHelper input)
         {
             this.Input = input;
-            this.ZoomFactor = 1.0f;
+            this.ZoomFactor = ZOOM_SCALE_STANDARD;
         }
 
         #endregion
@@ -35,8 +36,8 @@ namespace Hex.Helpers
 
         /// <summary> The area in which the camera moves. </summary>
         /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking the origin (0,0) as location and this vector as size. </remarks>
-        public Vector2 Plane { get; protected set; }
-        
+        protected Vector2 Plane { get; set; }
+
         /// <summary> The area of the plane shown by the camera. </summary>
         protected Rectangle Viewport { get; set; }
 
@@ -146,17 +147,24 @@ namespace Hex.Helpers
                 {
                     var currentZoom = this.ZoomFactor;
                     var zoomAmount = ZOOM_SCALE_FACTOR_INCREMENT * (this.Input.MouseScrolledUp() ? 2 : -2);
-                    this.Zoom(zoomAmount);
 
+                    // note: minimum zoom less than 1f does not work well when tilemap does not fit inside container
+                    // which means the camera cannot show parts of the map that are not in view
+                    // TBD if it is worth the time to tackle that or if zoom should just be restricted to minimum 1f
+                    var minimumZoom = ZOOM_SCALE_STANDARD;
+                    if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+                        minimumZoom = ZOOM_SCALE_MINIMUM;
+
+                    this.Zoom(zoomAmount, minimumZoom);
                     if (this.ZoomFactor != currentZoom)
                     {
                         var zoomPosition = this.FromScreen(mousePosition);
                         // to make zooming look natural: set position relatively between previous zoom center and cursor
                         this.Position = zoomPosition + (currentZoom / this.ZoomFactor) * (this.Position - zoomPosition);
+                        
+                        if (this.ZoomFactor < 1f)
+                            this.Center();
                     }
-
-                    if (this.ZoomFactor < 1f)
-                        this.Center();
                 }
                 if (!this.IsMoving && this.Input.MousePressed(MouseButton.Right))
                 {
@@ -196,7 +204,7 @@ namespace Hex.Helpers
             this.Move(-cameraMovement);
         }
 
-        protected void Zoom(float amount, float minAmount = ZOOM_SCALE_MINIMUM, float maxAmount = ZOOM_SCALE_MAXIMUM)
+        protected void Zoom(float amount, float minAmount = ZOOM_SCALE_STANDARD, float maxAmount = ZOOM_SCALE_MAXIMUM)
         {
             this.ZoomFactor = Math.Clamp(this.ZoomFactor + amount, minAmount, maxAmount);
             this.Move(Vector2.Zero);
@@ -206,6 +214,9 @@ namespace Hex.Helpers
         {
             var (minimum, maximum) = this.GetPositionExtrema();
             this.Position = Vector2.Clamp(this.Position + amount, minimum, maximum);
+            
+            if (this.ZoomFactor < 1f)
+                this.Center();
         }
 
         #endregion

@@ -1,8 +1,5 @@
-using System.ComponentModel;
-using System.Linq;
 using Extended.Extensions;
 using Hex.Auxiliary;
-using Hex.Extensions;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework;
@@ -13,6 +10,8 @@ using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Hex.Helpers
 {
@@ -25,7 +24,10 @@ namespace Hex.Helpers
             this.Input = input;
             this.BlankTexture = blankTexture;
 
+            this.HiddenTexture = content.Load<Texture2D>("graphics/hidden");
             this.BackgroundTexture = content.Load<Texture2D>("graphics/background");
+
+            this.VisibilityMap = new Dictionary<Actor, IDictionary<Hexagon, bool>>();
         }
 
         #endregion
@@ -45,8 +47,8 @@ namespace Hex.Helpers
         /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
         public Vector2 StageSize { get; protected set; }
 
-        public Hexagon CursorTile => this.Tilemap.CursorTile;
-        public Hexagon SourceTile => this.Tilemap.SourceTile;
+        public Hexagon LastCursorTile { get; protected set; }
+        public Hexagon CursorTile { get; protected set; }
 
         public Actor SourceActor { get; protected set; }
 
@@ -58,11 +60,14 @@ namespace Hex.Helpers
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
+        protected Texture2D HiddenTexture { get; }
         protected Texture2D BackgroundTexture { get; }
 
         protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
         protected ActorHelper Actor { get; set; }
+
+        protected IDictionary<Actor, IDictionary<Hexagon, bool>> VisibilityMap;
 
         #endregion
 
@@ -74,7 +79,7 @@ namespace Hex.Helpers
             {
                 this.Camera = dependency.Register<CameraHelper>();
                 this.Tilemap = dependency.Register<TilemapHelper>();
-                this.Tilemap.OnRotate += this.CenterOnSourceTile;
+                this.Tilemap.OnRotate += this.CenterOnSourceActor;
                 this.Actor = dependency.Register<ActorHelper>();
             }
         }
@@ -95,6 +100,9 @@ namespace Hex.Helpers
             this.Tilemap.CalculateOffset(center: this.StageSize / 2);
 
             this.Camera.Arrange(this.StageSize, this.Container);
+
+            this.Actor.Reset();
+            this.VisibilityMap.Clear();
         }
 
         public void Update(GameTime gameTime)
@@ -102,29 +110,48 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.C))
                 this.Camera.Center();
             if (this.Input.KeyPressed(Keys.H))
-                this.CenterOnSourceTile();
+                this.CenterOnSourceActor();
 
             if (this.Input.KeyPressed(Keys.K))
-                this.Actor.Add(this.Tilemap.Map.Values.Random());
+            {
+                var tile = this.CursorTile ?? this.Tilemap.Map.Values.Random();
+                var actor = this.Actor.Add();
+                this.Actor.Move(actor, tile);
+                this.VisibilityMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
+                if (this.CursorTile != null)
+                {
+                    this.SourceActor = actor;
+                    this.Tilemap.ApplyVisibility(this.VisibilityMap[actor]);
+                }
+            }
 
             if (this.Input.MouseMoved())
             {
                 var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
                 var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
+
                 if (this.Container.Contains(virtualMouseVector))
-                    this.Tilemap.TrackTiles(cameraTranslatedMouseVector);
+                {
+                    this.LastCursorTile = this.CursorTile;
+                    this.CursorTile = this.Tilemap.FindTile(cameraTranslatedMouseVector);
+                }
                 else
                     this.Tilemap.UntrackTiles();
             }
-            
-            if ((this.Input.MousePressed(MouseButton.Left)) && (this.Tilemap.CursorTile != null))
-            {
-                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.Tilemap.CursorTile));
 
-                if (actorOnTile == this.SourceActor)
+            if ((this.Input.MousePressed(MouseButton.Left)) && (this.CursorTile != null))
+            {
+                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.CursorTile));
+                if ((actorOnTile == default) || (actorOnTile == this.SourceActor))
+                {
                     this.SourceActor = null;
+                    this.Tilemap.ResetVisibility();
+                }
                 else
+                {
                     this.SourceActor = actorOnTile;
+                    this.Tilemap.ApplyVisibility(this.VisibilityMap[this.SourceActor]);
+                }
             }
 
             if (this.SourceActor != null)
@@ -133,8 +160,9 @@ namespace Hex.Helpers
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
         {
-            // spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(20, 60, 90), depth: .05f);
-            var size = this.Camera.Plane + new Vector2(2); // 1px rounding offset on each side
+            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(30, 30, 30), depth: .04f);
+
+            var size = this.StageSize + new Vector2(2); // 1px rounding offset on each side
             spriteBatch.DrawTo(this.BackgroundTexture, size.ToRectangle(), Color.White, depth: .05f);
         }
 
@@ -143,31 +171,36 @@ namespace Hex.Helpers
             foreach (var actor in this.Actor.Actors)
             {
                 var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
-                var sizeOffset = actor.Texture.ToVector() / 2;
-
                 var color = (actor == this.SourceActor) ? Color.Coral : Color.White;
-                spriteBatch.DrawAt(actor.Texture, sourcePosition - sizeOffset, color, depth: .5f);
+                var texture = actor.Texture;
+
+                if ((this.SourceActor != null) && (!this.VisibilityMap[this.SourceActor][actor.Tile]))
+                {
+                    color = color.Blend(40);
+                    texture = this.HiddenTexture;
+                }
+
+                var sizeOffset = texture.ToVector() / 2;
+                spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, depth: .5f);
             }
         }
 
         // stage should be the one that tracks the SourceTile, CursorTile, SourceActor, CursorActor, etc
-        // 'annotation' i.e. fog of war for actors should be here
-        // question is how to handle drawing -> tilemap and tiles should give transformed coordinates
-        // the tilemap transform matrix should not need to be used anywhere outside, similar to camera
-
-        // the actorhelper does not draw the actors, the stagehelper should draw instead
         // actors should be replaced with shaded ? when not visible based on last position they were seen
 
         #endregion
 
         #region Helper Methods
 
-        protected void CenterOnSourceTile()
+        protected void CenterOnSourceActor()
         {
             // TODO setting to toggle this behavior on/off
             var setting = false;
-            if (setting && this.SourceTile != null)
-                this.Camera.CenterOn(this.Tilemap.SourceTileMiddle);
+            if (setting && this.SourceActor.Tile != null)
+            {
+                var position = this.SourceActor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
+                this.Camera.CenterOn(Vector2.Round(position));
+            }
         }
 
         #endregion

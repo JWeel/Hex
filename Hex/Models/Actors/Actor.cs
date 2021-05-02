@@ -1,5 +1,6 @@
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Graphics;
+using System.Collections.Generic;
 
 namespace Hex.Models.Actors
 {
@@ -7,10 +8,9 @@ namespace Hex.Models.Actors
     {
         #region Constructors
 
-        public Actor(Texture2D texture, Hexagon tile)
+        public Actor(Texture2D texture)
         {
             this.Texture = texture;
-            this.Tile = tile;
             this.BaseViewDistance = 9;
             this.BaseMoveDistance = 4;
         }
@@ -20,7 +20,6 @@ namespace Hex.Models.Actors
         #region Properties
 
         public Texture2D Texture { get; }
-        public Hexagon Tile { get; set; }
 
         public int ViewDistance
         {
@@ -38,9 +37,22 @@ namespace Hex.Models.Actors
             }
         }
 
+        public Hexagon Tile { get; protected set; }
+
+        public Faction Faction { get; protected set; }
+
         protected int BaseViewDistance { get; }
         protected int BaseMoveDistance { get; }
 
+        #endregion
+
+        #region Methods
+
+        public void Move(Hexagon tile)
+        {
+            this.Tile = tile;
+        }
+            
         #endregion
     }
 }

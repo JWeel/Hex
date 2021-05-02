@@ -3,6 +3,7 @@ using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
+using System;
 using System.Collections.Generic;
 
 namespace Hex.Helpers
@@ -11,14 +12,12 @@ namespace Hex.Helpers
     {
         #region Constructors
 
-        public ActorHelper(InputHelper input, TilemapHelper tilemap, ContentManager content)
+        public ActorHelper(InputHelper input, ContentManager content)
         {
             this.Input = input;
-            this.Tilemap = tilemap;
             this.Actors = new List<Actor>();
 
             this.ActorTexture = content.Load<Texture2D>("Graphics/spook");
-            this.FogOfWarByActorMap = new Dictionary<Actor, IDictionary<Hexagon, bool>>();
         }
 
         #endregion
@@ -27,12 +26,7 @@ namespace Hex.Helpers
 
         public InputHelper Input { get; }
 
-        // TODO should actor rely on tilemap?
-        public TilemapHelper Tilemap { get; }
-
         public IList<Actor> Actors { get; }
-
-        public IDictionary<Actor, IDictionary<Hexagon, bool>> FogOfWarByActorMap;
 
         protected Texture2D ActorTexture { get; set; }
 
@@ -40,11 +34,21 @@ namespace Hex.Helpers
 
         #region Methods
 
-        public void Add(Hexagon tile)
+        public void Reset()
         {
-            var actor = new Actor(this.ActorTexture, tile);
+            this.Actors.Clear();
+        }
+
+        public Actor Add()
+        {
+            var actor = new Actor(this.ActorTexture);
             this.Actors.Add(actor);
-            this.FogOfWarByActorMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
+            return actor;
+        }
+
+        public void Move(Actor actor, Hexagon tile)
+        {
+            actor.Move(tile);
         }
 
         #endregion

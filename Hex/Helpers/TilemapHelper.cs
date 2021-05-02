@@ -87,19 +87,6 @@ namespace Hex.Helpers
         /// <summary> The distance between origin and tilemap that would set the tilemap centered in the bounding box. </summary>
         public Vector2 TilemapOffset { get; protected set; }
 
-        /// <summary> Gets the position at the center of the source tile. </summary>
-        public Vector2 SourceTileMiddle
-        {
-            get
-            {
-                if (this.SourceTile == null)
-                    return Vector2.Zero;
-                var position = this.SourceTile.Position + this.TileSize / 2;
-                var rotated = position.Transform(this.RenderRotationMatrix);
-                return Vector2.Round(rotated);
-            }
-        }
-
         /// <summary> A transform matrix that rotates and moves to relative render position. </summary>
         public Matrix RenderRotationMatrix =>
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
@@ -163,11 +150,9 @@ namespace Hex.Helpers
 
         public void Arrange(string path)
         {
-            (int Q, int R, int E, Direction S, TileType T)[] axials;
-            if (path.IsNullOrWhiteSpace())
-                axials = this.Spawn(8, 12, Shape.Hexagon);
-            else
-                axials = this.Load(path);
+            var axials = path.IsNullOrWhiteSpace() ? 
+                this.Spawn(8, 12, Shape.Hexagon) :
+                this.Load(path);
 
             this.Map = axials
                 .Select(axial =>
@@ -181,27 +166,20 @@ namespace Hex.Helpers
                 })
                 .ToDictionary(x => x.Cube);
 
-            // this.OriginTile = this.Map.GetOrDefault(default);
-            // this.Map.GetOrDefault((1, 1))?.Into(x => x.Color = Color.Silver);
-
-            // var centerCube = this.FindCenterCube();
-            // this.CenterTile = this.Map.GetOrDefault(centerCube);
-
             if (this.Map.Any())
                 this.RenderPosition = this.Map.Values
                     .Select(x => x.Position)
                     .Aggregate((aggregate, position) => Vector2.Min(aggregate, position));
 
             this.TilemapSize = this.CalculateTilesCombinedSize();
-            this.FogOfWarMap = this.Map.Values.ToDictionary(x => x, x => false);
             this.VisibilityByHexagonMap.Clear();
 
             this.CursorTile = default;
             this.SourceTile = default;
-            // this.SourceTile = this.Map.GetOrDefault((-5, -3));
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
+            this.ResetVisibility();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -334,10 +312,6 @@ namespace Hex.Helpers
             {
                 this.LastSourceTile = this.SourceTile;
                 this.SourceTile = (this.SourceTile != this.CursorTile) ? this.CursorTile : default;
-                if (this.SourceTile != null)
-                    this.DetermineFogOfWar();
-                else
-                    this.FogOfWarMap.Keys.Each(key => this.FogOfWarMap[key] = false);
                 this.CalculatedVisibility = false;
             }
 
@@ -410,8 +384,8 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
-                if (tile == this.CursorTile)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
+                // if (tile == this.CursorTile)
+                //     spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
 
                 if (this.VisibilityByHexagonMap.TryGetValue(tile, out var visibility))
                 {
@@ -461,26 +435,15 @@ namespace Hex.Helpers
                     spriteBatch.DrawText(this.Font, axialPrint, position + new Vector2(5), Color.MistyRose, scale: 0.5f, .9f);
                 }
 
-                if (this.SourceTile != null)
-                {
-                    // if (!this.VisibilityByHexagonMap.Any())
-                    if (!this.FogOfWarMap[tile])
-                        spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
-                }
+                if ((this.FogOfWarMap != null) && (!this.FogOfWarMap[tile]))
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
             }
         }
 
-        public Cube ToTileCoordinates(Vector2 position)
+        public Hexagon FindTile(Vector2 position)
         {
-            var invertedPosition = position.Transform(this.RenderRotationMatrix.Invert());
-            var (mx, my) = invertedPosition - this.TileSize / 2;
-
-            // no idea what this is or why this works but without it the coordinates are off
-            mx += my / SCREEN_TO_HEX_MAGIC_OFFSET_NUMBER;
-
-            var q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / this.HexagonSizeAdjusted.X;
-            var r = (2.0 / 3.0 * my) / this.HexagonSizeAdjusted.Y;
-            return Cube.Round(q, (-q - r), r);
+            var coordinates = this.ToTileCoordinates(position);
+            return this.Map.GetOrDefault(coordinates);
         }
 
         public void TrackTiles(Vector2 position)
@@ -517,9 +480,32 @@ namespace Hex.Helpers
                 this.DefineLineOfSight(sourceTile, tile, viewDistance).Last().Visible);
         }
 
+        public void ResetVisibility()
+        {
+            this.FogOfWarMap = null;
+        }
+
+        public void ApplyVisibility(IDictionary<Hexagon, bool> fogOfWar)
+        {
+            this.FogOfWarMap = fogOfWar;
+        }
+
         #endregion
 
         #region Helper Methods
+
+        protected Cube ToTileCoordinates(Vector2 position)
+        {
+            var invertedPosition = position.Transform(this.RenderRotationMatrix.Invert());
+            var (mx, my) = invertedPosition - this.TileSize / 2;
+
+            // no idea what this is or why this works but without it the coordinates are off
+            mx += my / SCREEN_TO_HEX_MAGIC_OFFSET_NUMBER;
+
+            var q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / this.HexagonSizeAdjusted.X;
+            var r = (2.0 / 3.0 * my) / this.HexagonSizeAdjusted.Y;
+            return Cube.Round(q, (-q - r), r);
+        }
 
         protected Hexagon GetNeighbor(Hexagon hexagon, Direction direction)
         {
@@ -690,13 +676,6 @@ namespace Hex.Helpers
                 // Therefore the target is not visible.
                 return (addTile, false);
             });
-        }
-
-        protected void DetermineFogOfWar()
-        {
-            var viewDistance = 10;
-            this.FogOfWarMap = this.Map.Values.ToDictionary(tile => tile, tile =>
-                this.DefineLineOfSight(this.SourceTile, tile, viewDistance).Last().Visible);
         }
 
         // not really sure what center is useful for
