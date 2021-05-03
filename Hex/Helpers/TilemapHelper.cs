@@ -76,7 +76,7 @@ namespace Hex.Helpers
         public IDictionary<Cube, Hexagon> Map { get; protected set; }
 
         /// <summary> The tile over which the cursor is hovering. </summary>
-        public Hexagon CursorTile { get; protected set; }
+        public Hexagon FocusTile { get; protected set; }
 
         /// <summary> The selected tile. </summary>
         public Hexagon SourceTile { get; protected set; }
@@ -115,10 +115,11 @@ namespace Hex.Helpers
 
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
-        protected Hexagon LastCursorTile { get; set; }
+        public Hexagon LastFocusTile { get; set; }
         protected Hexagon LastSourceTile { get; set; }
 
         protected IDictionary<Hexagon, bool> FogOfWarMap { get; set; }
+        protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
 
         // TODO is this needed
         protected bool CalculatedVisibility { get; set; }
@@ -150,7 +151,7 @@ namespace Hex.Helpers
 
         public void Arrange(string path)
         {
-            var axials = path.IsNullOrWhiteSpace() ? 
+            var axials = path.IsNullOrWhiteSpace() ?
                 this.Spawn(8, 12, Shape.Hexagon) :
                 this.Load(path);
 
@@ -174,12 +175,13 @@ namespace Hex.Helpers
             this.TilemapSize = this.CalculateTilesCombinedSize();
             this.VisibilityByHexagonMap.Clear();
 
-            this.CursorTile = default;
+            this.FocusTile = default;
             this.SourceTile = default;
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
             this.ResetVisibility();
+            this.ResetMovementOverlay();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -311,7 +313,7 @@ namespace Hex.Helpers
             if (this.Input.MousePressed(MouseButton.Left))
             {
                 this.LastSourceTile = this.SourceTile;
-                this.SourceTile = (this.SourceTile != this.CursorTile) ? this.CursorTile : default;
+                this.SourceTile = (this.SourceTile != this.FocusTile) ? this.FocusTile : default;
                 this.CalculatedVisibility = false;
             }
 
@@ -384,8 +386,8 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
-                // if (tile == this.CursorTile)
-                //     spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
+                if (tile == this.FocusTile)
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
 
                 if (this.VisibilityByHexagonMap.TryGetValue(tile, out var visibility))
                 {
@@ -437,41 +439,38 @@ namespace Hex.Helpers
 
                 if ((this.FogOfWarMap != null) && (!this.FogOfWarMap[tile]))
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
-            }
-        }
 
-        public Hexagon FindTile(Vector2 position)
-        {
-            var coordinates = this.ToTileCoordinates(position);
-            return this.Map.GetOrDefault(coordinates);
-        }
-
-        public void TrackTiles(Vector2 position)
-        {
-            var coordinates = this.ToTileCoordinates(position);
-            this.TrackTiles(coordinates);
-        }
-
-        public void TrackTiles(Cube coordinates)
-        {
-            this.LastCursorTile = this.CursorTile;
-            this.CursorTile = this.Map.GetOrDefault(coordinates);
-
-            if ((this.CursorTile != this.LastCursorTile) && (this.SourceTile != default))
-            {
-                if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+                if ((this.MovementOverlayMap != null) && this.MovementOverlayMap.GetOrDefault(tile))
                 {
-                    this.VisibilityByHexagonMap.Clear();
-                    if (this.CursorTile != default)
-                        this.DefineLineOfSight(this.SourceTile, this.CursorTile, 10)
-                            .Each(this.VisibilityByHexagonMap.Add);
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 150, 200).Blend(192), this.Rotation, depth: .32f);
                 }
             }
         }
 
-        public void UntrackTiles()
+        public void Focus(Vector2 position)
         {
-            this.CursorTile = default;
+            var coordinates = this.ToTileCoordinates(position);
+            this.LastFocusTile = this.FocusTile;
+            this.FocusTile = this.Map.GetOrDefault(coordinates);
+
+            // remove sourcetile?
+
+            // if ((this.FocusTile != this.LastFocusTile) && (this.SourceTile != default))
+            // {
+            //     if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
+            //     {
+            //         this.VisibilityByHexagonMap.Clear();
+            //         if (this.FocusTile != default)
+            //             this.DefineLineOfSight(this.SourceTile, this.FocusTile, 10)
+            //                 .Each(this.VisibilityByHexagonMap.Add);
+            //     }
+            // }
+        }
+
+        public void Unfocus()
+        {
+            this.FocusTile = default;
+            this.ResetMovementOverlay();
         }
 
         public IDictionary<Hexagon, bool> DetermineFogOfWar(Hexagon sourceTile, int viewDistance)
@@ -488,6 +487,17 @@ namespace Hex.Helpers
         public void ApplyVisibility(IDictionary<Hexagon, bool> fogOfWar)
         {
             this.FogOfWarMap = fogOfWar;
+        }
+
+        public void ResetMovementOverlay()
+        {
+            this.MovementOverlayMap = null;
+        }
+
+        public void ApplyMovementOverlay(Hexagon source, Hexagon target, int distance)
+        {
+            var movementOverlay = this.DefineLineOfMovement(source, target, distance);
+            this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
         }
 
         #endregion
@@ -510,6 +520,14 @@ namespace Hex.Helpers
         protected Hexagon GetNeighbor(Hexagon hexagon, Direction direction)
         {
             return this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
+        }
+
+        protected Direction? GetDirection(Hexagon source, Hexagon target)
+        {
+            foreach (var direction in DIRECTIONS)
+                if (source.Cube.Neighbor(direction) == target.Cube)
+                    return direction;
+            return default;
         }
 
         protected void Rotate(int degrees)
@@ -674,6 +692,70 @@ namespace Hex.Helpers
                 // If no other condition is met, it means the target tile is higher than source,
                 // and the difference in elevation is greater than distance from source to target.
                 // Therefore the target is not visible.
+                return (addTile, false);
+            });
+        }
+
+        protected IEnumerable<(Hexagon Tile, bool Accessible)> DefinePath(Hexagon source, Hexagon target, int maxDistance)
+        {
+            if (source == target)
+                return (source, true).Yield();
+                
+            return null;
+        }
+
+        protected IEnumerable<(Hexagon Tile, bool Accessible)> DefineLineOfMovement(Hexagon source, Hexagon target, int moveDistance)
+        {
+            if (source == target)
+                return (source, true).Yield();
+
+            // A point can be exactly between two cubes, so both sides should be checked
+            //  point + EPSILON  will be called Add
+            //  point - EPSILON  will be called Sub
+            var previousAddTile = source;
+            var previousSubTile = source;
+
+            var blocked = false;
+
+            var distance = (int) Cube.Distance(source.Cube, target.Cube);
+            return Generate.Range(0, distance + 1).Select(distanceStep =>
+            {
+                // Use linear interpolation to determine which tiles are on the line
+                var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
+                var addTile = this.Map[(lerp + EPSILON).ToRoundCube()];
+                var subTile = this.Map[(lerp - EPSILON).ToRoundCube()];
+
+                // If the tile is too far away, it is not accessible
+                if ((distanceStep >= moveDistance) || blocked)
+                    return (addTile, false);
+
+                var addTileDifference = addTile.Elevation - previousAddTile.Elevation;
+                var subTileDifference = subTile.Elevation - previousSubTile.Elevation;
+                previousAddTile = addTile;
+                previousSubTile = subTile;
+
+                // Tile is accessible on same elevation
+                if (addTileDifference == 0)
+                    return (addTile, true);
+                if (subTileDifference == 0)
+                    return (subTile, true);
+                
+                // Tile is accessible if going down one level of elevation
+                if ((addTile.Elevation < previousAddTile.Elevation) && (addTileDifference == 1))
+                    return (addTile, true);
+                if ((subTile.Elevation < previousSubTile.Elevation) && (subTileDifference == 1))
+                    return (subTile, true);
+
+                // Tile is accessible if there is a slope
+                var directionAdd = this.GetDirection(previousAddTile, addTile);
+                if (directionAdd.HasValue && ((previousAddTile.SlopeMask & directionAdd) == directionAdd))
+                    return (addTile, true);
+                var directionSub = this.GetDirection(previousSubTile, subTile);
+                if (directionSub.HasValue && ((previousSubTile.SlopeMask & directionSub) == directionSub))
+                    return (subTile, true);
+                
+                // If no other conditions are met, tile is not accessible
+                blocked = true;
                 return (addTile, false);
             });
         }

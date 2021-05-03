@@ -1,6 +1,5 @@
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Graphics;
-using System.Collections.Generic;
 
 namespace Hex.Models.Actors
 {
@@ -12,7 +11,7 @@ namespace Hex.Models.Actors
         {
             this.Texture = texture;
             this.BaseViewDistance = 9;
-            this.BaseMoveDistance = 4;
+            this.BaseMoveDistance = 12;
         }
 
         #endregion

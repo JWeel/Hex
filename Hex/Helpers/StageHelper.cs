@@ -47,8 +47,7 @@ namespace Hex.Helpers
         /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
         public Vector2 StageSize { get; protected set; }
 
-        public Hexagon LastCursorTile { get; protected set; }
-        public Hexagon CursorTile { get; protected set; }
+        public Hexagon FocusTile => this.Tilemap.FocusTile;
 
         public Actor SourceActor { get; protected set; }
 
@@ -114,11 +113,11 @@ namespace Hex.Helpers
 
             if (this.Input.KeyPressed(Keys.K))
             {
-                var tile = this.CursorTile ?? this.Tilemap.Map.Values.Random();
+                var tile = this.FocusTile ?? this.Tilemap.Map.Values.Random();
                 var actor = this.Actor.Add();
                 this.Actor.Move(actor, tile);
                 this.VisibilityMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
-                if (this.CursorTile != null)
+                if (this.FocusTile != null)
                 {
                     this.SourceActor = actor;
                     this.Tilemap.ApplyVisibility(this.VisibilityMap[actor]);
@@ -132,20 +131,28 @@ namespace Hex.Helpers
 
                 if (this.Container.Contains(virtualMouseVector))
                 {
-                    this.LastCursorTile = this.CursorTile;
-                    this.CursorTile = this.Tilemap.FindTile(cameraTranslatedMouseVector);
+                    this.Tilemap.Focus(cameraTranslatedMouseVector);
+                    // instead of like this, maybe have Focus return bool to determine it changed
+                    if ((this.FocusTile != this.Tilemap.LastFocusTile) && (this.FocusTile != null))
+                    {
+                        if ((this.SourceActor != null) && (this.FocusTile != this.SourceActor.Tile))
+                            this.Tilemap.ApplyMovementOverlay(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance);
+                    }
                 }
                 else
-                    this.Tilemap.UntrackTiles();
+                {
+                    this.Tilemap.Unfocus();
+                }
             }
 
-            if ((this.Input.MousePressed(MouseButton.Left)) && (this.CursorTile != null))
+            if ((this.Input.MousePressed(MouseButton.Left)) && (this.FocusTile != null))
             {
-                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.CursorTile));
+                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.FocusTile));
                 if ((actorOnTile == default) || (actorOnTile == this.SourceActor))
                 {
                     this.SourceActor = null;
                     this.Tilemap.ResetVisibility();
+                    this.Tilemap.ResetMovementOverlay();
                 }
                 else
                 {

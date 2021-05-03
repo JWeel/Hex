@@ -241,7 +241,7 @@ namespace Hex
                 this.Log.AppendLine($"M3: {this.StageCameraTranslatedMouseVector.PrintRounded()}");
                 // this.Log.AppendLine($"Current: {this.Client.CurrentResolution}");
                 // this.Log.AppendLine($"Window: {this.Window.ClientBounds.Size}");
-                this.Log.AppendLine($"Cursor: {this.Stage.CursorTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
+                this.Log.AppendLine($"Cursor: {this.Stage.FocusTile?.Into(x => $"{x.Cube} E:{x.Elevation}") ?? "n/a"}");
                 // this.Log.AppendLine($"Tiles: {this.Stage.TileCount}");
                 // this.Log.AppendLine($"Interval: {this.Stage.TilemapRotationInterval}");
                 // this.Log.AppendLine($"Container: {this.Stage.Container.Location}{this.Stage.Container.Size}");
