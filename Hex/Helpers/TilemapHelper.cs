@@ -496,8 +496,10 @@ namespace Hex.Helpers
 
         public void ApplyMovementOverlay(Hexagon source, Hexagon target, int distance)
         {
-            var movementOverlay = this.DefineLineOfMovement(source, target, distance);
-            this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
+            var movementOverlay = this.DefinePath(source, target, distance);
+            this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => true);
+            // var movementOverlay = this.DefineLineOfMovement(source, target, distance);
+            // this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
         }
 
         #endregion
@@ -700,8 +702,72 @@ namespace Hex.Helpers
         {
             if (source == target)
                 return (source, true).Yield();
+
+            // TODO: determine tile cost from Func<Tile, Tile, int> (i.)
+            var tileCost = 5;
+
+            // TODO create PriorityQueue
+            var frontier = new Queue<(Hexagon Tile, int Priority)>();
+            frontier.Enqueue((source, 0));
+
+            var cameFrom = new Dictionary<Hexagon, Hexagon>();
+            cameFrom[source] = null;
+
+            var costSoFar = new Dictionary<Hexagon, int>();
+            costSoFar[source] = 0;
+
+            while (frontier.Any())
+            {
+                var tile = frontier.Dequeue().Tile;
+                if (tile == target)
+                    break;
+
+                var neighbors = DIRECTIONS
+                    .Select(direction =>
+                    {
+                        var neighborCube = tile.Cube.Neighbor(direction);
+                        var neighborTile = this.Map.GetOrDefault(neighborCube);
+                        if (neighborTile == null)
+                            return default(Hexagon);
+                        if (tile.Elevation == neighborTile.Elevation)
+                            return neighborTile;
+                        if ((tile.SlopeMask & direction) == direction)
+                            return neighborTile;
+                        return default(Hexagon);
+                    })
+                    .Where(x => (x != null));
                 
-            return null;
+                foreach (var neighbor in neighbors)
+                {
+                    // doesnt seem to do anything
+                    if (Traverse(neighbor).Count() >= maxDistance)
+                        continue;
+
+                    var newCost = costSoFar[tile] + tileCost;
+                    if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                    {
+                        costSoFar[neighbor] = newCost;
+                        var priority = newCost + (tileCost * (int) Cube.Distance(tile.Cube, neighbor.Cube));
+                        frontier.Enqueue((neighbor, priority));
+                        cameFrom[neighbor] = tile;
+                    }
+                }
+            }
+
+            IEnumerable<Hexagon> Traverse(Hexagon tile)
+            {
+                var current = tile;
+                while ((current != source) && cameFrom.ContainsKey(current))
+                {
+                    yield return current;
+                    current = cameFrom[current];
+                }
+            }
+
+            var path = Traverse(target).ToList();
+            path.Add(source);
+            path.Reverse();
+            return path.Select(x => (x, true));
         }
 
         protected IEnumerable<(Hexagon Tile, bool Accessible)> DefineLineOfMovement(Hexagon source, Hexagon target, int moveDistance)
