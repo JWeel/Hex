@@ -1,5 +1,6 @@
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Graphics;
+using System;
 
 namespace Hex.Models.Actors
 {
@@ -7,9 +8,10 @@ namespace Hex.Models.Actors
     {
         #region Constructors
 
-        public Actor(Texture2D texture)
+        public Actor(Texture2D[] textures)
         {
-            this.Texture = texture;
+            this.Textures = textures;
+            this.TextureScale = .7f;
             this.BaseViewDistance = 9;
             this.BaseMoveDistance = 6;
         }
@@ -18,7 +20,18 @@ namespace Hex.Models.Actors
 
         #region Properties
 
-        public Texture2D Texture { get; }
+        public Texture2D Texture
+        {
+            get
+            {
+                var interval = 1000 / this.Textures.Length;
+                var ms = DateTime.Now.Millisecond;
+                var index = Math.Min(ms / interval, this.Textures.Length - 1);
+                return this.Textures[index];
+            }
+        }
+
+        public float TextureScale { get; }
 
         public int ViewDistance
         {
@@ -40,6 +53,14 @@ namespace Hex.Models.Actors
 
         public Faction Faction { get; protected set; }
 
+        protected Texture2D[] Textures { get; }
+
+        public Actor(int baseViewDistance, int baseMoveDistance)
+        {
+            this.BaseViewDistance = baseViewDistance;
+            this.BaseMoveDistance = baseMoveDistance;
+
+        }
         protected int BaseViewDistance { get; }
         protected int BaseMoveDistance { get; }
 
@@ -51,7 +72,7 @@ namespace Hex.Models.Actors
         {
             this.Tile = tile;
         }
-            
+
         #endregion
     }
 }

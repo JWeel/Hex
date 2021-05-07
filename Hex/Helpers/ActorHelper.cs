@@ -3,7 +3,6 @@ using Hex.Models.Tiles;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
-using System;
 using System.Collections.Generic;
 
 namespace Hex.Helpers
@@ -17,7 +16,12 @@ namespace Hex.Helpers
             this.Input = input;
             this.Actors = new List<Actor>();
 
-            this.ActorTexture = content.Load<Texture2D>("Graphics/spook");
+            this.Textures = new[]
+            {
+                content.Load<Texture2D>("Graphics/grimion1"),
+                content.Load<Texture2D>("Graphics/grimion2"),
+                content.Load<Texture2D>("Graphics/grimion3"),
+            };
         }
 
         #endregion
@@ -28,7 +32,7 @@ namespace Hex.Helpers
 
         public IList<Actor> Actors { get; }
 
-        protected Texture2D ActorTexture { get; set; }
+        protected Texture2D[] Textures { get; }
 
         #endregion
 
@@ -41,7 +45,7 @@ namespace Hex.Helpers
 
         public Actor Add()
         {
-            var actor = new Actor(this.ActorTexture);
+            var actor = new Actor(this.Textures);
             this.Actors.Add(actor);
             return actor;
         }

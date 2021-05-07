@@ -80,8 +80,6 @@ namespace Hex.Helpers
         /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon FocusTile { get; protected set; }
 
-        /// <summary> The selected tile. </summary>
-        public Hexagon SourceTile { get; protected set; }
 
         /// <summary> The combined size of all tiles. </summary>
         public Vector2 TilemapSize { get; protected set; }
@@ -118,7 +116,6 @@ namespace Hex.Helpers
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
         public Hexagon LastFocusTile { get; set; }
-        protected Hexagon LastSourceTile { get; set; }
 
         protected IDictionary<Hexagon, bool> FogOfWarMap { get; set; }
         protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
@@ -144,6 +141,8 @@ namespace Hex.Helpers
 
         protected Vector2 TileSize { get; set; }
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
+
+        protected Func<Hexagon, double> TileCostOverride { get; set; }
 
         protected bool PrintCoords { get; set; }
 
@@ -178,12 +177,12 @@ namespace Hex.Helpers
             this.VisibilityByHexagonMap.Clear();
 
             this.FocusTile = default;
-            this.SourceTile = default;
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
             this.ResetVisibility();
             this.ResetMovementOverlay();
+            this.ResetPathingOverrides();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -303,23 +302,17 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.P))
                 this.PrintCoords = !this.PrintCoords;
 
-            if (!this.CalculatedVisibility && (this.SourceTile != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
+            if (!this.CalculatedVisibility && (this.FocusTile != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
             {
                 this.CalculatedVisibility = true;
                 this.VisibilityByHexagonMap.Clear();
                 this.Map.Values
-                    .Select(tile => (tile, this.DefineLineOfSight(this.SourceTile, tile, 10).Last().Visible))
+                    .Select(tile => (tile, this.DefineLineOfSight(this.FocusTile, tile, 10).Last().Visible))
                     .Each(this.VisibilityByHexagonMap.Add);
             };
 
-            if (this.Input.MousePressed(MouseButton.Left))
-            {
-                this.LastSourceTile = this.SourceTile;
-                this.SourceTile = (this.SourceTile != this.FocusTile) ? this.FocusTile : default;
-                this.CalculatedVisibility = false;
-            }
-
-            if (this.VisibilityByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt, Keys.LeftShift, Keys.RightShift) || (this.SourceTile == default)))
+            if ((this.VisibilityByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt, Keys.LeftShift, Keys.RightShift))
+                 || (this.FocusTile == default) || ((this.FocusTile != default) && (this.LastFocusTile != default) && (this.FocusTile != this.LastFocusTile))))
             {
                 this.VisibilityByHexagonMap.Clear();
                 this.CalculatedVisibility = false;
@@ -347,16 +340,16 @@ namespace Hex.Helpers
                 else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Rotate(degrees: 1);
 
-            if (this.SourceTile != null)
+            if (this.FocusTile != null)
             {
                 if (this.Input.KeyPressed(Keys.Right))
-                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.Right) ?? this.SourceTile;
+                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.Right) ?? this.FocusTile;
                 if (this.Input.KeyPressed(Keys.Left))
-                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.Left) ?? this.SourceTile;
+                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.Left) ?? this.FocusTile;
                 if (this.Input.KeyPressed(Keys.Up))
-                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.UpRight) ?? this.SourceTile;
+                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.UpRight) ?? this.FocusTile;
                 if (this.Input.KeyPressed(Keys.Down))
-                    this.SourceTile = this.GetNeighbor(this.SourceTile, Direction.DownLeft) ?? this.SourceTile;
+                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.DownLeft) ?? this.FocusTile;
             }
 
             if (this.Input.KeyPressed(Keys.V))
@@ -376,8 +369,7 @@ namespace Hex.Helpers
                 var position = basePosition.Transform(this.RenderRotationMatrix);
 
                 var innerColor =
-                (tile == this.SourceTile) ? Color.Coral
-                    : (tile == this.OriginTile) ? Color.Gold
+                (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
                     : tile.Color != default ? tile.Color
                     : tile.TileType switch
@@ -444,30 +436,18 @@ namespace Hex.Helpers
 
                 if ((this.MovementOverlayMap != null) && this.MovementOverlayMap.TryGetValue(tile, out var accessible))
                 {
-                    var color = accessible ? new Color(100, 150, 200).Blend(192) : new Color(100, 150, 200).Blend(64);
+                    var color = accessible ? new Color(100, 150, 200).Blend(96) : new Color(50, 50, 50).Blend(32);
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, color, this.Rotation, depth: .32f);
                 }
             }
         }
 
-        public void Focus(Vector2 position)
+        public bool Focus(Vector2 position)
         {
             var coordinates = this.ToTileCoordinates(position);
             this.LastFocusTile = this.FocusTile;
             this.FocusTile = this.Map.GetOrDefault(coordinates);
-
-            // remove sourcetile?
-
-            // if ((this.FocusTile != this.LastFocusTile) && (this.SourceTile != default))
-            // {
-            //     if (this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
-            //     {
-            //         this.VisibilityByHexagonMap.Clear();
-            //         if (this.FocusTile != default)
-            //             this.DefineLineOfSight(this.SourceTile, this.FocusTile, 10)
-            //                 .Each(this.VisibilityByHexagonMap.Add);
-            //     }
-            // }
+            return ((this.FocusTile != default) && (this.LastFocusTile != this.FocusTile));
         }
 
         public void Unfocus()
@@ -501,8 +481,16 @@ namespace Hex.Helpers
         {
             var movementOverlay = this.DefinePath(source, target, distance);
             this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
-            // var movementOverlay = this.DefineLineOfMovement(source, target, distance);
-            // this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
+        }
+
+        public void ResetPathingOverrides()
+        {
+            this.TileCostOverride = null;
+        }
+
+        public void ApplyPathingOverrides(Func<Hexagon, double> pathCostOverride, Func<Hexagon, double> moveCostOverride)
+        {
+            this.TileCostOverride = pathCostOverride;
         }
 
         #endregion
@@ -695,7 +683,8 @@ namespace Hex.Helpers
                 }
 
                 // If no other condition is met, it means the target tile is higher than source,
-                // and the difference in elevation is greater than distance from source to target.
+                // and either the difference in elevation is greater than distance from source to target,
+                // or the tile does not sit on the edge of the cliff.
                 // Therefore the target is not visible.
                 return (addTile, false);
             });
@@ -706,18 +695,31 @@ namespace Hex.Helpers
             if (source == target)
                 return (source, true).Yield();
 
-            var frontier = new PriorityList<(Hexagon Tile, double Priority)>(x => x.Priority)
+            // This uses A* pathfinding to create a path from source to target.
+            // The tiles in the path are then analyzed to determine whether they are within moving distance.
+            // Some tiles are more difficult to traverse than others, like a dense forest compared to flat grass,
+            //  which is why this does not necessarily generate a straight line.
+            // So long as the tile cost affects pathfinding and movement analysis in the same way,
+            //  the generated movement path will look natural.
+
+            // this list contains the paths that are being expanded during the search, ordered by priority
+            var openPaths = new PriorityList<(Hexagon Tile, double Priority)>(x => x.Priority)
             {
                 (source, 0d)
             };
 
-            var cameFrom = new Dictionary<Hexagon, Hexagon>();
-            var costSoFar = new Dictionary<Hexagon, double>();
-            costSoFar[source] = 0d;
-
-            while (frontier.Any())
+            // this map contains the total accumulated cost of each tile in a path
+            var accumulatedCostMap = new Dictionary<Hexagon, double>
             {
-                var tile = frontier.Pop().Tile;
+                {source, 0d}
+            };
+
+            // this is a map of tiles by cheapest source tile. it can be used to reconstruct the best path.
+            var sourceTileMap = new Dictionary<Hexagon, Hexagon>();
+
+            while (openPaths.Any())
+            {
+                var tile = openPaths.Pop().Tile;
                 if (tile == target)
                     break;
                 DIRECTIONS
@@ -736,91 +738,47 @@ namespace Hex.Helpers
                     .Where(x => (x != default))
                     .Each(neighbor =>
                     {
-                        var tileCost = (neighbor.TileType == TileType.Mountain) ? 5d : 2.5d;
-                        var newCost = costSoFar[tile] + tileCost;
-                        if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                        var tileCost = this.CalculateTileCost(neighbor);
+                        var newCost = accumulatedCostMap[tile] + tileCost;
+                        if (!accumulatedCostMap.ContainsKey(neighbor) || newCost < accumulatedCostMap[neighbor])
                         {
-                            costSoFar[neighbor] = newCost;
+                            accumulatedCostMap[neighbor] = newCost;
                             var priority = newCost + (tileCost * Cube.Distance(tile.Cube, neighbor.Cube));
-                            frontier.Add((neighbor, priority));
-                            cameFrom[neighbor] = tile;
+                            openPaths.Add((neighbor, priority));
+                            sourceTileMap[neighbor] = tile;
                         }
                     });
             }
 
             IEnumerable<Hexagon> Traverse(Hexagon tile)
             {
-                for (var current = tile; cameFrom.ContainsKey(current); current = cameFrom[current])
-                {
+                // if desired, can add source tile to the path in a number of different ways:
+                //  - check (current!=source) after the yield return and initialize sourceTileMap with {source,null}
+                //  - after calling Traverse append source to the sequence
+                for (var current = tile; (current != source) && sourceTileMap.ContainsKey(current); current = sourceTileMap[current])
                     yield return current;
-                    if (current == source)
-                        break;
-                }
             }
 
+            // TODO if the tile contains another actor, it should be inaccessible. how to get that logic here
+            // should also consider:
+            //  if target contains another actor, try all 6 tiles around it
+            //  if at least one of them is availble, return that path instead
             var steps = 0d;
-
-            // TODO: init amount of steps, for each tile in sequence subtract based on tile cost
             return Traverse(target)
                 .Reverse()
-                .Defer(x => steps += (x.TileType == TileType.Mountain) ? 2d : 1d)
+                .Defer(x => steps += this.CalculateTileCost(x))
                 .Select(x => (x, (steps < maxDistance)));
         }
 
-        protected IEnumerable<(Hexagon Tile, bool Accessible)> DefineLineOfMovement(Hexagon source, Hexagon target, int moveDistance)
+        protected double CalculateTileCost(Hexagon tile)
         {
-            if (source == target)
-                return (source, true).Yield();
-
-            // A point can be exactly between two cubes, so both sides should be checked
-            //  point + EPSILON  will be called Add
-            //  point - EPSILON  will be called Sub
-            var previousAddTile = source;
-            var previousSubTile = source;
-
-            var blocked = false;
-
-            var distance = (int) Cube.Distance(source.Cube, target.Cube);
-            return Generate.Range(0, distance + 1).Select(distanceStep =>
+            return tile.TileType switch
             {
-                // Use linear interpolation to determine which tiles are on the line
-                var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
-                var addTile = this.Map[(lerp + EPSILON).ToRoundCube()];
-                var subTile = this.Map[(lerp - EPSILON).ToRoundCube()];
-
-                // If the tile is too far away, it is not accessible
-                if ((distanceStep >= moveDistance) || blocked)
-                    return (addTile, false);
-
-                var addTileDifference = addTile.Elevation - previousAddTile.Elevation;
-                var subTileDifference = subTile.Elevation - previousSubTile.Elevation;
-                previousAddTile = addTile;
-                previousSubTile = subTile;
-
-                // Tile is accessible on same elevation
-                if (addTileDifference == 0)
-                    return (addTile, true);
-                if (subTileDifference == 0)
-                    return (subTile, true);
-
-                // Tile is accessible if going down one level of elevation
-                if ((addTile.Elevation < previousAddTile.Elevation) && (addTileDifference == 1))
-                    return (addTile, true);
-                if ((subTile.Elevation < previousSubTile.Elevation) && (subTileDifference == 1))
-                    return (subTile, true);
-
-                // Tile is accessible if there is a slope
-                var directionAdd = this.GetDirection(previousAddTile, addTile);
-                if (directionAdd.HasValue && ((previousAddTile.SlopeMask & directionAdd) == directionAdd))
-                    return (addTile, true);
-                var directionSub = this.GetDirection(previousSubTile, subTile);
-                if (directionSub.HasValue && ((previousSubTile.SlopeMask & directionSub) == directionSub))
-                    return (subTile, true);
-
-                // If no other conditions are met, tile is not accessible
-                blocked = true;
-                return (addTile, false);
-            });
+                _ when this.TileCostOverride.TryNotNullInvoke(tile, out var result) => result,
+                TileType.Grass => 1d,
+                TileType.Mountain => 2d,
+                _ => 0d
+            };
         }
 
         // not really sure what center is useful for

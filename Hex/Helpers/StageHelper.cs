@@ -114,6 +114,9 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.K))
             {
                 var tile = this.FocusTile ?? this.Tilemap.Map.Values.Random();
+                if (this.Actor.Actors.Any(actor => (actor.Tile == tile)))
+                    return;
+
                 var actor = this.Actor.Add();
                 this.Actor.Move(actor, tile);
                 this.VisibilityMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
@@ -121,6 +124,7 @@ namespace Hex.Helpers
                 {
                     this.SourceActor = actor;
                     this.Tilemap.ApplyVisibility(this.VisibilityMap[actor]);
+                    this.Tilemap.ResetMovementOverlay();
                 }
             }
 
@@ -131,9 +135,7 @@ namespace Hex.Helpers
 
                 if (this.Container.Contains(virtualMouseVector))
                 {
-                    this.Tilemap.Focus(cameraTranslatedMouseVector);
-                    // instead of like this, maybe have Focus return bool to determine it changed
-                    if ((this.FocusTile != this.Tilemap.LastFocusTile) && (this.FocusTile != null))
+                    if (this.Tilemap.Focus(cameraTranslatedMouseVector))
                     {
                         if ((this.SourceActor != null) && (this.FocusTile != this.SourceActor.Tile))
                             this.Tilemap.ApplyMovementOverlay(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance);
@@ -145,19 +147,20 @@ namespace Hex.Helpers
                 }
             }
 
-            if ((this.Input.MousePressed(MouseButton.Left)) && (this.FocusTile != null))
+            if (this.Input.MousePressed(MouseButton.Left))
             {
-                var actorOnTile = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == this.FocusTile));
-                if ((actorOnTile == default) || (actorOnTile == this.SourceActor))
+                var actorOnTile = this.FocusTile?.Into(tile => this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile)));
+                if ((this.FocusTile != default) && (actorOnTile != default) && (actorOnTile != this.SourceActor))
                 {
-                    this.SourceActor = null;
-                    this.Tilemap.ResetVisibility();
+                    this.SourceActor = actorOnTile;
+                    this.Tilemap.ApplyVisibility(this.VisibilityMap[this.SourceActor]);
                     this.Tilemap.ResetMovementOverlay();
                 }
                 else
                 {
-                    this.SourceActor = actorOnTile;
-                    this.Tilemap.ApplyVisibility(this.VisibilityMap[this.SourceActor]);
+                    this.SourceActor = null;
+                    this.Tilemap.ResetVisibility();
+                    this.Tilemap.ResetMovementOverlay();
                 }
             }
 
@@ -180,6 +183,7 @@ namespace Hex.Helpers
                 var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
                 var color = (actor == this.SourceActor) ? Color.Coral : Color.White;
                 var texture = actor.Texture;
+                var textureScale = actor.TextureScale;
 
                 if ((this.SourceActor != null) && (!this.VisibilityMap[this.SourceActor][actor.Tile]))
                 {
@@ -187,8 +191,8 @@ namespace Hex.Helpers
                     texture = this.HiddenTexture;
                 }
 
-                var sizeOffset = texture.ToVector() / 2;
-                spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, depth: .5f);
+                var sizeOffset = (texture.ToVector() * textureScale) / 2;
+                spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .5f);
             }
         }
 
