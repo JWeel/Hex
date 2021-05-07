@@ -1,4 +1,6 @@
+using Extended.Collections;
 using Extended.Extensions;
+using Extended.Generators;
 using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
@@ -380,7 +382,7 @@ namespace Hex.Helpers
                     : tile.Color != default ? tile.Color
                     : tile.TileType switch
                     {
-                        // TileType.Mountain => Color.Tan,
+                        TileType.Mountain => Color.Tan,
                         TileType.Sea => new Color(100, 200, 220).Blend(80),
                         _ => new Color(190, 230, 160)
                     };
@@ -440,9 +442,10 @@ namespace Hex.Helpers
                 if ((this.FogOfWarMap != null) && (!this.FogOfWarMap[tile]))
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
 
-                if ((this.MovementOverlayMap != null) && this.MovementOverlayMap.GetOrDefault(tile))
+                if ((this.MovementOverlayMap != null) && this.MovementOverlayMap.TryGetValue(tile, out var accessible))
                 {
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 150, 200).Blend(192), this.Rotation, depth: .32f);
+                    var color = accessible ? new Color(100, 150, 200).Blend(192) : new Color(100, 150, 200).Blend(64);
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, color, this.Rotation, depth: .32f);
                 }
             }
         }
@@ -497,7 +500,7 @@ namespace Hex.Helpers
         public void ApplyMovementOverlay(Hexagon source, Hexagon target, int distance)
         {
             var movementOverlay = this.DefinePath(source, target, distance);
-            this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => true);
+            this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
             // var movementOverlay = this.DefineLineOfMovement(source, target, distance);
             // this.MovementOverlayMap = movementOverlay.ToDictionary(x => x.Tile, x => x.Accessible);
         }
@@ -703,26 +706,21 @@ namespace Hex.Helpers
             if (source == target)
                 return (source, true).Yield();
 
-            // TODO: determine tile cost from Func<Tile, Tile, int> (i.)
-            var tileCost = 5;
-
-            // TODO create PriorityQueue
-            var frontier = new Queue<(Hexagon Tile, int Priority)>();
-            frontier.Enqueue((source, 0));
+            var frontier = new PriorityList<(Hexagon Tile, double Priority)>(x => x.Priority)
+            {
+                (source, 0d)
+            };
 
             var cameFrom = new Dictionary<Hexagon, Hexagon>();
-            cameFrom[source] = null;
-
-            var costSoFar = new Dictionary<Hexagon, int>();
-            costSoFar[source] = 0;
+            var costSoFar = new Dictionary<Hexagon, double>();
+            costSoFar[source] = 0d;
 
             while (frontier.Any())
             {
-                var tile = frontier.Dequeue().Tile;
+                var tile = frontier.Pop().Tile;
                 if (tile == target)
                     break;
-
-                var neighbors = DIRECTIONS
+                DIRECTIONS
                     .Select(direction =>
                     {
                         var neighborCube = tile.Cube.Neighbor(direction);
@@ -735,39 +733,38 @@ namespace Hex.Helpers
                             return neighborTile;
                         return default(Hexagon);
                     })
-                    .Where(x => (x != null));
-                
-                foreach (var neighbor in neighbors)
-                {
-                    // doesnt seem to do anything
-                    if (Traverse(neighbor).Count() >= maxDistance)
-                        continue;
-
-                    var newCost = costSoFar[tile] + tileCost;
-                    if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                    .Where(x => (x != default))
+                    .Each(neighbor =>
                     {
-                        costSoFar[neighbor] = newCost;
-                        var priority = newCost + (tileCost * (int) Cube.Distance(tile.Cube, neighbor.Cube));
-                        frontier.Enqueue((neighbor, priority));
-                        cameFrom[neighbor] = tile;
-                    }
-                }
+                        var tileCost = (neighbor.TileType == TileType.Mountain) ? 5d : 2.5d;
+                        var newCost = costSoFar[tile] + tileCost;
+                        if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                        {
+                            costSoFar[neighbor] = newCost;
+                            var priority = newCost + (tileCost * Cube.Distance(tile.Cube, neighbor.Cube));
+                            frontier.Add((neighbor, priority));
+                            cameFrom[neighbor] = tile;
+                        }
+                    });
             }
 
             IEnumerable<Hexagon> Traverse(Hexagon tile)
             {
-                var current = tile;
-                while ((current != source) && cameFrom.ContainsKey(current))
+                for (var current = tile; cameFrom.ContainsKey(current); current = cameFrom[current])
                 {
                     yield return current;
-                    current = cameFrom[current];
+                    if (current == source)
+                        break;
                 }
             }
 
-            var path = Traverse(target).ToList();
-            path.Add(source);
-            path.Reverse();
-            return path.Select(x => (x, true));
+            var steps = 0d;
+
+            // TODO: init amount of steps, for each tile in sequence subtract based on tile cost
+            return Traverse(target)
+                .Reverse()
+                .Defer(x => steps += (x.TileType == TileType.Mountain) ? 2d : 1d)
+                .Select(x => (x, (steps < maxDistance)));
         }
 
         protected IEnumerable<(Hexagon Tile, bool Accessible)> DefineLineOfMovement(Hexagon source, Hexagon target, int moveDistance)
@@ -805,7 +802,7 @@ namespace Hex.Helpers
                     return (addTile, true);
                 if (subTileDifference == 0)
                     return (subTile, true);
-                
+
                 // Tile is accessible if going down one level of elevation
                 if ((addTile.Elevation < previousAddTile.Elevation) && (addTileDifference == 1))
                     return (addTile, true);
@@ -819,7 +816,7 @@ namespace Hex.Helpers
                 var directionSub = this.GetDirection(previousSubTile, subTile);
                 if (directionSub.HasValue && ((previousSubTile.SlopeMask & directionSub) == directionSub))
                     return (subTile, true);
-                
+
                 // If no other conditions are met, tile is not accessible
                 blocked = true;
                 return (addTile, false);

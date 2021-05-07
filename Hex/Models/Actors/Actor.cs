@@ -11,7 +11,7 @@ namespace Hex.Models.Actors
         {
             this.Texture = texture;
             this.BaseViewDistance = 9;
-            this.BaseMoveDistance = 12;
+            this.BaseMoveDistance = 6;
         }
 
         #endregion

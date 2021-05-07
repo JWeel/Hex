@@ -10,4 +10,12 @@
     },
     "editor.semanticHighlighting.enabled": true,
     "csharp.semanticHighlighting.enabled": true,
+    "files.eol": "\r\n",
+    "runOnSave.commands": [
+        {
+            "globMatch": "**/Hex/Content/Level/*.csv",
+            "command": "copy ${file} ${workspaceFolder}\\hex\\bin\\debug\\net5\\content\\level\\${fileBasename}",
+            "runIn": "backend"
+        }
+    ]
 }
