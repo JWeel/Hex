@@ -47,6 +47,7 @@ namespace Hex.Helpers
         /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
         public Vector2 StageSize { get; protected set; }
 
+        // TODO focus tile should only be in this class.
         public Hexagon FocusTile => this.Tilemap.FocusTile;
 
         public Actor SourceActor { get; protected set; }
@@ -138,7 +139,22 @@ namespace Hex.Helpers
                     if (this.Tilemap.Focus(cameraTranslatedMouseVector))
                     {
                         if ((this.SourceActor != null) && (this.FocusTile != this.SourceActor.Tile))
+                        {
+                            // TODO if FocusTile contains another actor
+                            // check up to six neighbor tiles
+                            //  if neighbor exists and does not have actor
+                            //      create path to them
+                            //      (path should also return cost)
+                            // get min-cost neighbor path
+                            //  if exists
+                            //      apply that path in movement overlay
+                            //  else
+                            //      do not apply movement overlay (i.e. target is unreachable)
+
                             this.Tilemap.ApplyMovementOverlay(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance);
+                        }
+
+
                     }
                 }
                 else
@@ -163,6 +179,15 @@ namespace Hex.Helpers
                     this.Tilemap.ResetMovementOverlay();
                 }
             }
+
+            // todo dont call these every loop
+            // should change focus a little: add a FocusChanged flag, maybe limited to this update method scope
+            // if focuschanged and keydown ctrl, then apply
+            // if keyup ctrl or focus changed AND focus is null, reset
+            if (this.Input.KeysDownAny(Keys.LeftControl, Keys.RightControl) && (this.FocusTile != null))
+                this.Tilemap.ApplyRing(this.FocusTile, radius: 2);
+            if (this.Input.KeysReleased(Keys.LeftControl, Keys.RightControl) || (this.FocusTile == null))
+                this.Tilemap.ResetEffects();
 
             if (this.SourceActor != null)
                 Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");

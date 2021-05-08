@@ -117,6 +117,12 @@ namespace Hex.Models
         public static implicit operator Cube((int Q, int R) tuple) =>
             Cube.FromAxial(tuple.Q, tuple.R);
 
+        public static Cube operator +(Cube left, Cube right) =>
+            new Cube(left.X + right.X, left.Y + right.Y, left.Z + right.Z);
+
+        public static Cube operator -(Cube left, Cube right) =>
+            new Cube(left.X - right.X, left.Y - right.Y, left.Z - right.Z);
+
         #endregion
     }
 }

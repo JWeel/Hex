@@ -80,7 +80,6 @@ namespace Hex.Helpers
         /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon FocusTile { get; protected set; }
 
-
         /// <summary> The combined size of all tiles. </summary>
         public Vector2 TilemapSize { get; protected set; }
 
@@ -144,6 +143,8 @@ namespace Hex.Helpers
 
         protected Func<Hexagon, double> TileCostOverride { get; set; }
 
+        protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
+
         protected bool PrintCoords { get; set; }
 
         #endregion
@@ -183,6 +184,7 @@ namespace Hex.Helpers
             this.ResetVisibility();
             this.ResetMovementOverlay();
             this.ResetPathingOverrides();
+            this.ResetEffects();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -439,6 +441,11 @@ namespace Hex.Helpers
                     var color = accessible ? new Color(100, 150, 200).Blend(96) : new Color(50, 50, 50).Blend(32);
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, color, this.Rotation, depth: .32f);
                 }
+
+                if ((this.EffectOverlayMap != null) && this.EffectOverlayMap.TryGetValue(tile, out var effectColor))
+                {
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, effectColor, this.Rotation, depth: .31f);
+                }
             }
         }
 
@@ -491,6 +498,26 @@ namespace Hex.Helpers
         public void ApplyPathingOverrides(Func<Hexagon, double> pathCostOverride, Func<Hexagon, double> moveCostOverride)
         {
             this.TileCostOverride = pathCostOverride;
+        }
+
+        public void ResetEffects()
+        {
+            this.EffectOverlayMap = null;
+        }
+
+        public void ApplyRing(Hexagon tile, int radius)
+        {
+            this.EffectOverlayMap = new Dictionary<Hexagon, Color>();
+            var cube = tile.Cube - (radius, 0);
+            for (var i = 0; i < 6; i++)
+            {
+                for (var j = 0; j < radius; j++)
+                {
+                    if (this.Map.TryGetValue(cube, out var cubeTile))
+                        this.EffectOverlayMap[cubeTile] = Color.LightGoldenrodYellow.Blend(128);
+                    cube = cube.Neighbor(DIRECTIONS[i]);
+                }
+            }
         }
 
         #endregion
@@ -755,6 +782,7 @@ namespace Hex.Helpers
                 // if desired, can add source tile to the path in a number of different ways:
                 //  - check (current!=source) after the yield return and initialize sourceTileMap with {source,null}
                 //  - after calling Traverse append source to the sequence
+                //  - after movement analysis prepend source tile which should always be accessible
                 for (var current = tile; (current != source) && sourceTileMap.ContainsKey(current); current = sourceTileMap[current])
                     yield return current;
             }
