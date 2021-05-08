@@ -112,10 +112,30 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.H))
                 this.CenterOnSourceActor();
 
+            if (this.Input.MouseMoved())
+            {
+                var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
+                var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
+
+                if (this.Container.Contains(virtualMouseVector))
+                {
+                    this.Tilemap.Focus(cameraTranslatedMouseVector);
+                    if (this.Tilemap.FocusChanged && (this.FocusTile != null) && (this.SourceActor != null) && !this.TileContainsActor(this.FocusTile))
+                    {
+                        var path = this.Tilemap
+                            .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileActor)
+                            .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile))));
+                        this.Tilemap.ApplyMovementOverlay(path);
+                    }
+                }
+                else
+                    this.Tilemap.Unfocus();
+            }
+
             if (this.Input.KeyPressed(Keys.K))
             {
                 var tile = this.FocusTile ?? this.Tilemap.Map.Values.Random();
-                if (this.Actor.Actors.Any(actor => (actor.Tile == tile)))
+                if (this.TileContainsActor(tile))
                     return;
 
                 var actor = this.Actor.Add();
@@ -126,40 +146,6 @@ namespace Hex.Helpers
                     this.SourceActor = actor;
                     this.Tilemap.ApplyVisibility(this.VisibilityMap[actor]);
                     this.Tilemap.ResetMovementOverlay();
-                }
-            }
-
-            if (this.Input.MouseMoved())
-            {
-                var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
-                var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
-
-                if (this.Container.Contains(virtualMouseVector))
-                {
-                    if (this.Tilemap.Focus(cameraTranslatedMouseVector))
-                    {
-                        if ((this.SourceActor != null) && (this.FocusTile != this.SourceActor.Tile))
-                        {
-                            // TODO if FocusTile contains another actor
-                            // check up to six neighbor tiles
-                            //  if neighbor exists and does not have actor
-                            //      create path to them
-                            //      (path should also return cost)
-                            // get min-cost neighbor path
-                            //  if exists
-                            //      apply that path in movement overlay
-                            //  else
-                            //      do not apply movement overlay (i.e. target is unreachable)
-
-                            this.Tilemap.ApplyMovementOverlay(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance);
-                        }
-
-
-                    }
-                }
-                else
-                {
-                    this.Tilemap.Unfocus();
                 }
             }
 
@@ -180,13 +166,9 @@ namespace Hex.Helpers
                 }
             }
 
-            // todo dont call these every loop
-            // should change focus a little: add a FocusChanged flag, maybe limited to this update method scope
-            // if focuschanged and keydown ctrl, then apply
-            // if keyup ctrl or focus changed AND focus is null, reset
             if (this.Input.KeysDownAny(Keys.LeftControl, Keys.RightControl) && (this.FocusTile != null))
                 this.Tilemap.ApplyRing(this.FocusTile, radius: 2);
-            if (this.Input.KeysReleased(Keys.LeftControl, Keys.RightControl) || (this.FocusTile == null))
+            if (this.Input.KeysReleasedAny(Keys.LeftControl, Keys.RightControl) || this.Tilemap.FocusLost)
                 this.Tilemap.ResetEffects();
 
             if (this.SourceActor != null)
@@ -206,16 +188,14 @@ namespace Hex.Helpers
             foreach (var actor in this.Actor.Actors)
             {
                 var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
-                var color = (actor == this.SourceActor) ? Color.Coral : Color.White;
+                var color = ((actor == this.SourceActor) ? Color.LightGray : Color.White).Desaturate(actor.Faction.Color, .2f);
                 var texture = actor.Texture;
                 var textureScale = actor.TextureScale;
-
                 if ((this.SourceActor != null) && (!this.VisibilityMap[this.SourceActor][actor.Tile]))
                 {
                     color = color.Blend(40);
                     texture = this.HiddenTexture;
                 }
-
                 var sizeOffset = (texture.ToVector() * textureScale) / 2;
                 spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .5f);
             }
@@ -238,6 +218,18 @@ namespace Hex.Helpers
                 this.Camera.CenterOn(Vector2.Round(position));
             }
         }
+
+        protected bool TileContainsActor(Hexagon tile) =>
+            this.TryGetActorOnTile(tile, out _);
+
+        protected bool TryGetActorOnTile(Hexagon tile, out Actor actor)
+        {
+            actor = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile));
+            return (actor != default);
+        }
+
+        protected bool TileContainsHostileActor(Hexagon tile) =>
+            (this.TryGetActorOnTile(tile, out var actor) && !actor.Faction.Allies.Contains(this.SourceActor.Faction));
 
         #endregion
     }

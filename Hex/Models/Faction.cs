@@ -8,13 +8,14 @@ namespace Hex.Models
 
         public Faction()
         {
+            this.Allies = new [] { this };
         }
             
         #endregion
 
         #region Properties
 
-        public Color Color { get; }
+        public Color Color { get; init; }
 
         public Faction[] Allies { get; protected set; }
             

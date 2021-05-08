@@ -13,5 +13,9 @@ namespace Mogi.Extensions
         /// The distinction is needed because for alpha values <see cref="Microsoft.Xna.Framework.Graphics.BlendState.AlphaBlend"/> uses range [0.0f, 1.0f], whereas <see cref="Microsoft.Xna.Framework.Graphics.BlendState.NonPremultiplied"/> uses range [0,255]. </remarks>
         public static Color Blend(this Color color, int alpha) =>
             color * (alpha / 255f);
+
+        /// <summary> Returns a color created by desaturating this color with a specified tint and amount using linear interpolation. </summary>
+        public static Color Desaturate(this Color source, Color tint, float amount) =>
+            Color.Lerp(source, tint, amount);
     }
 }

@@ -51,7 +51,7 @@ namespace Hex.Models.Actors
 
         public Hexagon Tile { get; protected set; }
 
-        public Faction Faction { get; protected set; }
+        public Faction Faction { get; set; }
 
         protected Texture2D[] Textures { get; }
 
