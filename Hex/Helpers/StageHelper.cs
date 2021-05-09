@@ -1,5 +1,6 @@
 using Extended.Extensions;
 using Hex.Auxiliary;
+using Hex.Enums;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework;
@@ -47,8 +48,9 @@ namespace Hex.Helpers
         /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
         public Vector2 StageSize { get; protected set; }
 
-        // TODO focus tile should only be in this class.
-        public Hexagon FocusTile => this.Tilemap.FocusTile;
+        /// <summary> The tile over which the cursor is hovering. </summary>
+        public Hexagon FocusTile { get; protected set; }
+        protected Hexagon LastFocusTile { get; set; }
 
         public Actor SourceActor { get; protected set; }
 
@@ -57,6 +59,18 @@ namespace Hex.Helpers
 
         public int TileCount => this.Tilemap.Map.Count;
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
+
+        /// <summary> Indicates whether tile focus was changed and is now <see langword="not null"/>. </summary>
+        public bool FocusMoved =>
+            ((this.FocusTile != this.LastFocusTile) && (this.FocusTile != null));
+
+        /// <summary> Indicates whether tile focus went from <see langword="not null"/> to <see langword="null"/>. </summary>
+        public bool FocusLost =>
+            ((this.LastFocusTile != null) && (this.FocusTile == null));
+
+        /// <summary> Indicates whether tile focus went from <see langword="null"/> to <see langword="not null"/>. </summary>
+        public bool FocusGained =>
+            ((this.LastFocusTile == null) && (this.FocusTile != null));
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
@@ -119,8 +133,8 @@ namespace Hex.Helpers
 
                 if (this.Container.Contains(virtualMouseVector))
                 {
-                    this.Tilemap.Focus(cameraTranslatedMouseVector);
-                    if (this.Tilemap.FocusChanged && (this.FocusTile != null) && (this.SourceActor != null) && !this.TileContainsActor(this.FocusTile))
+                    this.FocusTile = this.Tilemap.Locate(cameraTranslatedMouseVector);
+                    if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null))
                     {
                         var path = this.Tilemap
                             .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileActor)
@@ -129,8 +143,11 @@ namespace Hex.Helpers
                     }
                 }
                 else
-                    this.Tilemap.Unfocus();
+                    this.FocusTile = default;
+                this.Tilemap.Focus(this.FocusTile);
             }
+            // if (this.FocusLost)
+            //     this.Tilemap.ResetMovementOverlay();
 
             if (this.Input.KeyPressed(Keys.K))
             {
@@ -168,11 +185,25 @@ namespace Hex.Helpers
 
             if (this.Input.KeysDownAny(Keys.LeftControl, Keys.RightControl) && (this.FocusTile != null))
                 this.Tilemap.ApplyRing(this.FocusTile, radius: 2);
-            if (this.Input.KeysReleasedAny(Keys.LeftControl, Keys.RightControl) || this.Tilemap.FocusLost)
+            if (this.Input.KeysReleasedAny(Keys.LeftControl, Keys.RightControl) || this.FocusLost)
                 this.Tilemap.ResetEffects();
+
+            if (this.FocusTile != null)
+            {
+                if (this.Input.KeyPressed(Keys.Right))
+                    this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.Right) ?? this.FocusTile;
+                if (this.Input.KeyPressed(Keys.Left))
+                    this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.Left) ?? this.FocusTile;
+                if (this.Input.KeyPressed(Keys.Up))
+                    this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.UpRight) ?? this.FocusTile;
+                if (this.Input.KeyPressed(Keys.Down))
+                    this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.DownLeft) ?? this.FocusTile;
+            }
 
             if (this.SourceActor != null)
                 Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");
+
+            this.LastFocusTile = this.FocusTile;
         }
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
@@ -200,9 +231,6 @@ namespace Hex.Helpers
                 spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .5f);
             }
         }
-
-        // stage should be the one that tracks the SourceTile, CursorTile, SourceActor, CursorActor, etc
-        // actors should be replaced with shaded ? when not visible based on last position they were seen
 
         #endregion
 

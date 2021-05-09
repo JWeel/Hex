@@ -1,6 +1,5 @@
 using Extended.Collections;
 using Extended.Extensions;
-using Extended.Generators;
 using Hex.Auxiliary;
 using Hex.Enums;
 using Hex.Extensions;
@@ -10,7 +9,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
@@ -25,11 +23,11 @@ namespace Hex.Helpers
     {
         #region Constants
 
-        // no idea what these divisions are (possibly to account for hexagon borders sharing pixels?)
-        // without them there are small gaps or overlap between hexagons, especially as coordinates increase
-        // note that these are specific to 25/29 (pointy) sizes!
-        private const double SHORT_OVERLAP_DIVISOR = 1.80425; // this seems to be the offset for odd rows(pointy)/cols(flat)
-        private const double LONG_OVERLAP_DIVISOR = 2.07137; // but this one no idea, doesn't seem to match any offset
+        // no idea what these divisors are (possibly to account for hexagon borders sharing pixels, i.e. overlap?)
+        // without them there are gaps between hexagons or overlapping of hexagons, especially as coordinates increase
+        // note that these are specific to the 25/29 (pointy) hexagon size!
+        private const double SHORT_MAGIC_DIVISOR = 1.80425; // this seems to be the offset for odd rows(pointy)/cols(flat)
+        private const double LONG_MAGIC_DIVISOR = 2.07137; // but this one no idea, doesn't seem to match any offset
 
         // no idea why this works, but without it mouse to hexagon conversion is off and gets worse as it moves further from origin
         private const int SCREEN_TO_HEX_MAGIC_OFFSET_NUMBER = 169;
@@ -62,7 +60,7 @@ namespace Hex.Helpers
             this.HexagonBorderLargeTextureRange = new[] { HexagonBorderUpLeftTexture, HexagonBorderLeftTexture, HexagonBorderDownLeftLargeTexture, HexagonBorderDownLeftLargeTexture, HexagonBorderLeftTexture, HexagonBorderUpLeftTexture };
 
             this.TileSize = this.HexagonOuterTexture.ToVector();
-            this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_OVERLAP_DIVISOR, this.TileSize.Y / LONG_OVERLAP_DIVISOR);
+            this.HexagonSizeAdjusted = (this.TileSize.X / SHORT_MAGIC_DIVISOR, this.TileSize.Y / LONG_MAGIC_DIVISOR);
 
             this.Map = new Dictionary<Cube, Hexagon>();
         }
@@ -77,9 +75,6 @@ namespace Hex.Helpers
         /// <summary> The mapping of all tiles by cube-coordinates. </summary>
         public IDictionary<Cube, Hexagon> Map { get; protected set; }
 
-        /// <summary> The tile over which the cursor is hovering. </summary>
-        public Hexagon FocusTile { get; protected set; }
-
         /// <summary> The combined size of all tiles. </summary>
         public Vector2 TilemapSize { get; protected set; }
 
@@ -91,18 +86,6 @@ namespace Hex.Helpers
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
-
-        /// <summary> Indicates whether tile focus was changed. </summary>
-        public bool FocusChanged =>
-            (this.FocusTile != this.LastFocusTile);
-
-        /// <summary> Indicates whether tile focus went from <see langword="not null"/> to <see langword="null"/>. </summary>
-        public bool FocusLost =>
-            ((this.LastFocusTile != null) && (this.FocusTile == null));
-
-        /// <summary> Indicates whether tile focus went from <see langword="null"/> to <see langword="not null"/>. </summary>
-        public bool FocusGained =>
-            ((this.LastFocusTile == null) && (this.FocusTile != null));
 
         protected Matrix TileRotationMatrix { get; set; }
         protected Matrix WraparoundRotationMatrix { get; set; }
@@ -126,15 +109,11 @@ namespace Hex.Helpers
 
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
-        public Hexagon LastFocusTile { get; set; }
 
+        protected Hexagon FocusOverlay { get; set; }
         protected IDictionary<Hexagon, bool> FogOfWarMap { get; set; }
         protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
-
-        // TODO is this needed
-        protected bool CalculatedVisibility { get; set; }
-        // TODO is this needed
-        protected IDictionary<Hexagon, bool> VisibilityByHexagonMap { get; } = new Dictionary<Hexagon, bool>();
+        protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
 
         protected IDictionary<Hexagon, (Direction Direction, BorderType Type)[]> BorderMap { get; set; }
 
@@ -154,8 +133,6 @@ namespace Hex.Helpers
         protected (double X, double Y) HexagonSizeAdjusted { get; set; }
 
         protected Func<Hexagon, double> TileCostOverride { get; set; }
-
-        protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
 
         protected bool PrintCoords { get; set; }
 
@@ -187,9 +164,6 @@ namespace Hex.Helpers
                     .Aggregate((aggregate, position) => Vector2.Min(aggregate, position));
 
             this.TilemapSize = this.CalculateTilesCombinedSize();
-            this.VisibilityByHexagonMap.Clear();
-
-            this.FocusTile = default;
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
@@ -316,22 +290,6 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.P))
                 this.PrintCoords = !this.PrintCoords;
 
-            if (!this.CalculatedVisibility && (this.FocusTile != default) && this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
-            {
-                this.CalculatedVisibility = true;
-                this.VisibilityByHexagonMap.Clear();
-                this.Map.Values
-                    .Select(tile => (tile, this.DefineLineOfSight(this.FocusTile, tile, 10).Last().Visible))
-                    .Each(this.VisibilityByHexagonMap.Add);
-            };
-
-            if ((this.VisibilityByHexagonMap.Any() && (this.Input.KeysUp(Keys.LeftAlt, Keys.RightAlt, Keys.LeftShift, Keys.RightShift))
-                 || (this.FocusTile == default) || ((this.FocusTile != default) && (this.LastFocusTile != default) && (this.FocusTile != this.LastFocusTile))))
-            {
-                this.VisibilityByHexagonMap.Clear();
-                this.CalculatedVisibility = false;
-            }
-
             if (this.Input.KeyPressed(Keys.Z) && !this.Input.KeysDownAny(Keys.LeftAlt, Keys.RightAlt))
                 if (this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Rotate(degrees: -30);
@@ -354,25 +312,11 @@ namespace Hex.Helpers
                 else if (this.Input.KeyDown(Keys.X) && !this.Input.KeysDownAny(Keys.LeftShift, Keys.RightShift))
                     this.Rotate(degrees: 1);
 
-            if (this.FocusTile != null)
-            {
-                if (this.Input.KeyPressed(Keys.Right))
-                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.Right) ?? this.FocusTile;
-                if (this.Input.KeyPressed(Keys.Left))
-                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.Left) ?? this.FocusTile;
-                if (this.Input.KeyPressed(Keys.Up))
-                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.UpRight) ?? this.FocusTile;
-                if (this.Input.KeyPressed(Keys.Down))
-                    this.FocusTile = this.GetNeighbor(this.FocusTile, Direction.DownLeft) ?? this.FocusTile;
-            }
-
             if (this.Input.KeyPressed(Keys.V))
             {
                 this.Rotation = 0;
                 this.RecalculateRotations();
             }
-
-            this.LastFocusTile = this.FocusTile;
         }
 
         public void Draw(SpriteBatch spriteBatch)
@@ -396,18 +340,8 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
-                if (tile == this.FocusTile)
+                if (tile == this.FocusOverlay)
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
-
-                if (this.VisibilityByHexagonMap.TryGetValue(tile, out var visibility))
-                {
-                    var visiblityOverlayColor = visibility ?
-                        new Color(255, 255, 255).Blend(80) :
-                        new Color(0, 0, 0).Blend(50);
-                    // new Color(205, 235, 185, 100) :
-                    // new Color(175, 195, 160, 100);
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, visiblityOverlayColor, this.Rotation, depth: .175f);
-                }
 
                 // offset center of hexagon to preserve rotational origin for overlay sprites
                 var baseMiddleTransformed = baseMiddle.Transform(this.RenderRotationMatrix);
@@ -434,7 +368,7 @@ namespace Hex.Helpers
 
                 innerColor = tile.TileType switch
                 {
-                    // TileType.Mountain => new Color(130, 100, 60),
+                    TileType.Mountain => new Color(130, 100, 60),
                     _ => new Color(100, 140, 70)
                 };
                 var outerDepth = (TileType.Mountain == tile.TileType) ? .26f : .25f;
@@ -452,7 +386,12 @@ namespace Hex.Helpers
                 if ((this.FogOfWarMap != null) && !this.FogOfWarMap[tile])
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
 
-                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible))
+                // TBD: Not showing movement overlay in fog of war stops the finding of hidden actors.
+                // However if there is an area that is inaccessible through visible terrain but accessible through fog of war,
+                //  it will show the end of the path once it re-enters visible terrain from the fog of war.
+                // With clever use this could be exploited to determine the position of hidden actors.
+                // Therefore maybe when applying MovementOverlay the path should be cut off as soon as it enters fog of war.
+                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarMap.NotNullGetOrDefault(tile))
                 {
                     var color = accessible ? new Color(100, 150, 200).Blend(128) : new Color(50, 50, 50).Blend(24);
                     var movementOverlayScale = .5f;
@@ -467,16 +406,21 @@ namespace Hex.Helpers
             }
         }
 
-        public void Focus(Vector2 position)
+        /// <summary> Returns the tile located at the specified position, or <see langword="default"/> if there is no such tile. </summary>
+        public Hexagon Locate(Vector2 position)
         {
             var coordinates = this.ToTileCoordinates(position);
-            this.FocusTile = this.Map.GetOrDefault(coordinates);
+            return this.Map.GetOrDefault(coordinates);
+        }
+
+        public void Focus(Hexagon tile)
+        {
+            this.FocusOverlay = tile;
         }
 
         public void Unfocus()
         {
-            this.FocusTile = default;
-            this.ResetMovementOverlay();
+            this.FocusOverlay = default;
         }
 
         public IDictionary<Hexagon, bool> DetermineFogOfWar(Hexagon sourceTile, int viewDistance)
@@ -617,6 +561,9 @@ namespace Hex.Helpers
             }
         }
 
+        public Hexagon GetNeighbor(Hexagon hexagon, Direction direction) =>
+            this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
+
         #endregion
 
         #region Helper Methods
@@ -632,11 +579,6 @@ namespace Hex.Helpers
             var q = (Math.Sqrt(3) / 3.0 * mx - 1.0 / 3.0 * my) / this.HexagonSizeAdjusted.X;
             var r = (2.0 / 3.0 * my) / this.HexagonSizeAdjusted.Y;
             return Cube.Round(q, (-q - r), r);
-        }
-
-        protected Hexagon GetNeighbor(Hexagon hexagon, Direction direction)
-        {
-            return this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
         }
 
         protected Direction? GetDirection(Hexagon source, Hexagon target)

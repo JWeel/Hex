@@ -1,10 +1,22 @@
+using Extended.Extensions;
 using System.Collections.Generic;
 
 namespace Hex.Extensions
 {
     public static class DictionaryExtensions
     {
-        #region Not Null TryGetValue
+        #region Not Null Get
+
+        /// <summary> If source is not <see langword="null"/> and it contains an entry with the specified key, returns the associated value.
+        /// <br/> Otherwise returns the <see langword="default"/> value of type <typeparamref name="TValue"/>. </summary>
+        public static TValue NotNullGetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key)
+        {
+            if (source == null)
+            {
+                return default;
+            }
+            return source.GetOrDefault(key);
+        }
 
         /// <summary> If source is not <see langword="null"/>, returns <see cref="IDictionary{TKey,TValue}.TryGetValue(TKey, out TValue)"/>.
         /// <br/> If source is <see langword="null"/>, defaults the <see langword="out"/> parameter and returns <see langword="false"/>. </summary>
@@ -17,7 +29,7 @@ namespace Hex.Extensions
             }
             return source.TryGetValue(key, out value);
         }
-            
+
         #endregion
     }
 }
