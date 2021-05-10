@@ -35,23 +35,21 @@ namespace Hex.Helpers
         /// <summary> An error-margin that can be used to always push Lerp operations in the same direction when a point is exactly between two cubes. </summary>
         private static readonly Vector3 EPSILON = new Vector3(0.000001f, 0.000002f, -0.000003f);
 
+        // TBD: rename to HEXAGONAL_DIRECTIONS and have a non-static switch pick direction array based on tile shape
         private static Direction[] DIRECTIONS { get; } = new[] { Direction.UpRight, Direction.Right, Direction.DownRight, Direction.DownLeft, Direction.Left, Direction.UpLeft };
 
         #endregion
 
         #region Constructors
 
-        public TilemapHelper(InputHelper input, ContentManager content, Texture2D blankTexture, SpriteFont font)
+        public TilemapHelper(InputHelper input, ContentManager content, SpriteFont font)
         {
             this.Input = input;
-            this.BlankTexture = blankTexture;
             this.Font = font;
 
             this.HexagonOuterTexture = content.Load<Texture2D>("Graphics/xop");
             this.HexagonInnerTexture = content.Load<Texture2D>("Graphics/xip");
-            this.HexagonBorderPointyTexture = content.Load<Texture2D>("Graphics/xbp");
-            this.HexagonBorderFlattyTexture = content.Load<Texture2D>("Graphics/xbf");
-
+            this.HexagonBorderEdgeTexture = content.Load<Texture2D>("Graphics/xbp");
             this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
             this.HexagonBorderDownLeftTexture = content.Load<Texture2D>("Graphics/xbblp");
@@ -87,16 +85,6 @@ namespace Hex.Helpers
             Matrix.CreateRotationZ(this.Rotation) *
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
 
-        protected Matrix TileRotationMatrix { get; set; }
-        protected Matrix WraparoundRotationMatrix { get; set; }
-
-        protected InputHelper Input { get; }
-        protected Texture2D BlankTexture { get; }
-        protected SpriteFont Font { get; }
-
-        /// <summary> The amount of rotation in radians to apply to tile sprites. </summary>
-        protected float Rotation { get; set; }
-
         /// <summary> The amount of rotation in radians to apply to sprites that should maintain a relatively 'upward' orientation. </summary>
         /// <remarks> This is the result of performing a wraparound on <see cref="Rotation"/>. The amount wraps in range intervals of 60 degrees.
         /// <br/> E.g. with a degree range of [-29,31] : any rotation within this range of degrees is unaffected, but at 32 degrees the rotation becomes -29, and at -30 the rotation becomes 31. </remarks>
@@ -105,13 +93,22 @@ namespace Hex.Helpers
         /// <summary> An index in the range [0,5] which when multiplied by 60 corresponds to a degrees range in which <see cref="Rotation"/> lies.  </summary>
         public int WraparoundRotationInterval { get; protected set; }
 
+        protected Matrix WraparoundRotationMatrix { get; set; }
+        protected Matrix TileRotationMatrix { get; set; }
+
+        protected InputHelper Input { get; }
+        protected SpriteFont Font { get; }
+
+        /// <summary> The amount of rotation in radians to apply to tile sprites. </summary>
+        protected float Rotation { get; set; }
+
         protected Vector2 RenderPosition { get; set; }
 
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
 
         protected Hexagon FocusOverlay { get; set; }
-        protected IDictionary<Hexagon, bool> FogOfWarMap { get; set; }
+        protected IDictionary<Hexagon, bool> FogOfWarOverlayMap { get; set; }
         protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
         protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
 
@@ -119,9 +116,7 @@ namespace Hex.Helpers
 
         protected Texture2D HexagonOuterTexture { get; set; }
         protected Texture2D HexagonInnerTexture { get; set; }
-        protected Texture2D HexagonBorderPointyTexture { get; set; }
-        protected Texture2D HexagonBorderFlattyTexture { get; set; }
-
+        protected Texture2D HexagonBorderEdgeTexture { get; set; }
         protected Texture2D HexagonBorderDownLeftTexture { get; set; }
         protected Texture2D HexagonBorderDownLeftLargeTexture { get; set; }
         protected Texture2D HexagonBorderLeftTexture { get; set; }
@@ -331,7 +326,7 @@ namespace Hex.Helpers
                 var innerColor =
                     (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
-                    : tile.Color != default ? tile.Color
+                    : (tile.Color != default) ? tile.Color
                     : tile.TileType switch
                     {
                         TileType.Mountain => Color.Tan,
@@ -355,7 +350,7 @@ namespace Hex.Helpers
                         continue;
                     if (borderType == BorderType.Edge)
                     {
-                        spriteBatch.DrawAt(this.HexagonBorderPointyTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
+                        spriteBatch.DrawAt(this.HexagonBorderEdgeTexture, borderPosition, Color.Sienna, this.WraparoundRotation, depth: .075f);
                         continue;
                     }
                     if ((borderType != BorderType.Small) && (borderType != BorderType.Large))
@@ -383,7 +378,7 @@ namespace Hex.Helpers
                     spriteBatch.DrawText(this.Font, axialPrint, (baseMiddleTransformed - printOffset), Color.MistyRose, printScale, depth: .9f);
                 }
 
-                if ((this.FogOfWarMap != null) && !this.FogOfWarMap[tile])
+                if ((this.FogOfWarOverlayMap != null) && !this.FogOfWarOverlayMap[tile])
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
 
                 // TBD: Not showing movement overlay in fog of war stops the finding of hidden actors.
@@ -391,7 +386,7 @@ namespace Hex.Helpers
                 //  it will show the end of the path once it re-enters visible terrain from the fog of war.
                 // With clever use this could be exploited to determine the position of hidden actors.
                 // Therefore maybe when applying MovementOverlay the path should be cut off as soon as it enters fog of war.
-                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarMap.NotNullGetOrDefault(tile))
+                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarOverlayMap.NotNullGetOrDefault(tile))
                 {
                     var color = accessible ? new Color(100, 150, 200).Blend(128) : new Color(50, 50, 50).Blend(24);
                     var movementOverlayScale = .5f;
@@ -431,12 +426,12 @@ namespace Hex.Helpers
 
         public void ResetVisibility()
         {
-            this.FogOfWarMap = null;
+            this.FogOfWarOverlayMap = null;
         }
 
         public void ApplyVisibility(IDictionary<Hexagon, bool> fogOfWar)
         {
-            this.FogOfWarMap = fogOfWar;
+            this.FogOfWarOverlayMap = fogOfWar;
         }
 
         public IEnumerable<(Hexagon Tile, bool InRange)> DefinePath(Hexagon source, Hexagon target, int maxDistance,
@@ -536,9 +531,9 @@ namespace Hex.Helpers
             this.TileCostOverride = null;
         }
 
-        public void ApplyPathingOverrides(Func<Hexagon, double> pathCostOverride, Func<Hexagon, double> moveCostOverride)
+        public void ApplyPathingOverrides(Func<Hexagon, double> tileCostOverride)
         {
-            this.TileCostOverride = pathCostOverride;
+            this.TileCostOverride = tileCostOverride;
         }
 
         public void ResetEffects()
@@ -561,6 +556,7 @@ namespace Hex.Helpers
             }
         }
 
+        // TODO make rotation-aware, add protected GetNeighborAbsolute for rotation-agnostic neighboring
         public Hexagon GetNeighbor(Hexagon hexagon, Direction direction) =>
             this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
 
@@ -587,6 +583,19 @@ namespace Hex.Helpers
                 if (source.Cube.Neighbor(direction) == target.Cube)
                     return direction;
             return default;
+        }
+
+        protected double CalculateTileCost(Hexagon tile)
+        {
+            return tile.TileType switch
+            {
+                // TBD if this should come from an applied property or be passed in as parameter
+                // i.e. compare with inaccessibilityOverride func, which could also be applied property
+                _ when this.TileCostOverride.TryNotNullInvoke(tile, out var result) => result,
+                TileType.Grass => 1d,
+                TileType.Mountain => 2d,
+                _ => 0d
+            };
         }
 
         protected void Rotate(int degrees)
@@ -637,6 +646,7 @@ namespace Hex.Helpers
             BorderType DetermineBorderType(Hexagon tile, Direction direction)
             {
                 var neighbor = this.GetNeighbor(tile, direction);
+                // TBD add transparent tiletype support -> Edge
                 if (neighbor == null)
                     return BorderType.Edge;
                 if (neighbor.Elevation >= tile.Elevation)
@@ -676,8 +686,8 @@ namespace Hex.Helpers
             {
                 // Use linear interpolation to determine which tiles are on the line
                 var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
-                var addTile = this.Map[(lerp + EPSILON).ToRoundCube()];
-                var subTile = this.Map[(lerp - EPSILON).ToRoundCube()];
+                var addTile = this.Map[(lerp + EPSILON).ToRoundedCube()];
+                var subTile = this.Map[(lerp - EPSILON).ToRoundedCube()];
 
                 // If the tile is too far away, it is not visible
                 if (distanceStep >= viewDistance)
@@ -754,17 +764,6 @@ namespace Hex.Helpers
                 // Therefore the target is not visible.
                 return (addTile, false);
             });
-        }
-
-        protected double CalculateTileCost(Hexagon tile)
-        {
-            return tile.TileType switch
-            {
-                _ when this.TileCostOverride.TryNotNullInvoke(tile, out var result) => result,
-                TileType.Grass => 1d,
-                TileType.Mountain => 2d,
-                _ => 0d
-            };
         }
 
         // not really sure what center is useful for

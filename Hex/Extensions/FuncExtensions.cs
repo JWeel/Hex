@@ -1,6 +1,6 @@
 using System;
 
-namespace Extended.Extensions
+namespace Hex.Extensions
 {
     public static class FuncExtensions
     {

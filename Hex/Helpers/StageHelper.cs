@@ -50,7 +50,6 @@ namespace Hex.Helpers
 
         /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon FocusTile { get; protected set; }
-        protected Hexagon LastFocusTile { get; set; }
 
         public Actor SourceActor { get; protected set; }
 
@@ -59,18 +58,6 @@ namespace Hex.Helpers
 
         public int TileCount => this.Tilemap.Map.Count;
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
-
-        /// <summary> Indicates whether tile focus was changed and is now <see langword="not null"/>. </summary>
-        public bool FocusMoved =>
-            ((this.FocusTile != this.LastFocusTile) && (this.FocusTile != null));
-
-        /// <summary> Indicates whether tile focus went from <see langword="not null"/> to <see langword="null"/>. </summary>
-        public bool FocusLost =>
-            ((this.LastFocusTile != null) && (this.FocusTile == null));
-
-        /// <summary> Indicates whether tile focus went from <see langword="null"/> to <see langword="not null"/>. </summary>
-        public bool FocusGained =>
-            ((this.LastFocusTile == null) && (this.FocusTile != null));
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
@@ -81,7 +68,25 @@ namespace Hex.Helpers
         protected TilemapHelper Tilemap { get; set; }
         protected ActorHelper Actor { get; set; }
 
-        protected IDictionary<Actor, IDictionary<Hexagon, bool>> VisibilityMap;
+        protected IDictionary<Actor, IDictionary<Hexagon, bool>> VisibilityMap { get; set; }
+
+        protected Hexagon LastFocusTile { get; set; }
+
+        /// <summary> Indicates whether tile focus was changed. </summary>
+        protected bool FocusChanged =>
+            (this.FocusTile != this.LastFocusTile);
+
+        /// <summary> Indicates whether tile focus was changed and is now <see langword="not null"/>. </summary>
+        protected bool FocusMoved =>
+            ((this.FocusTile != this.LastFocusTile) && (this.FocusTile != null));
+
+        /// <summary> Indicates whether tile focus went from <see langword="not null"/> to <see langword="null"/>. </summary>
+        protected bool FocusLost =>
+            ((this.LastFocusTile != null) && (this.FocusTile == null));
+
+        /// <summary> Indicates whether tile focus went from <see langword="null"/> to <see langword="not null"/>. </summary>
+        protected bool FocusGained =>
+            ((this.LastFocusTile == null) && (this.FocusTile != null));
 
         #endregion
 
@@ -129,25 +134,18 @@ namespace Hex.Helpers
             if (this.Input.MouseMoved())
             {
                 var virtualMouseVector = this.Input.CurrentVirtualMouseVector;
-                var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
-
                 if (this.Container.Contains(virtualMouseVector))
                 {
+                    var cameraTranslatedMouseVector = this.Camera.FromScreen(virtualMouseVector);
                     this.FocusTile = this.Tilemap.Locate(cameraTranslatedMouseVector);
-                    if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null))
-                    {
-                        var path = this.Tilemap
-                            .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileActor)
-                            .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile))));
-                        this.Tilemap.ApplyMovementOverlay(path);
-                    }
                 }
                 else
+                {
                     this.FocusTile = default;
-                this.Tilemap.Focus(this.FocusTile);
+                    // By resetting here, overlay is kept while mouse is inside container even if not over a tile
+                    this.Tilemap.ResetMovementOverlay();
+                }
             }
-            // if (this.FocusLost)
-            //     this.Tilemap.ResetMovementOverlay();
 
             if (this.Input.KeyPressed(Keys.K))
             {
@@ -169,7 +167,7 @@ namespace Hex.Helpers
             if (this.Input.MousePressed(MouseButton.Left))
             {
                 var actorOnTile = this.FocusTile?.Into(tile => this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile)));
-                if ((this.FocusTile != default) && (actorOnTile != default) && (actorOnTile != this.SourceActor))
+                if ((actorOnTile != default) && (actorOnTile != this.SourceActor))
                 {
                     this.SourceActor = actorOnTile;
                     this.Tilemap.ApplyVisibility(this.VisibilityMap[this.SourceActor]);
@@ -178,6 +176,7 @@ namespace Hex.Helpers
                 else
                 {
                     this.SourceActor = null;
+                    // TODO when no actor selected, apply visibility of all actors from player faction
                     this.Tilemap.ResetVisibility();
                     this.Tilemap.ResetMovementOverlay();
                 }
@@ -190,6 +189,7 @@ namespace Hex.Helpers
 
             if (this.FocusTile != null)
             {
+                // TODO: Direction should be based on rotation, make GetNeighbor relative to Rotation
                 if (this.Input.KeyPressed(Keys.Right))
                     this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.Right) ?? this.FocusTile;
                 if (this.Input.KeyPressed(Keys.Left))
@@ -200,10 +200,23 @@ namespace Hex.Helpers
                     this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.DownLeft) ?? this.FocusTile;
             }
 
+            if (this.FocusChanged)
+                this.Tilemap.Focus(this.FocusTile);
+
+            if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null))
+            {
+                var path = this.Tilemap
+                    .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileActor)
+                    .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile))));
+                this.Tilemap.ApplyMovementOverlay(path);
+            }
+
+            // This does not need to be stored in a property, as it can be stored in local at start of method.
+            // But with the property, changes (FocusMoved, FocusLost, etc) are more readable and succinct.
+            this.LastFocusTile = this.FocusTile;
+
             if (this.SourceActor != null)
                 Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");
-
-            this.LastFocusTile = this.FocusTile;
         }
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
@@ -222,6 +235,7 @@ namespace Hex.Helpers
                 var color = ((actor == this.SourceActor) ? Color.LightGray : Color.White).Desaturate(actor.Faction.Color, .2f);
                 var texture = actor.Texture;
                 var textureScale = actor.TextureScale;
+                // TBD should hidden actors be 'visible' in the fog of war? or should add an AwarenessMap?
                 if ((this.SourceActor != null) && (!this.VisibilityMap[this.SourceActor][actor.Tile]))
                 {
                     color = color.Blend(40);
@@ -247,14 +261,14 @@ namespace Hex.Helpers
             }
         }
 
-        protected bool TileContainsActor(Hexagon tile) =>
-            this.TryGetActorOnTile(tile, out _);
-
         protected bool TryGetActorOnTile(Hexagon tile, out Actor actor)
         {
             actor = this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile));
             return (actor != default);
         }
+
+        protected bool TileContainsActor(Hexagon tile) =>
+            this.TryGetActorOnTile(tile, out _);
 
         protected bool TileContainsHostileActor(Hexagon tile) =>
             (this.TryGetActorOnTile(tile, out var actor) && !actor.Faction.Allies.Contains(this.SourceActor.Faction));
