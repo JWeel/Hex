@@ -12,7 +12,7 @@ namespace Hex.Models.Actors
         {
             this.Textures = textures;
             this.TextureScale = .7f;
-            this.BaseViewDistance = 9;
+            this.BaseViewDistance = 8;
             this.BaseMoveDistance = 6;
         }
 

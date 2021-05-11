@@ -29,5 +29,13 @@ namespace Extended.Extensions
             map.TryGetValue(key, out var value) ? value : default;
 
         #endregion
+
+        #region Create
+
+        /// <summary> Creates a <see cref="Dictionary{TKey, TValue"/> from a sequence of <see cref="KeyValuePair{TKey, TValue}"/> instances. </summary>
+        public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> items) =>
+            new Dictionary<TKey, TValue>(items);
+
+        #endregion
     }
 }

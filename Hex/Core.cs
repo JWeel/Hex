@@ -248,6 +248,7 @@ namespace Hex
                 // this.Log.AppendLine($"Camera: {this.Stage.Camera.Position}");
                 // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
+                this.Log.AppendLine($"Faction: {this.Stage.ActiveFaction?.Name ?? "n/a"}");
                 this.Log.AppendLine(Static.Memo.ToString());
             }
         }
@@ -309,7 +310,7 @@ namespace Hex
         //      And whether to start in fullscreen -> meaning global settings should be stored in config file
         // fullscreen just borderless mode? not sure of impact on non-windows
         // all form controls need keyboard support, like the blinking selector from pan engine
-        
+
         // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
         // can also try outer being just two vertical lines, then draw it 3 times, second and third being rotated
 

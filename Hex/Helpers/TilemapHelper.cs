@@ -47,8 +47,8 @@ namespace Hex.Helpers
             this.Input = input;
             this.Font = font;
 
-            this.HexagonOuterTexture = content.Load<Texture2D>("Graphics/xop");
-            this.HexagonInnerTexture = content.Load<Texture2D>("Graphics/xip");
+            this.HexagonOuterTexture = content.Load<Texture2D>("Graphics/xxop");
+            this.HexagonInnerTexture = content.Load<Texture2D>("Graphics/xxip");
             this.HexagonBorderEdgeTexture = content.Load<Texture2D>("Graphics/xbp");
             this.HexagonBorderUpLeftTexture = content.Load<Texture2D>("Graphics/xbulp");
             this.HexagonBorderLeftTexture = content.Load<Texture2D>("Graphics/xblp");
@@ -107,6 +107,7 @@ namespace Hex.Helpers
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
 
+        protected Hexagon SourceOverlay { get; set; }
         protected Hexagon FocusOverlay { get; set; }
         protected IDictionary<Hexagon, bool> FogOfWarOverlayMap { get; set; }
         protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
@@ -166,6 +167,8 @@ namespace Hex.Helpers
             this.ResetMovementOverlay();
             this.ResetPathingOverrides();
             this.ResetEffects();
+            this.Unfocus();
+            this.Unsource();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -335,8 +338,11 @@ namespace Hex.Helpers
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
 
+                if (tile == this.SourceOverlay)
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.Ivory.Blend(224), this.Rotation, depth: .16f);
+
                 if (tile == this.FocusOverlay)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(150), this.Rotation, depth: .16f);
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(144), this.Rotation, depth: .16f);
 
                 // offset center of hexagon to preserve rotational origin for overlay sprites
                 var baseMiddleTransformed = baseMiddle.Transform(this.RenderRotationMatrix);
@@ -367,7 +373,7 @@ namespace Hex.Helpers
                     _ => new Color(100, 140, 70)
                 };
                 var outerDepth = (TileType.Mountain == tile.TileType) ? .26f : .25f;
-                spriteBatch.DrawAt(this.HexagonOuterTexture, position, innerColor, this.Rotation, depth: outerDepth);
+                spriteBatch.DrawAt(this.HexagonOuterTexture, position, innerColor.Blend(80), this.Rotation, depth: outerDepth);
 
                 if (this.PrintCoords)
                 {
@@ -378,7 +384,7 @@ namespace Hex.Helpers
                     spriteBatch.DrawText(this.Font, axialPrint, (baseMiddleTransformed - printOffset), Color.MistyRose, printScale, depth: .9f);
                 }
 
-                if ((this.FogOfWarOverlayMap != null) && !this.FogOfWarOverlayMap[tile])
+                if (this.FogOfWarOverlayMap.NotNullTryGetValue(tile, out var visible) && !visible)
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
 
                 // TBD: Not showing movement overlay in fog of war stops the finding of hidden actors.
@@ -388,6 +394,7 @@ namespace Hex.Helpers
                 // Therefore maybe when applying MovementOverlay the path should be cut off as soon as it enters fog of war.
                 if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarOverlayMap.NotNullGetOrDefault(tile))
                 {
+                    // TODO color should be customizable, i.e. blue for movement, red if targeting foe, etc
                     var color = accessible ? new Color(100, 150, 200).Blend(128) : new Color(50, 50, 50).Blend(24);
                     var movementOverlayScale = .5f;
                     var sizeOffset = (this.TileSize / 2 * movementOverlayScale).Transform(this.TileRotationMatrix);
@@ -395,9 +402,7 @@ namespace Hex.Helpers
                     spriteBatch.DrawAt(this.HexagonInnerTexture, movementOverlayPosition, color, this.Rotation, movementOverlayScale, depth: .32f);
                 }
                 if (this.EffectOverlayMap.NotNullTryGetValue(tile, out var effectColor))
-                {
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, effectColor, this.Rotation, depth: .31f);
-                }
             }
         }
 
@@ -406,6 +411,16 @@ namespace Hex.Helpers
         {
             var coordinates = this.ToTileCoordinates(position);
             return this.Map.GetOrDefault(coordinates);
+        }
+
+        public void Source(Hexagon tile)
+        {
+            this.SourceOverlay = tile;
+        }
+
+        public void Unsource()
+        {
+            this.SourceOverlay = default;
         }
 
         public void Focus(Hexagon tile)
@@ -418,10 +433,17 @@ namespace Hex.Helpers
             this.FocusOverlay = default;
         }
 
-        public IDictionary<Hexagon, bool> DetermineFogOfWar(Hexagon sourceTile, int viewDistance)
+        public IDictionary<Hexagon, bool> DetermineFogOfWar(IEnumerable<(Hexagon SourceTile, int ViewDistance)> sequence)
         {
-            return this.Map.Values.ToDictionary(tile => tile, tile =>
-                this.DefineLineOfSight(sourceTile, tile, viewDistance).Last().Visible);
+            var visibilityMap = this.Map.Values.ToDictionary(tile => tile, tile => false);
+            sequence.Each(x =>
+            {
+                var (source, viewDistance) = x;
+                this.Map.Values
+                    .Where(tile => !visibilityMap[tile])
+                    .Each(target => visibilityMap[target] = this.DefineLineOfSight(source, target, viewDistance).Last().Visible);
+            });
+            return visibilityMap;
         }
 
         public void ResetVisibility()
@@ -512,7 +534,7 @@ namespace Hex.Helpers
             var steps = 0d;
             return Traverse(target)
                 .Reverse()
-                .Defer(x => steps += this.CalculateTileCost(x))
+                .Defer(x => steps += (x != source) ? this.CalculateTileCost(x) : 0d)
                 .Select(x => (x, (steps < maxDistance)));
         }
 

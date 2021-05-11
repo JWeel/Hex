@@ -15,6 +15,8 @@ namespace Hex.Models
 
         #region Properties
 
+        public string Name { get; init; }
+
         public Color Color { get; init; }
 
         public Faction[] Allies { get; protected set; }

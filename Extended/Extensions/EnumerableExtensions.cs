@@ -214,5 +214,29 @@ namespace Extended.Extensions
         }
 
         #endregion
+
+        #region Index
+
+        /// <summary> Returns the position of the first occurrence of the specified element in the sequence, or <c>-1</c> if it is not in the sequence. Default equality comparison is used to compare elements. </summary>
+        public static int IndexOf<T>(this IEnumerable<T> source, T element)
+        {
+            return source.IndexOf(element, EqualityComparer<T>.Default);
+        }
+
+        /// <summary> Returns the position of the first occurrence of the specified element in the sequence, or <c>-1</c> if it is not in the sequence. The specified equality comparer is used to compare elements. </summary>
+        public static int IndexOf<T>(this IEnumerable<T> source, T element, EqualityComparer<T> equalityComparer)
+        {
+            var index = 0;
+            var enumerator = source.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                if (equalityComparer.Equals(enumerator.Current, element))
+                    return index;
+                index++;
+            }
+            return -1;
+        }
+
+        #endregion
     }
 }

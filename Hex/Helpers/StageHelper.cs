@@ -1,6 +1,7 @@
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
+using Hex.Models;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
 using Microsoft.Xna.Framework;
@@ -28,7 +29,7 @@ namespace Hex.Helpers
             this.HiddenTexture = content.Load<Texture2D>("graphics/hidden");
             this.BackgroundTexture = content.Load<Texture2D>("graphics/background");
 
-            this.VisibilityMap = new Dictionary<Actor, IDictionary<Hexagon, bool>>();
+            this.VisibilityByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
         }
 
         #endregion
@@ -53,11 +54,13 @@ namespace Hex.Helpers
 
         public Actor SourceActor { get; protected set; }
 
-        /// <summary> A transform matrix that scales and moves the stage relative to camera position. </summary>
+        /// <summary> A transform matrix that scales and moves the stage relative to its internal camera. </summary>
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
 
         public int TileCount => this.Tilemap.Map.Count;
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
+
+        public Faction ActiveFaction => this.Faction.ActiveFaction;
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
@@ -66,9 +69,10 @@ namespace Hex.Helpers
 
         protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
+        protected FactionHelper Faction { get; set; }
         protected ActorHelper Actor { get; set; }
 
-        protected IDictionary<Actor, IDictionary<Hexagon, bool>> VisibilityMap { get; set; }
+        protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; set; }
 
         protected Hexagon LastFocusTile { get; set; }
 
@@ -99,6 +103,7 @@ namespace Hex.Helpers
                 this.Camera = dependency.Register<CameraHelper>();
                 this.Tilemap = dependency.Register<TilemapHelper>();
                 this.Tilemap.OnRotate += this.CenterOnSourceActor;
+                this.Faction = dependency.Register<FactionHelper>();
                 this.Actor = dependency.Register<ActorHelper>();
             }
         }
@@ -121,7 +126,7 @@ namespace Hex.Helpers
             this.Camera.Arrange(this.StageSize, this.Container);
 
             this.Actor.Reset();
-            this.VisibilityMap.Clear();
+            this.VisibilityByFactionMap.Clear();
         }
 
         public void Update(GameTime gameTime)
@@ -130,6 +135,23 @@ namespace Hex.Helpers
                 this.Camera.Center();
             if (this.Input.KeyPressed(Keys.H))
                 this.CenterOnSourceActor();
+
+            if (this.Input.KeyPressed(Keys.L))
+            {
+                this.Faction.Cycle();
+                this.SourceActor = null;
+                this.Tilemap.Unsource();
+                this.Tilemap.ResetMovementOverlay();
+                if ((this.Faction.ActiveFaction == null) || !this.VisibilityByFactionMap.ContainsKey(this.Faction.ActiveFaction))
+                {
+                    this.Tilemap.ResetVisibility();
+                }
+                else
+                {
+                    var visibility = this.VisibilityByFactionMap[this.Faction.ActiveFaction];
+                    this.Tilemap.ApplyVisibility(visibility);
+                }
+            }
 
             if (this.Input.MouseMoved())
             {
@@ -149,19 +171,28 @@ namespace Hex.Helpers
 
             if (this.Input.KeyPressed(Keys.K))
             {
+                if (this.Faction.ActiveFaction == null)
+                    return;
+
                 var tile = this.FocusTile ?? this.Tilemap.Map.Values.Random();
                 if (this.TileContainsActor(tile))
                     return;
 
                 var actor = this.Actor.Add();
                 this.Actor.Move(actor, tile);
-                this.VisibilityMap[actor] = this.Tilemap.DetermineFogOfWar(actor.Tile, actor.ViewDistance);
                 if (this.FocusTile != null)
                 {
                     this.SourceActor = actor;
-                    this.Tilemap.ApplyVisibility(this.VisibilityMap[actor]);
+                    this.Tilemap.Source(actor.Tile);
                     this.Tilemap.ResetMovementOverlay();
                 }
+
+                var actorViewData = this.Actor.Actors
+                    .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
+                    .Select(actor => (actor.Tile, actor.ViewDistance));
+                var visibility = this.Tilemap.DetermineFogOfWar(actorViewData);
+                this.VisibilityByFactionMap[this.Faction.ActiveFaction] = visibility;
+                this.Tilemap.ApplyVisibility(visibility);
             }
 
             if (this.Input.MousePressed(MouseButton.Left))
@@ -170,14 +201,13 @@ namespace Hex.Helpers
                 if ((actorOnTile != default) && (actorOnTile != this.SourceActor))
                 {
                     this.SourceActor = actorOnTile;
-                    this.Tilemap.ApplyVisibility(this.VisibilityMap[this.SourceActor]);
+                    this.Tilemap.Source(actorOnTile.Tile);
                     this.Tilemap.ResetMovementOverlay();
                 }
                 else
                 {
                     this.SourceActor = null;
-                    // TODO when no actor selected, apply visibility of all actors from player faction
-                    this.Tilemap.ResetVisibility();
+                    this.Tilemap.Unsource();
                     this.Tilemap.ResetMovementOverlay();
                 }
             }
@@ -236,7 +266,8 @@ namespace Hex.Helpers
                 var texture = actor.Texture;
                 var textureScale = actor.TextureScale;
                 // TBD should hidden actors be 'visible' in the fog of war? or should add an AwarenessMap?
-                if ((this.SourceActor != null) && (!this.VisibilityMap[this.SourceActor][actor.Tile]))
+                if ((this.Faction.ActiveFaction != null) && this.VisibilityByFactionMap.ContainsKey(this.Faction.ActiveFaction) &&
+                    !this.VisibilityByFactionMap[this.Faction.ActiveFaction][actor.Tile])
                 {
                     color = color.Blend(40);
                     texture = this.HiddenTexture;

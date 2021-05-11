@@ -1,10 +1,9 @@
-using Hex.Models;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
-using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Helpers;
+using System;
 using System.Collections.Generic;
 
 namespace Hex.Helpers
@@ -13,9 +12,10 @@ namespace Hex.Helpers
     {
         #region Constructors
 
-        public ActorHelper(InputHelper input, ContentManager content)
+        public ActorHelper(InputHelper input, FactionHelper faction, ContentManager content)
         {
             this.Input = input;
+            this.Faction = faction;
             this.Actors = new List<Actor>();
 
             this.Textures = new[]
@@ -30,14 +30,12 @@ namespace Hex.Helpers
 
         #region Properties
 
-        public InputHelper Input { get; }
-
         public IList<Actor> Actors { get; }
 
-        protected Texture2D[] Textures { get; }
+        protected InputHelper Input { get; }
+        protected FactionHelper Faction { get; }
 
-        protected Faction Player { get; } = new Faction { Color = Color.Blue } ;
-        protected Faction Monster { get; } = new Faction { Color = Color.Red };
+        protected Texture2D[] Textures { get; }
 
         #endregion
 
@@ -52,7 +50,7 @@ namespace Hex.Helpers
         {
             var actor = new Actor(this.Textures);
             this.Actors.Add(actor);
-            actor.Faction = (this.Actors.Count % 2 == 0) ? this.Player : this.Monster;
+            actor.Faction = this.Faction.ActiveFaction ?? throw new InvalidOperationException("No active faction.");
             return actor;
         }
 
