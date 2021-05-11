@@ -387,11 +387,6 @@ namespace Hex.Helpers
                 if (this.FogOfWarOverlayMap.NotNullTryGetValue(tile, out var visible) && !visible)
                     spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
 
-                // TBD: Not showing movement overlay in fog of war stops the finding of hidden actors.
-                // However if there is an area that is inaccessible through visible terrain but accessible through fog of war,
-                //  it will show the end of the path once it re-enters visible terrain from the fog of war.
-                // With clever use this could be exploited to determine the position of hidden actors.
-                // Therefore maybe when applying MovementOverlay the path should be cut off as soon as it enters fog of war.
                 if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarOverlayMap.NotNullGetOrDefault(tile))
                 {
                     // TODO color should be customizable, i.e. blue for movement, red if targeting foe, etc
@@ -498,7 +493,9 @@ namespace Hex.Helpers
                     {
                         var neighborCube = tile.Cube.Neighbor(direction);
                         var neighborTile = this.Map.GetOrDefault(neighborCube);
-                        if ((neighborTile == null) || inaccessibilityOverride(neighborTile))
+                        if ((neighborTile == null) ||
+                            (this.FogOfWarOverlayMap.NotNullTryGetValue(neighborTile, out var visible) && !visible) ||
+                                inaccessibilityOverride(neighborTile))
                             return default(Hexagon);
                         if (tile.Elevation == neighborTile.Elevation)
                             return neighborTile;
@@ -708,8 +705,19 @@ namespace Hex.Helpers
             {
                 // Use linear interpolation to determine which tiles are on the line
                 var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
-                var addTile = this.Map[(lerp + EPSILON).ToRoundedCube()];
-                var subTile = this.Map[(lerp - EPSILON).ToRoundedCube()];
+                var addCube = (lerp + EPSILON).ToRoundedCube();
+                var subCube = (lerp + EPSILON).ToRoundedCube();
+
+                // for source tiles on the edge of non-hexagonal-shaped tilemaps, +/- can be out of bounds
+                if (!this.Map.ContainsKey(addCube) && !this.Map.ContainsKey(subCube))
+                    return (null, false);
+                if (!this.Map.ContainsKey(addCube))
+                    addCube = subCube;
+                if (!this.Map.ContainsKey(subCube))
+                    subCube = addCube;
+
+                var addTile = this.Map[addCube];
+                var subTile = this.Map[subCube];
 
                 // If the tile is too far away, it is not visible
                 if (distanceStep >= viewDistance)
@@ -785,7 +793,8 @@ namespace Hex.Helpers
                 // or the tile does not sit on the edge of the cliff.
                 // Therefore the target is not visible.
                 return (addTile, false);
-            });
+            })
+            .Where(x => (x.Item1 != null));
         }
 
         // not really sure what center is useful for

@@ -220,6 +220,8 @@ namespace Hex
                 this.Stage.Arrange(this.Stage.Container, this.GetStagePath("grove"));
             if (this.Input.KeyPressed(Keys.F9))
                 this.Stage.Arrange(this.Stage.Container, this.GetStagePath("plateau"));
+            if (this.Input.KeyPressed(Keys.F10))
+                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("valley"));
 
             if (this.Input.KeyPressed(Keys.Tab))
                 this.Side.Toggle();

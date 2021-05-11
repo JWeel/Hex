@@ -198,7 +198,7 @@ namespace Hex.Helpers
             if (this.Input.MousePressed(MouseButton.Left))
             {
                 var actorOnTile = this.FocusTile?.Into(tile => this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile)));
-                if ((actorOnTile != default) && (actorOnTile != this.SourceActor))
+                if ((actorOnTile != default) && (actorOnTile != this.SourceActor) && (actorOnTile.Faction == this.Faction.ActiveFaction))
                 {
                     this.SourceActor = actorOnTile;
                     this.Tilemap.Source(actorOnTile.Tile);
@@ -233,7 +233,8 @@ namespace Hex.Helpers
             if (this.FocusChanged)
                 this.Tilemap.Focus(this.FocusTile);
 
-            if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null))
+            if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null) &&
+                this.VisibilityByFactionMap[this.SourceActor.Faction][this.FocusTile])
             {
                 var path = this.Tilemap
                     .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileActor)
