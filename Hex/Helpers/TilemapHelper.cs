@@ -109,6 +109,7 @@ namespace Hex.Helpers
 
         protected Hexagon SourceOverlay { get; set; }
         protected Hexagon FocusOverlay { get; set; }
+        protected IDictionary<Hexagon, bool> DiscoveryOverlayMap { get; set; }
         protected IDictionary<Hexagon, bool> FogOfWarOverlayMap { get; set; }
         protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
         protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
@@ -326,6 +327,12 @@ namespace Hex.Helpers
                 var baseMiddle = tile.Middle;
                 var position = basePosition.Transform(this.RenderRotationMatrix);
 
+                if (this.DiscoveryOverlayMap.NotNullTryGetValue(tile, out var explored) && !explored)
+                {
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.Black, this.Rotation, depth: .1f);
+                    continue;
+                }
+
                 var innerColor =
                     (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
@@ -428,17 +435,14 @@ namespace Hex.Helpers
             this.FocusOverlay = default;
         }
 
-        public IDictionary<Hexagon, bool> DetermineFogOfWar(IEnumerable<(Hexagon SourceTile, int ViewDistance)> sequence)
+        public void ResetDiscovery()
         {
-            var visibilityMap = this.Map.Values.ToDictionary(tile => tile, tile => false);
-            sequence.Each(x =>
-            {
-                var (source, viewDistance) = x;
-                this.Map.Values
-                    .Where(tile => !visibilityMap[tile])
-                    .Each(target => visibilityMap[target] = this.DefineLineOfSight(source, target, viewDistance).Last().Visible);
-            });
-            return visibilityMap;
+            this.DiscoveryOverlayMap = default;
+        }
+
+        public void ApplyDiscovery(IDictionary<Hexagon, bool> discoveryMap)
+        {
+            this.DiscoveryOverlayMap = discoveryMap;
         }
 
         public void ResetVisibility()
@@ -449,6 +453,59 @@ namespace Hex.Helpers
         public void ApplyVisibility(IDictionary<Hexagon, bool> fogOfWar)
         {
             this.FogOfWarOverlayMap = fogOfWar;
+        }
+
+        public void ResetMovementOverlay()
+        {
+            this.MovementOverlayMap = null;
+        }
+
+        public void ApplyMovementOverlay(IEnumerable<(Hexagon Tile, bool Accessible)> path)
+        {
+            this.MovementOverlayMap = path.ToDictionary(x => x.Tile, x => x.Accessible);
+        }
+
+        public void ResetPathingOverrides()
+        {
+            this.TileCostOverride = null;
+        }
+
+        public void ApplyPathingOverrides(Func<Hexagon, double> tileCostOverride)
+        {
+            this.TileCostOverride = tileCostOverride;
+        }
+
+        public void ResetEffects()
+        {
+            this.EffectOverlayMap = null;
+        }
+
+        public void ApplyRing(Hexagon tile, int radius)
+        {
+            this.EffectOverlayMap = new Dictionary<Hexagon, Color>();
+            var cube = tile.Cube - (radius, 0);
+            for (var i = 0; i < 6; i++)
+            {
+                for (var j = 0; j < radius; j++)
+                {
+                    if (this.Map.TryGetValue(cube, out var cubeTile))
+                        this.EffectOverlayMap[cubeTile] = Color.LightGoldenrodYellow.Blend(128);
+                    cube = cube.Neighbor(DIRECTIONS[i]);
+                }
+            }
+        }
+
+        public IDictionary<Hexagon, bool> DetermineFogOfWar(IEnumerable<(Hexagon SourceTile, int ViewDistance)> viewData)
+        {
+            var visibilityMap = this.Map.Values.ToDictionary(tile => tile, tile => false);
+            viewData.Each(x =>
+            {
+                var (source, viewDistance) = x;
+                this.Map.Values
+                    .Where(tile => !visibilityMap[tile])
+                    .Each(target => visibilityMap[target] = this.DefineLineOfSight(source, target, viewDistance).Last().Visible);
+            });
+            return visibilityMap;
         }
 
         public IEnumerable<(Hexagon Tile, bool InRange)> DefinePath(Hexagon source, Hexagon target, int maxDistance,
@@ -533,46 +590,6 @@ namespace Hex.Helpers
                 .Reverse()
                 .Defer(x => steps += (x != source) ? this.CalculateTileCost(x) : 0d)
                 .Select(x => (x, (steps < maxDistance)));
-        }
-
-        public void ResetMovementOverlay()
-        {
-            this.MovementOverlayMap = null;
-        }
-
-        public void ApplyMovementOverlay(IEnumerable<(Hexagon Tile, bool Accessible)> path)
-        {
-            this.MovementOverlayMap = path.ToDictionary(x => x.Tile, x => x.Accessible);
-        }
-
-        public void ResetPathingOverrides()
-        {
-            this.TileCostOverride = null;
-        }
-
-        public void ApplyPathingOverrides(Func<Hexagon, double> tileCostOverride)
-        {
-            this.TileCostOverride = tileCostOverride;
-        }
-
-        public void ResetEffects()
-        {
-            this.EffectOverlayMap = null;
-        }
-
-        public void ApplyRing(Hexagon tile, int radius)
-        {
-            this.EffectOverlayMap = new Dictionary<Hexagon, Color>();
-            var cube = tile.Cube - (radius, 0);
-            for (var i = 0; i < 6; i++)
-            {
-                for (var j = 0; j < radius; j++)
-                {
-                    if (this.Map.TryGetValue(cube, out var cubeTile))
-                        this.EffectOverlayMap[cubeTile] = Color.LightGoldenrodYellow.Blend(128);
-                    cube = cube.Neighbor(DIRECTIONS[i]);
-                }
-            }
         }
 
         // TODO make rotation-aware, add protected GetNeighborAbsolute for rotation-agnostic neighboring

@@ -18,11 +18,16 @@ namespace Hex.Helpers
             this.Faction = faction;
             this.Actors = new List<Actor>();
 
-            this.Textures = new[]
+            this.TexturesGrimion = new[]
             {
                 content.Load<Texture2D>("Graphics/grimion1"),
                 content.Load<Texture2D>("Graphics/grimion2"),
                 content.Load<Texture2D>("Graphics/grimion3"),
+            };
+            this.TexturesIron = new[]
+            {
+                content.Load<Texture2D>("Graphics/iron1"),
+                content.Load<Texture2D>("Graphics/iron2"),
             };
         }
 
@@ -35,7 +40,8 @@ namespace Hex.Helpers
         protected InputHelper Input { get; }
         protected FactionHelper Faction { get; }
 
-        protected Texture2D[] Textures { get; }
+        protected Texture2D[] TexturesGrimion { get; }
+        protected Texture2D[] TexturesIron { get; }
 
         #endregion
 
@@ -48,7 +54,10 @@ namespace Hex.Helpers
 
         public Actor Add()
         {
-            var actor = new Actor(this.Textures);
+            // TODO better way to set up actors and textures
+            var textures = (this.Faction.ActiveFaction?.Name == "Monster") ? this.TexturesGrimion : this.TexturesIron;
+            
+            var actor = new Actor(textures);
             this.Actors.Add(actor);
             actor.Faction = this.Faction.ActiveFaction ?? throw new InvalidOperationException("No active faction.");
             return actor;

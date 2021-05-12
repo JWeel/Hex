@@ -12,14 +12,12 @@ namespace Hex.Extensions
         public static TValue NotNullGetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key)
         {
             if (source == null)
-            {
                 return default;
-            }
             return source.GetOrDefault(key);
         }
 
         /// <summary> If source is not <see langword="null"/>, returns <see cref="IDictionary{TKey,TValue}.TryGetValue(TKey, out TValue)"/>.
-        /// <br/> If source is <see langword="null"/>, defaults the <see langword="out"/> parameter and returns <see langword="false"/>. </summary>
+        /// <br/> Otherwise defaults the <see langword="out"/> parameter and returns <see langword="false"/>. </summary>
         public static bool NotNullTryGetValue<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key, out TValue value)
         {
             if (source == null)
@@ -28,6 +26,15 @@ namespace Hex.Extensions
                 return false;
             }
             return source.TryGetValue(key, out value);
+        }
+
+        /// <summary> If source is not <see langword="null"/>, returns <see cref="IDictionary{TKey,TValue}.ContainsKey(TKey)"/>.
+        /// <br/> Otherwise returns <see langword="false"/>. </summary>
+        public static bool NotNullContainsKey<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key)
+        {
+            if (source == null)
+                return false;
+            return source.ContainsKey(key);
         }
 
         #endregion

@@ -29,6 +29,7 @@ namespace Hex.Helpers
             this.HiddenTexture = content.Load<Texture2D>("graphics/hidden");
             this.BackgroundTexture = content.Load<Texture2D>("graphics/background");
 
+            this.DiscoveryByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
             this.VisibilityByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
         }
 
@@ -72,6 +73,7 @@ namespace Hex.Helpers
         protected FactionHelper Faction { get; set; }
         protected ActorHelper Actor { get; set; }
 
+        protected IDictionary<Faction, IDictionary<Hexagon, bool>> DiscoveryByFactionMap { get; set; }
         protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; set; }
 
         protected Hexagon LastFocusTile { get; set; }
@@ -126,7 +128,9 @@ namespace Hex.Helpers
             this.Camera.Arrange(this.StageSize, this.Container);
 
             this.Actor.Reset();
+            this.DiscoveryByFactionMap.Clear();
             this.VisibilityByFactionMap.Clear();
+            this.SourceActor = null;
         }
 
         public void Update(GameTime gameTime)
@@ -142,6 +146,17 @@ namespace Hex.Helpers
                 this.SourceActor = null;
                 this.Tilemap.Unsource();
                 this.Tilemap.ResetMovementOverlay();
+
+                if ((this.Faction.ActiveFaction == null) || !this.DiscoveryByFactionMap.ContainsKey(this.Faction.ActiveFaction))
+                {
+                    this.Tilemap.ResetDiscovery();
+                }
+                else
+                {
+                    var discovery = this.DiscoveryByFactionMap[this.Faction.ActiveFaction];
+                    this.Tilemap.ApplyDiscovery(discovery);
+                }
+
                 if ((this.Faction.ActiveFaction == null) || !this.VisibilityByFactionMap.ContainsKey(this.Faction.ActiveFaction))
                 {
                     this.Tilemap.ResetVisibility();
@@ -186,6 +201,14 @@ namespace Hex.Helpers
                     this.Tilemap.Source(actor.Tile);
                     this.Tilemap.ResetMovementOverlay();
                 }
+
+                // temporary
+                var actorViewData2 = this.Actor.Actors
+                    .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
+                    .Select(actor => (actor.Tile, actor.ViewDistance + 2));
+                var discovery = this.Tilemap.DetermineFogOfWar(actorViewData2);
+                this.DiscoveryByFactionMap[this.Faction.ActiveFaction] = discovery;
+                this.Tilemap.ApplyDiscovery(discovery);
 
                 var actorViewData = this.Actor.Actors
                     .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
@@ -262,13 +285,14 @@ namespace Hex.Helpers
         {
             foreach (var actor in this.Actor.Actors)
             {
+                if ((this.Faction.ActiveFaction != null) && this.DiscoveryByFactionMap.TryGetValue(this.Faction.ActiveFaction, out var discoveryMap) && !discoveryMap[actor.Tile])
+                    continue;
+
                 var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
                 var color = ((actor == this.SourceActor) ? Color.LightGray : Color.White).Desaturate(actor.Faction.Color, .2f);
                 var texture = actor.Texture;
                 var textureScale = actor.TextureScale;
-                // TBD should hidden actors be 'visible' in the fog of war? or should add an AwarenessMap?
-                if ((this.Faction.ActiveFaction != null) && this.VisibilityByFactionMap.ContainsKey(this.Faction.ActiveFaction) &&
-                    !this.VisibilityByFactionMap[this.Faction.ActiveFaction][actor.Tile])
+                if ((this.Faction.ActiveFaction != null) && this.VisibilityByFactionMap.TryGetValue(this.Faction.ActiveFaction, out var visibilityMap) && !visibilityMap[actor.Tile])
                 {
                     color = color.Blend(40);
                     texture = this.HiddenTexture;
@@ -276,6 +300,8 @@ namespace Hex.Helpers
                 var sizeOffset = (texture.ToVector() * textureScale) / 2;
                 spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .5f);
             }
+            // TODO keep track of actors of other factions' last known location before entering fog of war
+            // use that for drawing hiddentexture. hidden actors should not be drawn
         }
 
         #endregion
