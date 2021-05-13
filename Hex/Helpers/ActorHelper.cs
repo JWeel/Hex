@@ -35,7 +35,7 @@ namespace Hex.Helpers
 
         #region Properties
 
-        public IList<Actor> Actors { get; }
+        public List<Actor> Actors { get; }
 
         protected InputHelper Input { get; }
         protected FactionHelper Faction { get; }

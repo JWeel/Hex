@@ -391,10 +391,10 @@ namespace Hex.Helpers
                     spriteBatch.DrawText(this.Font, axialPrint, (baseMiddleTransformed - printOffset), Color.MistyRose, printScale, depth: .9f);
                 }
 
-                if (this.FogOfWarOverlayMap.NotNullTryGetValue(tile, out var visible) && !visible)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
+                if (this.EffectOverlayMap.NotNullTryGetValue(tile, out var effectColor))
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, effectColor, this.Rotation, depth: .31f);
 
-                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible) && this.FogOfWarOverlayMap.NotNullGetOrDefault(tile))
+                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible))
                 {
                     // TODO color should be customizable, i.e. blue for movement, red if targeting foe, etc
                     var color = accessible ? new Color(100, 150, 200).Blend(128) : new Color(50, 50, 50).Blend(24);
@@ -403,8 +403,9 @@ namespace Hex.Helpers
                     var movementOverlayPosition = (baseMiddleTransformed - sizeOffset);
                     spriteBatch.DrawAt(this.HexagonInnerTexture, movementOverlayPosition, color, this.Rotation, movementOverlayScale, depth: .32f);
                 }
-                if (this.EffectOverlayMap.NotNullTryGetValue(tile, out var effectColor))
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, effectColor, this.Rotation, depth: .31f);
+                
+                if (this.FogOfWarOverlayMap.NotNullTryGetValue(tile, out var visible) && !visible)
+                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
             }
         }
 
@@ -551,7 +552,7 @@ namespace Hex.Helpers
                         var neighborCube = tile.Cube.Neighbor(direction);
                         var neighborTile = this.Map.GetOrDefault(neighborCube);
                         if ((neighborTile == null) ||
-                            (this.FogOfWarOverlayMap.NotNullTryGetValue(neighborTile, out var visible) && !visible) ||
+                            (this.DiscoveryOverlayMap.NotNullTryGetValue(neighborTile, out var discovered) && !discovered) ||
                                 inaccessibilityOverride(neighborTile))
                             return default(Hexagon);
                         if (tile.Elevation == neighborTile.Elevation)
@@ -586,10 +587,12 @@ namespace Hex.Helpers
             }
 
             var steps = 0d;
+            var open = true;
             return Traverse(target)
                 .Reverse()
+                .Defer(x => open = (this.FogOfWarOverlayMap.NotNullTryGetValue(x, out var visible) && !visible) ? false : open)
                 .Defer(x => steps += (x != source) ? this.CalculateTileCost(x) : 0d)
-                .Select(x => (x, (steps < maxDistance)));
+                .Select(x => (x, (open && (steps < maxDistance))));
         }
 
         // TODO make rotation-aware, add protected GetNeighborAbsolute for rotation-agnostic neighboring
@@ -723,7 +726,7 @@ namespace Hex.Helpers
                 // Use linear interpolation to determine which tiles are on the line
                 var lerp = this.Lerp(source.Cube, target.Cube, 1f / distance * distanceStep);
                 var addCube = (lerp + EPSILON).ToRoundedCube();
-                var subCube = (lerp + EPSILON).ToRoundedCube();
+                var subCube = (lerp - EPSILON).ToRoundedCube();
 
                 // for source tiles on the edge of non-hexagonal-shaped tilemaps, +/- can be out of bounds
                 if (!this.Map.ContainsKey(addCube) && !this.Map.ContainsKey(subCube))

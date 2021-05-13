@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Extended.Extensions
@@ -35,6 +36,21 @@ namespace Extended.Extensions
         /// <summary> Creates a <see cref="Dictionary{TKey, TValue"/> from a sequence of <see cref="KeyValuePair{TKey, TValue}"/> instances. </summary>
         public static Dictionary<TKey, TValue> ToDictionary<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> items) =>
             new Dictionary<TKey, TValue>(items);
+
+        #endregion
+
+        #region Get Or Set
+
+        /// <summary> Attempts to get the value associated with the specified key.
+        /// <br/> If the key does not exist in the map, a provided <see cref="Func{TValue"/> is invoked to retrieve an alternate value. This value will be added with the key to the map, and will then be returned. </summary>
+        public static TValue GetOrSet<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key, Func<TValue> func)
+        {
+            if (source.TryGetValue(key, out var value))
+                return value;
+            var alternate = func();
+            source[key] = alternate;
+            return alternate;
+        }
 
         #endregion
     }
