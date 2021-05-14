@@ -31,6 +31,8 @@ namespace Hex.Helpers
 
             this.DiscoveryByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
             this.VisibilityByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
+
+            this.LastSourceActorMap = new Dictionary<Faction, Actor>();
         }
 
         #endregion
@@ -61,7 +63,7 @@ namespace Hex.Helpers
         public int TileCount => this.Tilemap.Map.Count;
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
 
-        public Faction ActiveFaction => this.Faction.ActiveFaction;
+        public Faction SourceFaction => this.Faction.ActiveFaction;
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
@@ -72,13 +74,16 @@ namespace Hex.Helpers
         protected TilemapHelper Tilemap { get; set; }
         protected FactionHelper Faction { get; set; }
         protected ActorHelper Actor { get; set; }
+        protected TurnHelper Turn { get; set; }
 
-        protected IDictionary<Faction, IDictionary<Hexagon, bool>> DiscoveryByFactionMap { get; set; }
-        protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; set; }
+        protected IDictionary<Faction, IDictionary<Hexagon, bool>> DiscoveryByFactionMap { get; }
+        protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; }
 
-        protected (Hexagon Tile, bool Accessible)[] SourcePath { get; set; }
+        protected (Hexagon Tile, bool Accessible, double Accrue)[] SourcePath { get; set; }
 
         protected Hexagon LastFocusTile { get; set; }
+
+        protected IDictionary<Faction, Actor> LastSourceActorMap { get; }
 
         /// <summary> Indicates whether tile focus was changed. </summary>
         protected bool FocusChanged =>
@@ -110,6 +115,7 @@ namespace Hex.Helpers
                 this.Tilemap.OnRotate += this.SortActorDrawOrder;
                 this.Faction = dependency.Register<FactionHelper>();
                 this.Actor = dependency.Register<ActorHelper>();
+                this.Turn = dependency.Register<TurnHelper>();
             }
         }
 
@@ -131,8 +137,11 @@ namespace Hex.Helpers
             this.Camera.Arrange(this.StageSize, this.Container);
 
             this.Actor.Reset();
+
             this.DiscoveryByFactionMap.Clear();
             this.VisibilityByFactionMap.Clear();
+
+            this.LastSourceActorMap.Clear();
             this.SourceActor = null;
             this.SourcePath = null;
         }
@@ -144,33 +153,50 @@ namespace Hex.Helpers
             if (this.Input.KeyPressed(Keys.H))
                 this.CenterOnSourceActor();
 
-            if (this.Input.KeyPressed(Keys.L))
+            if (this.Input.KeyPressed(Keys.Y))
             {
-                this.Faction.Cycle();
-                this.SourceActor = null;
-                this.Tilemap.Unsource();
-                this.Tilemap.ResetMovementOverlay();
-                this.SourcePath = null;
+                if (this.SourceFaction != null)
+                    this.LastSourceActorMap[this.SourceFaction] = this.SourceActor;
 
-                if ((this.Faction.ActiveFaction == null) || !this.DiscoveryByFactionMap.ContainsKey(this.Faction.ActiveFaction))
+                this.Faction.Toggle(); // modifies SourceFaction (TBD more elegant to not rely on side effects)
+                if (this.SourceFaction == null)
                 {
+                    this.SourceActor = null;
+                    this.Tilemap.Unsource();
+                    this.Tilemap.ResetMovementOverlay();
+                    this.Tilemap.ResetVisibility();
                     this.Tilemap.ResetDiscovery();
                 }
                 else
                 {
-                    var discovery = this.DiscoveryByFactionMap[this.Faction.ActiveFaction];
+                    this.SourceActor = this.LastSourceActorMap.GetOrDefault(this.SourceFaction);
+                    this.Tilemap.Source(this.SourceActor?.Tile);
+                    this.Tilemap.ResetMovementOverlay();
+                    this.SourcePath = null;
+                    var discovery = this.DiscoveryByFactionMap.GetOrDefault(this.SourceFaction);
                     this.Tilemap.ApplyDiscovery(discovery);
-                }
-
-                if ((this.Faction.ActiveFaction == null) || !this.VisibilityByFactionMap.ContainsKey(this.Faction.ActiveFaction))
-                {
-                    this.Tilemap.ResetVisibility();
-                }
-                else
-                {
-                    var visibility = this.VisibilityByFactionMap[this.Faction.ActiveFaction];
+                    var visibility = this.VisibilityByFactionMap.GetOrDefault(this.SourceFaction);
                     this.Tilemap.ApplyVisibility(visibility);
                 }
+            }
+
+            if (this.Input.KeyPressed(Keys.L))
+            {
+                this.LastSourceActorMap[this.SourceFaction] = this.SourceActor;
+                this.Turn.Next(); // modifies SourceFaction (TBD more elegant to not rely on side effects)
+
+                // TODO check if no longer exists?
+                this.SourceActor = this.LastSourceActorMap.GetOrDefault(this.SourceFaction);
+
+                this.Tilemap.Source(this.SourceActor?.Tile);
+                this.Tilemap.ResetMovementOverlay();
+                this.SourcePath = null;
+
+                var discovery = this.DiscoveryByFactionMap.GetOrDefault(this.SourceFaction);
+                this.Tilemap.ApplyDiscovery(discovery);
+
+                var visibility = this.VisibilityByFactionMap.GetOrDefault(this.SourceFaction);
+                this.Tilemap.ApplyVisibility(visibility);
             }
 
             if (this.Input.MouseMoved())
@@ -192,7 +218,7 @@ namespace Hex.Helpers
 
             if (this.Input.KeyPressed(Keys.K))
             {
-                if (this.Faction.ActiveFaction == null)
+                if (this.SourceFaction == null)
                     return;
 
                 var tile = this.FocusTile ?? this.Tilemap.Map.Values.Random();
@@ -200,7 +226,7 @@ namespace Hex.Helpers
                     return;
 
                 var actor = this.Actor.Add();
-                this.Actor.Move(actor, tile);
+                this.Actor.Move(actor, tile, cost: 0d);
                 this.SortActorDrawOrder();
                 if (this.FocusTile != null)
                 {
@@ -211,14 +237,14 @@ namespace Hex.Helpers
                 }
 
                 var actorViewData = this.Actor.Actors
-                    .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
+                    .Where(actor => (actor.Faction == this.SourceFaction))
                     .Select(actor => (actor.Tile, actor.ViewDistance));
                 var visibility = this.Tilemap.DetermineFogOfWar(actorViewData);
-                this.VisibilityByFactionMap[this.Faction.ActiveFaction] = visibility;
+                this.VisibilityByFactionMap[this.SourceFaction] = visibility;
                 this.Tilemap.ApplyVisibility(visibility);
 
                 // TBD - initial discovery may come from somewhere else
-                var discovery = this.DiscoveryByFactionMap.GetOrSet(this.Faction.ActiveFaction, () => visibility.ToDictionary());
+                var discovery = this.DiscoveryByFactionMap.GetOrSet(this.SourceFaction, () => visibility.ToDictionary());
                 visibility
                     .Where(x => x.Value)
                     .Each(x => discovery[x.Key] = true);
@@ -228,7 +254,7 @@ namespace Hex.Helpers
             if (this.Input.MousePressed(MouseButton.Left))
             {
                 var actorOnTile = this.FocusTile?.Into(tile => this.Actor.Actors.FirstOrDefault(actor => (actor.Tile == tile)));
-                if ((actorOnTile != default) && (actorOnTile != this.SourceActor) && (actorOnTile.Faction == this.Faction.ActiveFaction))
+                if ((actorOnTile != default) && (actorOnTile != this.SourceActor) && (actorOnTile.Faction == this.SourceFaction))
                 {
                     this.SourceActor = actorOnTile;
                     this.Tilemap.Source(actorOnTile.Tile);
@@ -237,25 +263,28 @@ namespace Hex.Helpers
                 }
                 else
                 {
-                    if ((this.SourceActor != null) && (this.FocusTile != null) && (this.SourceActor.Tile != this.FocusTile) &&
+                    if ((this.SourceActor != null) && (this.SourceActor.MovementAllowed > 1) &&
+                        (this.FocusTile != null) && (this.SourceActor.Tile != this.FocusTile) &&
                         (this.SourcePath != null) && this.SourcePath.Any(x => (x.Tile == this.FocusTile)))
                     {
                         var tile = (this.SourcePath.First(x => (x.Tile == this.FocusTile)).Accessible) ?
                             this.FocusTile :
                             this.SourcePath.Last(x => x.Accessible).Tile;
-                        this.Actor.Move(this.SourceActor, tile);
+                        var cost = this.SourcePath.First(x => (x.Tile == tile)).Accrue;
 
-                        this.Tilemap.Focus(tile);
+                        this.Actor.Move(this.SourceActor, tile, cost);
+
+                        // this.Tilemap.Focus(tile);
                         this.Tilemap.Source(tile);
 
                         var actorViewData = this.Actor.Actors
-                            .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
+                            .Where(actor => (actor.Faction == this.SourceFaction))
                             .Select(actor => (actor.Tile, actor.ViewDistance));
                         var visibility = this.Tilemap.DetermineFogOfWar(actorViewData);
-                        this.VisibilityByFactionMap[this.Faction.ActiveFaction] = visibility;
+                        this.VisibilityByFactionMap[this.SourceFaction] = visibility;
                         this.Tilemap.ApplyVisibility(visibility);
 
-                        var discovery = this.DiscoveryByFactionMap[this.Faction.ActiveFaction];
+                        var discovery = this.DiscoveryByFactionMap[this.SourceFaction];
                         visibility
                             .Where(x => x.Value)
                             .Each(x => discovery[x.Key] = true);
@@ -269,8 +298,8 @@ namespace Hex.Helpers
                         else
                         {
                             var path = this.Tilemap
-                                .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileVisibleActor)
-                                .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile))))
+                                .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.TileContainsHostileVisibleActor)
+                                .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile)), x.Accrue))
                                 .ToArray();
                             this.Tilemap.ApplyMovementOverlay(path);
                             this.SourcePath = path;
@@ -308,11 +337,11 @@ namespace Hex.Helpers
                 this.Tilemap.Focus(this.FocusTile);
 
             if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null) &&
-                this.DiscoveryByFactionMap[this.SourceActor.Faction][this.FocusTile])
+                this.DiscoveryByFactionMap[this.SourceFaction][this.FocusTile])
             {
                 var path = this.Tilemap
-                    .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MoveDistance, this.TileContainsHostileVisibleActor)
-                    .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile))))
+                    .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.TileContainsHostileVisibleActor)
+                    .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile)), x.Accrue))
                     .ToArray();
                 this.Tilemap.ApplyMovementOverlay(path);
                 this.SourcePath = path;
@@ -323,7 +352,10 @@ namespace Hex.Helpers
             this.LastFocusTile = this.FocusTile;
 
             if (this.SourceActor != null)
-                Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube}");
+            {
+                Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube} > {this.SourceActor.MovementAllowed}");
+                Static.Memo.AppendLine($"Turn: {this.Turn.TurnCount}");
+            }
         }
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
@@ -338,14 +370,14 @@ namespace Hex.Helpers
         {
             foreach (var actor in this.Actor.Actors)
             {
-                if ((this.Faction.ActiveFaction != null) && this.DiscoveryByFactionMap.TryGetValue(this.Faction.ActiveFaction, out var discoveryMap) && !discoveryMap[actor.Tile])
+                if ((this.SourceFaction != null) && this.DiscoveryByFactionMap.TryGetValue(this.SourceFaction, out var discoveryMap) && !discoveryMap[actor.Tile])
                     continue;
 
                 var sourcePosition = actor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
                 var color = Color.White.Desaturate(actor.Faction.Color, .1f);
                 var texture = actor.Texture;
                 var textureScale = actor.TextureScale;
-                if ((this.Faction.ActiveFaction != null) && this.VisibilityByFactionMap.TryGetValue(this.Faction.ActiveFaction, out var visibilityMap) && !visibilityMap[actor.Tile])
+                if ((this.SourceFaction != null) && this.VisibilityByFactionMap.TryGetValue(this.SourceFaction, out var visibilityMap) && !visibilityMap[actor.Tile])
                 {
                     color = color.Blend(40);
                     texture = this.HiddenTexture;
@@ -391,8 +423,8 @@ namespace Hex.Helpers
             this.TryGetActorOnTile(tile, out _);
 
         protected bool TileContainsHostileVisibleActor(Hexagon tile) =>
-            (this.VisibilityByFactionMap[this.ActiveFaction].TryGetValue(tile, out var visible) && 
-                this.TryGetActorOnTile(tile, out var actor) && 
+            (this.VisibilityByFactionMap[this.SourceFaction].TryGetValue(tile, out var visible) &&
+                this.TryGetActorOnTile(tile, out var actor) &&
                     !actor.Faction.Allies.Contains(this.SourceActor.Faction));
 
         #endregion

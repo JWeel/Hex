@@ -25,22 +25,31 @@ namespace Hex.Helpers
 
         public Faction ActiveFaction { get; protected set; }
 
+        public bool Final =>
+            (this.ActiveFaction == this.Factions.Last());
+
         protected Faction[] Factions { get; set; }
+        protected Faction LastActiveFaction { get; set; }
 
         #endregion
 
         #region Methods
 
+        public void Toggle()
+        {
+            var toggled = this.LastActiveFaction;
+            this.LastActiveFaction = this.ActiveFaction;
+            this.ActiveFaction = toggled;
+        }
+
         public void Cycle()
         {
-            if (this.ActiveFaction == default)
-            {
-                this.ActiveFaction = this.Factions[0];
+            if (this.ActiveFaction == null)
                 return;
-            }
+
             if (this.ActiveFaction == this.Factions.Last())
             {
-                this.ActiveFaction = default;
+                this.ActiveFaction = this.Factions[0];
                 return;
             }
             var index = this.Factions.IndexOf(this.ActiveFaction);

@@ -41,8 +41,8 @@ namespace Extended.Extensions
 
         #region Get Or Set
 
-        /// <summary> Attempts to get the value associated with the specified key.
-        /// <br/> If the key does not exist in the map, a provided <see cref="Func{TValue"/> is invoked to retrieve an alternate value. This value will be added with the key to the map, and will then be returned. </summary>
+        /// <summary> Attempts to get a value associated with the specified key. If the key exists in the map, the associated value is returned.
+        /// <br/> If the key does not exist in the map, a provided <see cref="Func{TValue"/> is invoked to retrieve an alternate value. This value will be added to the map with the key, and is then returned. </summary>
         public static TValue GetOrSet<TKey, TValue>(this IDictionary<TKey, TValue> source, TKey key, Func<TValue> func)
         {
             if (source.TryGetValue(key, out var value))

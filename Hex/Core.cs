@@ -250,7 +250,7 @@ namespace Hex
                 // this.Log.AppendLine($"Camera: {this.Stage.Camera.Position}");
                 // this.Log.AppendLine($"{this.Stage.TilemapDebug}");
                 // this.Log.AppendLine($"Fullscreen: {this.Client.IsFullscreen}");
-                this.Log.AppendLine($"Faction: {this.Stage.ActiveFaction?.Name ?? "n/a"}");
+                this.Log.AppendLine($"Faction: {this.Stage.SourceFaction?.Name ?? "n/a"}");
                 this.Log.AppendLine(Static.Memo.ToString());
             }
         }

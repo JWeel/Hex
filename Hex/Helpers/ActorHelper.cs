@@ -63,9 +63,9 @@ namespace Hex.Helpers
             return actor;
         }
 
-        public void Move(Actor actor, Hexagon tile)
+        public void Move(Actor actor, Hexagon tile, double cost)
         {
-            actor.Move(tile);
+            actor.Move(tile, cost);
         }
 
         #endregion

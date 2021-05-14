@@ -164,6 +164,12 @@ namespace Hex.Helpers
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
+
+            // TODO come up with way to have overlays handled automatically
+            //  maybe by subscribing to parent event
+            //  or add a class which holds the info and is shared by both, parent writes to it, child reads
+            //      -> OverlayHelper ?
+            //  or maybe it doesnt belong in tilemap at all -> move overlay draw logic to stagehelper
             this.ResetVisibility();
             this.ResetMovementOverlay();
             this.ResetPathingOverrides();
@@ -380,7 +386,7 @@ namespace Hex.Helpers
                     _ => new Color(100, 140, 70)
                 };
                 var outerDepth = (TileType.Mountain == tile.TileType) ? .26f : .25f;
-                spriteBatch.DrawAt(this.HexagonOuterTexture, position, innerColor.Blend(80), this.Rotation, depth: outerDepth);
+                spriteBatch.DrawAt(this.HexagonOuterTexture, position, innerColor.Blend(60), this.Rotation, depth: outerDepth);
 
                 if (this.PrintCoords)
                 {
@@ -461,7 +467,7 @@ namespace Hex.Helpers
             this.MovementOverlayMap = null;
         }
 
-        public void ApplyMovementOverlay(IEnumerable<(Hexagon Tile, bool Accessible)> path)
+        public void ApplyMovementOverlay(IEnumerable<(Hexagon Tile, bool Accessible, double Accrue)> path)
         {
             this.MovementOverlayMap = path.ToDictionary(x => x.Tile, x => x.Accessible);
         }
@@ -509,11 +515,11 @@ namespace Hex.Helpers
             return visibilityMap;
         }
 
-        public IEnumerable<(Hexagon Tile, bool InRange)> DefinePath(Hexagon source, Hexagon target, int maxDistance,
+        public IEnumerable<(Hexagon Tile, bool InRange, double Accrue)> DefinePath(Hexagon source, Hexagon target, double maxCost,
             Func<Hexagon, bool> inaccessibilityOverride)
         {
             if (source == target)
-                return (source, true).Yield();
+                return (source, true, 0d).Yield();
 
             // This uses A* pathfinding to create a path from source to target.
             // The tiles in the path are then analyzed to determine whether they are within moving distance.
@@ -586,16 +592,16 @@ namespace Hex.Helpers
                 }
             }
 
-            var steps = 0d;
+            var accrue = 0d;
             var open = true;
             return Traverse(target)
                 .Reverse()
-                .Defer(x => open = (this.FogOfWarOverlayMap.NotNullTryGetValue(x, out var visible) && !visible) ? false : open)
-                .Defer(x => steps += (x != source) ? this.CalculateTileCost(x) : 0d)
-                .Select(x => (x, (open && (steps < maxDistance))));
+                .Defer(x => open = (open && this.FogOfWarOverlayMap.NotNullGetOrDefault(x)))
+                .Defer(x => accrue += (x != source) ? this.CalculateTileCost(x) : 0d)
+                .Select(x => (x, (open && (accrue < maxCost)), accrue));
         }
 
-        // TODO make rotation-aware, add protected GetNeighborAbsolute for rotation-agnostic neighboring
+        // TODO make rotation-aware, add (protected?) GetNeighborAbsolute for rotation-agnostic neighboring
         public Hexagon GetNeighbor(Hexagon hexagon, Direction direction) =>
             this.Map.GetOrDefault(hexagon.Cube.Neighbor(direction));
 

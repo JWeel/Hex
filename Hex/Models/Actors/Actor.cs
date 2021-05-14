@@ -13,7 +13,7 @@ namespace Hex.Models.Actors
             this.Textures = textures;
             this.TextureScale = .7f;
             this.BaseViewDistance = 8;
-            this.BaseMoveDistance = 6;
+            this.BaseMovementAllowed = 6;
         }
 
         #endregion
@@ -41,11 +41,11 @@ namespace Hex.Models.Actors
             }
         }
 
-        public int MoveDistance
+        public double MovementAllowed
         {
             get
             {
-                return this.BaseMoveDistance;
+                return this.BaseMovementAllowed - this.MovementInRound;
             }
         }
 
@@ -54,23 +54,29 @@ namespace Hex.Models.Actors
         public Faction Faction { get; set; }
 
         protected Texture2D[] Textures { get; }
-
-        public Actor(int baseViewDistance, int baseMoveDistance)
-        {
-            this.BaseViewDistance = baseViewDistance;
-            this.BaseMoveDistance = baseMoveDistance;
-
-        }
         protected int BaseViewDistance { get; }
-        protected int BaseMoveDistance { get; }
+        protected double BaseMovementAllowed { get; }
+
+        protected double MovementInRound { get; set; }
+        protected double MovementOverall { get; set; }
+        protected double ActionsInRound { get; set; }
+        protected double ActionsOverall { get; set; }
 
         #endregion
 
         #region Methods
 
-        public void Move(Hexagon tile)
+        public void Reset()
+        {
+            this.MovementInRound = 0;
+            this.ActionsInRound = 0;
+        }
+
+        public void Move(Hexagon tile, double cost)
         {
             this.Tile = tile;
+            this.MovementInRound += cost;
+            this.MovementOverall += cost;
         }
 
         #endregion
