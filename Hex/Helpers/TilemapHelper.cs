@@ -170,6 +170,7 @@ namespace Hex.Helpers
             //  or add a class which holds the info and is shared by both, parent writes to it, child reads
             //      -> OverlayHelper ?
             //  or maybe it doesnt belong in tilemap at all -> move overlay draw logic to stagehelper
+            //      -> would allow drawing Path over actors
             this.ResetVisibility();
             this.ResetMovementOverlay();
             this.ResetPathingOverrides();

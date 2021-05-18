@@ -25,7 +25,7 @@ namespace Extended.Patterns
 
         /// <summary> The value wrapped by the <see cref="Option{T}"/> if it has a value, otherwise <see langword="default"/>. </summary>
         private readonly T _value;
-            
+
         #endregion
 
         #region Methods
@@ -38,15 +38,23 @@ namespace Extended.Patterns
         public TNext Match<TNext>(Func<T, TNext> some, Func<TNext> none) =>
             _hasValue ? some(_value) : none();
 
-        /// <summary> Passes the wrapped value if it has one into a action, or calls a parameterless action if it does not. </summary>
+        /// <summary> Passes the wrapped value if it has one into an action, or calls a parameterless action if it does not. </summary>
         /// <param name="some"> The action to invoke if a value exists. </param>
         /// <param name="none"> The action to invoke if no value exists. </param>
         public void Match(Action<T> some, Action none)
         {
             if (_hasValue)
                 some(_value);
-            else 
+            else
                 none();
+        }
+
+        /// <summary> Passes the wrapped value if it has one into an action, or does nothing if it does not. </summary>
+        /// <param name="some"> The action to invoke if a value exists. </param>
+        public void Match(Action<T> some)
+        {
+            if (_hasValue)
+                some(_value);
         }
 
         /// <summary> Gets the wrapped value if it has one or calls a function to retrieve an alternate if it does not. </summary>
@@ -81,7 +89,7 @@ namespace Extended.Patterns
 
         /// <summary> Replaces the instance of <see cref="NoneOption"/> with a new empty <see cref="Option{T}"/>. </summary>
         public static implicit operator Option<T>(NoneOption _) => new Option<T>();
-            
+
         #endregion
     }
 

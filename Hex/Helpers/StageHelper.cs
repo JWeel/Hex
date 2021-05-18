@@ -213,6 +213,7 @@ namespace Hex.Helpers
                 {
                     this.FocusTile = default;
                     // By resetting here, overlay is kept while mouse is inside container even if not over a tile
+                    // The alternative is resetting if Tilemap.Locate returns default, which looks less nice
                     this.Tilemap.ResetMovementOverlay();
                     this.SourcePath = null;
                 }
