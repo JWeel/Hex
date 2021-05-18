@@ -5,6 +5,7 @@ using Hex.Helpers;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Input.Touch;
 using Mogi.Controls;
 using Mogi.Extensions;
 using Mogi.Framework;
@@ -55,6 +56,7 @@ namespace Hex
 
         protected FramerateHelper Framerate { get; set; }
         protected InputHelper Input { get; set; }
+        protected ConfigurationHelper Configuration { get; set; }
         protected StageHelper Stage { get; set; }
 
         protected Architect Architect { get; set; }
@@ -110,9 +112,17 @@ namespace Hex
             dependency.Register<FramerateHelper>();
             this.Input = dependency.Register<InputHelper>();
             this.Architect = dependency.Register<Architect>();
+            this.Configuration = dependency.Register<ConfigurationHelper>();
             this.Stage = dependency.Register<StageHelper>();
 
-            var stageContainer = new Rectangle(new Point(240, 50), (BASE_WINDOW_SIZE / 1.55f).ToPoint());
+            // TODO implement loading from config.ini file
+            this.Configuration.Load();
+
+            if (this.Configuration.StartInFullscreen)
+                this.Client.ToggleFullscreen();
+
+            // var stageContainer = new Rectangle(new Point(240, 50), (BASE_WINDOW_SIZE / 1.55f).ToPoint());
+            var stageContainer = BASE_MAP_PANEL_SIZE.ToRectangle();
             this.Stage.Arrange(stageContainer, this.GetStagePath("plateau"));
 
             // temporary panel stuff
@@ -306,17 +316,11 @@ namespace Hex
         #endregion
 
         // some ideas:
-        // add mutable settings for stuff like SamplerState, maybe BlendState, panel color. 
+        // add to ConfigurationHelper stuff like SamplerState, maybe BlendState, panel color. 
         //      Can affect different SpriteBatch scopes (font, map, panel)
         //      Also in settings would be font size? May be tricky to fit it
-        //      And whether to start in fullscreen -> meaning global settings should be stored in config file
-        // fullscreen just borderless mode? not sure of impact on non-windows
+        // fullscreen just borderless mode? --> not sure of impact on non-windows
         // all form controls need keyboard support, like the blinking selector from pan engine
-
-        // can experiment with larger hexagon texture that is scaled to smaller size for antialiased edges
-        // can also try outer being just two vertical lines, then draw it 3 times, second and third being rotated
-
-        // selected-tile-centered-rotating should be a toggle
         // slow pulse button press -> press and held, after 1 second pulse every .10? until released
         // font helper -> exposes Font to dependencies and can switch to other fonts
         // make abstract Tile -> can be hexagon or rectangle, maybe triangle

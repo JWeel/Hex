@@ -70,6 +70,7 @@ namespace Hex.Helpers
         protected Texture2D HiddenTexture { get; }
         protected Texture2D BackgroundTexture { get; }
 
+        protected ConfigurationHelper Configuration { get; set; }
         protected CameraHelper Camera { get; set; }
         protected TilemapHelper Tilemap { get; set; }
         protected FactionHelper Faction { get; set; }
@@ -107,6 +108,7 @@ namespace Hex.Helpers
 
         public void Register(DependencyHandler dependency)
         {
+            this.Configuration = dependency.Register<ConfigurationHelper>();
             using (new DependencyScope(dependency))
             {
                 this.Camera = dependency.Register<CameraHelper>();
@@ -354,8 +356,8 @@ namespace Hex.Helpers
             if (this.SourceActor != null)
             {
                 Static.Memo.AppendLine($"Actor: {this.SourceActor.Tile.Cube} > {this.SourceActor.MovementAllowed}");
-                Static.Memo.AppendLine($"Turn: {this.Turn.TurnCount}");
             }
+            Static.Memo.AppendLine($"Turn: {this.Turn.TurnCount}");
         }
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
@@ -393,9 +395,7 @@ namespace Hex.Helpers
 
         protected void CenterOnSourceActor()
         {
-            // TODO setting to toggle this behavior on/off
-            var setting = true;
-            if (setting && (this.SourceActor?.Tile != null))
+            if (this.Configuration.CenterTilemapRotationOnSource && (this.SourceActor?.Tile != null))
             {
                 var position = this.SourceActor.Tile.Middle.Transform(this.Tilemap.RenderRotationMatrix);
                 this.Camera.CenterOn(Vector2.Round(position));

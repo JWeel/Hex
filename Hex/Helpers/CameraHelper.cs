@@ -22,9 +22,10 @@ namespace Hex.Helpers
 
         #region Constructors
 
-        public CameraHelper(InputHelper input)
+        public CameraHelper(InputHelper input, ConfigurationHelper configuration)
         {
             this.Input = input;
+            this.Configuration = configuration;
             this.ZoomFactor = ZOOM_SCALE_STANDARD;
         }
 
@@ -33,6 +34,7 @@ namespace Hex.Helpers
         #region Properties
 
         protected InputHelper Input { get; }
+        protected ConfigurationHelper Configuration { get; }
 
         /// <summary> The area in which the camera moves. </summary>
         /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking the origin (0,0) as location and this vector as size. </remarks>
@@ -136,10 +138,18 @@ namespace Hex.Helpers
         protected void HandleMouse()
         {
             var mousePosition = this.Input.CurrentVirtualMouseVector;
+            var stopStickyMovement = false;
             if (this.IsMoving)
             {
                 this.Move(-(mousePosition - this.Input.PreviousVirtualMouseVector));
-                this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
+
+                if (!this.Configuration.UseStickyCameraMovement)
+                    this.IsMoving = !this.Input.MouseReleased(MouseButton.Right);
+                else if (this.Input.MousePressed(MouseButton.Right))
+                {
+                    this.IsMoving = false;
+                    stopStickyMovement = true;
+                }
             }
             if (this.Viewport.Contains(mousePosition))
             {
@@ -161,12 +171,12 @@ namespace Hex.Helpers
                         var zoomPosition = this.FromScreen(mousePosition);
                         // to make zooming look natural: set position relatively between previous zoom center and cursor
                         this.Position = zoomPosition + (currentZoom / this.ZoomFactor) * (this.Position - zoomPosition);
-                        
+
                         if (this.ZoomFactor < 1f)
                             this.Center();
                     }
                 }
-                if (!this.IsMoving && this.Input.MousePressed(MouseButton.Right))
+                if (!stopStickyMovement && !this.IsMoving && this.Input.MousePressed(MouseButton.Right))
                 {
                     this.IsMoving = true;
                 }
@@ -214,7 +224,7 @@ namespace Hex.Helpers
         {
             var (minimum, maximum) = this.GetPositionExtrema();
             this.Position = Vector2.Clamp(this.Position + amount, minimum, maximum);
-            
+
             if (this.ZoomFactor < 1f)
                 this.Center();
         }
