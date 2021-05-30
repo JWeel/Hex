@@ -282,7 +282,7 @@ namespace Hex
                 this.OnDraw?.Invoke<BackgroundDraw>(this.SpriteBatch);
                 this.SpriteBatch.End();
 
-                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.PointClamp,
+                this.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.PointClamp,
                     rasterizerState: this.ScissorRasterizer, transformMatrix: this.Stage.TranslationMatrix);
                 this.OnDraw?.Invoke<ForegroundDraw>(this.SpriteBatch);
                 this.SpriteBatch.End();

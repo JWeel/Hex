@@ -1,6 +1,7 @@
 using Extended.Extensions;
 using Hex.Auxiliary;
 using Hex.Enums;
+using Hex.Extensions;
 using Hex.Models;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
@@ -28,6 +29,8 @@ namespace Hex.Helpers
 
             this.HiddenTexture = content.Load<Texture2D>("graphics/hidden");
             this.BackgroundTexture = content.Load<Texture2D>("graphics/background");
+            this.OverlayFullTexture = content.Load<Texture2D>("graphics/xxip");
+            this.OverlayHalfTexture = content.Load<Texture2D>("graphics/xxiph");
 
             this.DiscoveryByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
             this.VisibilityByFactionMap = new Dictionary<Faction, IDictionary<Hexagon, bool>>();
@@ -69,6 +72,8 @@ namespace Hex.Helpers
         protected Texture2D BlankTexture { get; }
         protected Texture2D HiddenTexture { get; }
         protected Texture2D BackgroundTexture { get; }
+        protected Texture2D OverlayFullTexture { get; }
+        protected Texture2D OverlayHalfTexture { get; }
 
         protected ConfigurationHelper Configuration { get; set; }
         protected CameraHelper Camera { get; set; }
@@ -79,6 +84,8 @@ namespace Hex.Helpers
 
         protected IDictionary<Faction, IDictionary<Hexagon, bool>> DiscoveryByFactionMap { get; }
         protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; }
+
+        protected IDictionary<Hexagon, Color> TileEffectMap { get; set; }
 
         protected (Hexagon Tile, bool Accessible, double Accrue)[] SourcePath { get; set; }
 
@@ -164,21 +171,11 @@ namespace Hex.Helpers
                 if (this.SourceFaction == null)
                 {
                     this.SourceActor = null;
-                    this.Tilemap.Unsource();
-                    this.Tilemap.ResetMovementOverlay();
-                    this.Tilemap.ResetVisibility();
-                    this.Tilemap.ResetDiscovery();
                 }
                 else
                 {
                     this.SourceActor = this.LastSourceActorMap.GetOrDefault(this.SourceFaction);
-                    this.Tilemap.Source(this.SourceActor?.Tile);
-                    this.Tilemap.ResetMovementOverlay();
                     this.SourcePath = null;
-                    var discovery = this.DiscoveryByFactionMap.GetOrDefault(this.SourceFaction);
-                    this.Tilemap.ApplyDiscovery(discovery);
-                    var visibility = this.VisibilityByFactionMap.GetOrDefault(this.SourceFaction);
-                    this.Tilemap.ApplyVisibility(visibility);
                 }
             }
 
@@ -189,16 +186,7 @@ namespace Hex.Helpers
 
                 // TODO check if no longer exists?
                 this.SourceActor = this.LastSourceActorMap.GetOrDefault(this.SourceFaction);
-
-                this.Tilemap.Source(this.SourceActor?.Tile);
-                this.Tilemap.ResetMovementOverlay();
                 this.SourcePath = null;
-
-                var discovery = this.DiscoveryByFactionMap.GetOrDefault(this.SourceFaction);
-                this.Tilemap.ApplyDiscovery(discovery);
-
-                var visibility = this.VisibilityByFactionMap.GetOrDefault(this.SourceFaction);
-                this.Tilemap.ApplyVisibility(visibility);
             }
 
             if (this.Input.MouseMoved())
@@ -214,7 +202,6 @@ namespace Hex.Helpers
                     this.FocusTile = default;
                     // By resetting here, overlay is kept while mouse is inside container even if not over a tile
                     // The alternative is resetting if Tilemap.Locate returns default, which looks less nice
-                    this.Tilemap.ResetMovementOverlay();
                     this.SourcePath = null;
                 }
             }
@@ -234,9 +221,6 @@ namespace Hex.Helpers
                 if (this.FocusTile != null)
                 {
                     this.SourceActor = actor;
-                    this.Tilemap.Source(actor.Tile);
-                    this.Tilemap.ResetMovementOverlay();
-                    this.SourcePath = null;
                 }
 
                 var actorViewData = this.Actor.Actors
@@ -244,14 +228,14 @@ namespace Hex.Helpers
                     .Select(actor => (actor.Tile, actor.ViewDistance));
                 var visibility = this.Tilemap.DetermineFogOfWar(actorViewData);
                 this.VisibilityByFactionMap[this.SourceFaction] = visibility;
-                this.Tilemap.ApplyVisibility(visibility);
 
                 // TBD - initial discovery may come from somewhere else
                 var discovery = this.DiscoveryByFactionMap.GetOrSet(this.SourceFaction, () => visibility.ToDictionary());
                 visibility
                     .Where(x => x.Value)
                     .Each(x => discovery[x.Key] = true);
-                this.Tilemap.ApplyDiscovery(discovery);
+
+                this.SourcePath = null;
             }
 
             if (this.Input.MousePressed(MouseButton.Left))
@@ -260,8 +244,6 @@ namespace Hex.Helpers
                 if ((actorOnTile != default) && (actorOnTile != this.SourceActor) && (actorOnTile.Faction == this.SourceFaction))
                 {
                     this.SourceActor = actorOnTile;
-                    this.Tilemap.Source(actorOnTile.Tile);
-                    this.Tilemap.ResetMovementOverlay();
                     this.SourcePath = null;
                 }
                 else
@@ -278,50 +260,41 @@ namespace Hex.Helpers
                         this.Actor.Move(this.SourceActor, tile, cost);
 
                         // this.Tilemap.Focus(tile);
-                        this.Tilemap.Source(tile);
+                        // this.Tilemap.Source(tile);
 
                         var actorViewData = this.Actor.Actors
                             .Where(actor => (actor.Faction == this.SourceFaction))
                             .Select(actor => (actor.Tile, actor.ViewDistance));
                         var visibility = this.Tilemap.DetermineFogOfWar(actorViewData);
                         this.VisibilityByFactionMap[this.SourceFaction] = visibility;
-                        this.Tilemap.ApplyVisibility(visibility);
 
                         var discovery = this.DiscoveryByFactionMap[this.SourceFaction];
                         visibility
                             .Where(x => x.Value)
                             .Each(x => discovery[x.Key] = true);
-                        this.Tilemap.ApplyDiscovery(discovery);
 
                         if (tile == this.FocusTile)
-                        {
-                            this.Tilemap.ResetMovementOverlay();
                             this.SourcePath = null;
-                        }
                         else
                         {
                             var path = this.Tilemap
-                                .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.TileContainsHostileVisibleActor)
-                                .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile)), x.Accrue))
+                                .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.IsTileInaccessible, this.TileIsVisible)
                                 .ToArray();
-                            this.Tilemap.ApplyMovementOverlay(path);
                             this.SourcePath = path;
                         }
                     }
                     else
                     {
                         this.SourceActor = null;
-                        this.Tilemap.Unsource();
-                        this.Tilemap.ResetMovementOverlay();
                         this.SourcePath = null;
                     }
                 }
             }
 
             if (this.Input.KeysDownAny(Keys.LeftControl, Keys.RightControl) && (this.FocusTile != null))
-                this.Tilemap.ApplyRing(this.FocusTile, radius: 2);
+                this.TileEffectMap = this.Tilemap.DetermineRingEffect(this.FocusTile, radius: 2);
             if (this.Input.KeysReleasedAny(Keys.LeftControl, Keys.RightControl) || this.FocusLost)
-                this.Tilemap.ResetEffects();
+                this.TileEffectMap = default;
 
             if (this.FocusTile != null)
             {
@@ -336,17 +309,13 @@ namespace Hex.Helpers
                     this.FocusTile = this.Tilemap.GetNeighbor(this.FocusTile, Direction.DownLeft) ?? this.FocusTile;
             }
 
-            if (this.FocusChanged)
-                this.Tilemap.Focus(this.FocusTile);
-
             if (this.FocusMoved && !this.TileContainsActor(this.FocusTile) && (this.SourceActor != null) &&
                 this.DiscoveryByFactionMap[this.SourceFaction][this.FocusTile])
             {
                 var path = this.Tilemap
-                    .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.TileContainsHostileVisibleActor)
+                    .DefinePath(this.SourceActor.Tile, this.FocusTile, this.SourceActor.MovementAllowed, this.IsTileInaccessible, this.TileIsVisible)
                     .Select(x => (x.Tile, Accessible: (x.InRange && !this.TileContainsActor(x.Tile)), x.Accrue))
                     .ToArray();
-                this.Tilemap.ApplyMovementOverlay(path);
                 this.SourcePath = path;
             }
 
@@ -382,11 +351,48 @@ namespace Hex.Helpers
                 var textureScale = actor.TextureScale;
                 if ((this.SourceFaction != null) && this.VisibilityByFactionMap.TryGetValue(this.SourceFaction, out var visibilityMap) && !visibilityMap[actor.Tile])
                 {
-                    color = color.Blend(40);
+                    color = color.Blend(144);
+                    textureScale *= 1.33f;
                     texture = this.HiddenTexture;
                 }
                 var sizeOffset = new Vector2(texture.Width / 2f, texture.Height / 4f * 3) * textureScale;
-                spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .5f);
+                spriteBatch.DrawAt(texture, sourcePosition - sizeOffset, color, scale: textureScale, depth: .45f);
+            }
+
+            var movementOverlay = this.SourcePath?.ToDictionary(x => x.Tile, x => x.Accessible);
+            foreach (var tile in this.Tilemap.Map.Values)
+            {
+                var position = tile.Position.Transform(this.Tilemap.RenderRotationMatrix);
+                if (this.DiscoveryByFactionMap.TryGetValue(this.SourceFaction, out var discovery))
+                {
+                    if (discovery.NotNullTryGetValue(tile, out var explored) && !explored)
+                    {
+                        spriteBatch.DrawAt(this.OverlayFullTexture, position, Color.Black, this.Tilemap.Rotation, depth: .1f);
+                        continue;
+                    }
+                }
+
+                if (tile == this.SourceActor?.Tile)
+                    spriteBatch.DrawAt(this.OverlayFullTexture, position, Color.Ivory.Blend(224), this.Tilemap.Rotation, depth: .16f);
+
+                if (tile == this.FocusTile)
+                    spriteBatch.DrawAt(this.OverlayFullTexture, position, Color.White.Blend(144), this.Tilemap.Rotation, depth: .16f);
+
+                if (this.TileEffectMap.NotNullTryGetValue(tile, out var effectColor))
+                    spriteBatch.DrawAt(this.OverlayFullTexture, position, effectColor, this.Tilemap.Rotation, depth: .31f);
+
+                if ((tile != this.SourceActor?.Tile) && movementOverlay.NotNullTryGetValue(tile, out var accessible))
+                {
+                    // TODO color should be customizable, i.e. blue for movement, red if targeting foe, etc
+                    var color = accessible ? new Color(100, 150, 200).Blend(144) : new Color(50, 50, 50).Blend(64);
+                    spriteBatch.DrawAt(this.OverlayHalfTexture, position, color, this.Tilemap.Rotation, depth: .32f);
+                }
+
+                if (this.VisibilityByFactionMap.TryGetValue(this.SourceFaction, out var visibility))
+                {
+                    if (visibility.NotNullTryGetValue(tile, out var visible) && !visible)
+                        spriteBatch.DrawAt(this.OverlayFullTexture, position, new Color(100, 100, 100).Blend(128), this.Tilemap.Rotation, depth: .4f);
+                }
             }
         }
 
@@ -422,6 +428,20 @@ namespace Hex.Helpers
 
         protected bool TileContainsActor(Hexagon tile) =>
             this.TryGetActorOnTile(tile, out _);
+
+        protected bool IsTileInaccessible(Hexagon tile) =>
+            (!this.TileIsDiscovered(tile) || this.TileContainsHostileVisibleActor(tile));
+
+        protected bool TileIsDiscovered(Hexagon tile) =>
+            this.DiscoveryByFactionMap
+                .GetOrDefault(this.SourceFaction)
+                .NotNullGetOrDefault(tile);
+
+        protected bool TileIsVisible(Hexagon tile) =>
+            // check if can use index accessor instead
+            this.VisibilityByFactionMap
+                .GetOrDefault(this.SourceFaction)
+                .NotNullGetOrDefault(tile);
 
         protected bool TileContainsHostileVisibleActor(Hexagon tile) =>
             (this.VisibilityByFactionMap[this.SourceFaction].TryGetValue(tile, out var visible) &&

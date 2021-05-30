@@ -16,6 +16,7 @@ namespace Hex.Helpers
                 new Faction { Name = "Free", Color = Color.PaleGoldenrod },
                 new Faction { Name = "Monster", Color = Color.Green },
             };
+            // this.ActiveFaction = null;
             this.ActiveFaction = this.Factions[0];
         }
 

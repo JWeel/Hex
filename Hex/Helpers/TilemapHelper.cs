@@ -79,6 +79,9 @@ namespace Hex.Helpers
         /// <summary> The distance between origin and tilemap that would set the tilemap centered in the bounding box. </summary>
         public Vector2 TilemapOffset { get; protected set; }
 
+        /// <summary> The amount of rotation in radians to apply to tile sprites. </summary>
+        public float Rotation { get; protected set; }
+
         /// <summary> A transform matrix that rotates and moves to relative render position. </summary>
         public Matrix RenderRotationMatrix =>
             Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
@@ -99,20 +102,10 @@ namespace Hex.Helpers
         protected InputHelper Input { get; }
         protected SpriteFont Font { get; }
 
-        /// <summary> The amount of rotation in radians to apply to tile sprites. </summary>
-        protected float Rotation { get; set; }
-
         protected Vector2 RenderPosition { get; set; }
 
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
-
-        protected Hexagon SourceOverlay { get; set; }
-        protected Hexagon FocusOverlay { get; set; }
-        protected IDictionary<Hexagon, bool> DiscoveryOverlayMap { get; set; }
-        protected IDictionary<Hexagon, bool> FogOfWarOverlayMap { get; set; }
-        protected IDictionary<Hexagon, bool> MovementOverlayMap { get; set; }
-        protected IDictionary<Hexagon, Color> EffectOverlayMap { get; set; }
 
         protected IDictionary<Hexagon, (Direction Direction, BorderType Type)[]> BorderMap { get; set; }
 
@@ -164,19 +157,6 @@ namespace Hex.Helpers
 
             this.RecalculateRotations();
             this.RecalculateTileBorders();
-
-            // TODO come up with way to have overlays handled automatically
-            //  maybe by subscribing to parent event
-            //  or add a class which holds the info and is shared by both, parent writes to it, child reads
-            //      -> OverlayHelper ?
-            //  or maybe it doesnt belong in tilemap at all -> move overlay draw logic to stagehelper
-            //      -> would allow drawing Path over actors
-            this.ResetVisibility();
-            this.ResetMovementOverlay();
-            this.ResetPathingOverrides();
-            this.ResetEffects();
-            this.Unfocus();
-            this.Unsource();
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
@@ -334,12 +314,6 @@ namespace Hex.Helpers
                 var baseMiddle = tile.Middle;
                 var position = basePosition.Transform(this.RenderRotationMatrix);
 
-                if (this.DiscoveryOverlayMap.NotNullTryGetValue(tile, out var explored) && !explored)
-                {
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.Black, this.Rotation, depth: .1f);
-                    continue;
-                }
-
                 var innerColor =
                     (tile == this.OriginTile) ? Color.Gold
                     : (tile == this.CenterTile) ? Color.Aquamarine
@@ -351,12 +325,6 @@ namespace Hex.Helpers
                         _ => new Color(190, 230, 160)
                     };
                 spriteBatch.DrawAt(this.HexagonInnerTexture, position, innerColor, this.Rotation, depth: .15f);
-
-                if (tile == this.SourceOverlay)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.Ivory.Blend(224), this.Rotation, depth: .16f);
-
-                if (tile == this.FocusOverlay)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, Color.White.Blend(144), this.Rotation, depth: .16f);
 
                 // offset center of hexagon to preserve rotational origin for overlay sprites
                 var baseMiddleTransformed = baseMiddle.Transform(this.RenderRotationMatrix);
@@ -397,22 +365,6 @@ namespace Hex.Helpers
                     var printOffset = (this.Font.MeasureString(axialPrint) / 2 * printScale);
                     spriteBatch.DrawText(this.Font, axialPrint, (baseMiddleTransformed - printOffset), Color.MistyRose, printScale, depth: .9f);
                 }
-
-                if (this.EffectOverlayMap.NotNullTryGetValue(tile, out var effectColor))
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, effectColor, this.Rotation, depth: .31f);
-
-                if (this.MovementOverlayMap.NotNullTryGetValue(tile, out var accessible))
-                {
-                    // TODO color should be customizable, i.e. blue for movement, red if targeting foe, etc
-                    var color = accessible ? new Color(100, 150, 200).Blend(128) : new Color(50, 50, 50).Blend(24);
-                    var movementOverlayScale = .5f;
-                    var sizeOffset = (this.TileSize / 2 * movementOverlayScale).Transform(this.TileRotationMatrix);
-                    var movementOverlayPosition = (baseMiddleTransformed - sizeOffset);
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, movementOverlayPosition, color, this.Rotation, movementOverlayScale, depth: .32f);
-                }
-                
-                if (this.FogOfWarOverlayMap.NotNullTryGetValue(tile, out var visible) && !visible)
-                    spriteBatch.DrawAt(this.HexagonInnerTexture, position, new Color(100, 100, 100).Blend(128), this.Rotation, depth: .33f);
             }
         }
 
@@ -423,84 +375,20 @@ namespace Hex.Helpers
             return this.Map.GetOrDefault(coordinates);
         }
 
-        public void Source(Hexagon tile)
+        public IDictionary<Hexagon, Color> DetermineRingEffect(Hexagon tile, int radius)
         {
-            this.SourceOverlay = tile;
-        }
-
-        public void Unsource()
-        {
-            this.SourceOverlay = default;
-        }
-
-        public void Focus(Hexagon tile)
-        {
-            this.FocusOverlay = tile;
-        }
-
-        public void Unfocus()
-        {
-            this.FocusOverlay = default;
-        }
-
-        public void ResetDiscovery()
-        {
-            this.DiscoveryOverlayMap = default;
-        }
-
-        public void ApplyDiscovery(IDictionary<Hexagon, bool> discoveryMap)
-        {
-            this.DiscoveryOverlayMap = discoveryMap;
-        }
-
-        public void ResetVisibility()
-        {
-            this.FogOfWarOverlayMap = null;
-        }
-
-        public void ApplyVisibility(IDictionary<Hexagon, bool> fogOfWar)
-        {
-            this.FogOfWarOverlayMap = fogOfWar;
-        }
-
-        public void ResetMovementOverlay()
-        {
-            this.MovementOverlayMap = null;
-        }
-
-        public void ApplyMovementOverlay(IEnumerable<(Hexagon Tile, bool Accessible, double Accrue)> path)
-        {
-            this.MovementOverlayMap = path.ToDictionary(x => x.Tile, x => x.Accessible);
-        }
-
-        public void ResetPathingOverrides()
-        {
-            this.TileCostOverride = null;
-        }
-
-        public void ApplyPathingOverrides(Func<Hexagon, double> tileCostOverride)
-        {
-            this.TileCostOverride = tileCostOverride;
-        }
-
-        public void ResetEffects()
-        {
-            this.EffectOverlayMap = null;
-        }
-
-        public void ApplyRing(Hexagon tile, int radius)
-        {
-            this.EffectOverlayMap = new Dictionary<Hexagon, Color>();
+            var effectMap = new Dictionary<Hexagon, Color>();
             var cube = tile.Cube - (radius, 0);
             for (var i = 0; i < 6; i++)
             {
                 for (var j = 0; j < radius; j++)
                 {
                     if (this.Map.TryGetValue(cube, out var cubeTile))
-                        this.EffectOverlayMap[cubeTile] = Color.LightGoldenrodYellow.Blend(128);
+                        effectMap[cubeTile] = Color.LightGoldenrodYellow.Blend(128);
                     cube = cube.Neighbor(DIRECTIONS[i]);
                 }
             }
+            return effectMap;
         }
 
         public IDictionary<Hexagon, bool> DetermineFogOfWar(IEnumerable<(Hexagon SourceTile, int ViewDistance)> viewData)
@@ -517,7 +405,7 @@ namespace Hex.Helpers
         }
 
         public IEnumerable<(Hexagon Tile, bool InRange, double Accrue)> DefinePath(Hexagon source, Hexagon target, double maxCost,
-            Func<Hexagon, bool> inaccessibilityOverride)
+            Func<Hexagon, bool> neighborInaccessibilityOverride, Func<Hexagon, bool> openPathOverride)
         {
             if (source == target)
                 return (source, true, 0d).Yield();
@@ -558,9 +446,7 @@ namespace Hex.Helpers
                     {
                         var neighborCube = tile.Cube.Neighbor(direction);
                         var neighborTile = this.Map.GetOrDefault(neighborCube);
-                        if ((neighborTile == null) ||
-                            (this.DiscoveryOverlayMap.NotNullTryGetValue(neighborTile, out var discovered) && !discovered) ||
-                                inaccessibilityOverride(neighborTile))
+                        if ((neighborTile == null) || neighborInaccessibilityOverride(neighborTile))
                             return default(Hexagon);
                         if (tile.Elevation == neighborTile.Elevation)
                             return neighborTile;
@@ -597,7 +483,7 @@ namespace Hex.Helpers
             var open = true;
             return Traverse(target)
                 .Reverse()
-                .Defer(x => open = (open && this.FogOfWarOverlayMap.NotNullGetOrDefault(x)))
+                .Defer(x => open = (open && openPathOverride(x)))
                 .Defer(x => accrue += (x != source) ? this.CalculateTileCost(x) : 0d)
                 .Select(x => (x, (open && (accrue < maxCost)), accrue));
         }
