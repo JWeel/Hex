@@ -34,7 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="DataTypes">
-      <HintPath>Libs\DataTypes\bin\Debug\netcoreapp3.1\DataTypes.dll</HintPath>
+      <HintPath>Libs\DataTypes\DataTypes.dll</HintPath>
     </Reference>
   </ItemGroup>
   <PropertyGroup>

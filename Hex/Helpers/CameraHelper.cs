@@ -1,3 +1,4 @@
+using Hex.Phases;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
@@ -8,7 +9,7 @@ using System;
 
 namespace Hex.Helpers
 {
-    public class CameraHelper : IUpdate<NormalUpdate>
+    public class CameraHelper : IUpdate<NormalUpdate>, IActivate
     {
         #region Constants
 
@@ -32,6 +33,8 @@ namespace Hex.Helpers
         #endregion
 
         #region Properties
+
+        public bool IsActive { get; protected set; }
 
         protected InputHelper Input { get; }
         protected ConfigurationHelper Configuration { get; }
@@ -98,6 +101,12 @@ namespace Hex.Helpers
             this.HandleMouse();
             this.HandleKeys();
         }
+
+        public void Activate() => 
+            this.IsActive = true;
+
+        public void Deactivate() =>
+            this.IsActive = false;
 
         public void Center()
         {

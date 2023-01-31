@@ -2,6 +2,13 @@ using System;
 
 namespace Hex.Enums
 {
+    public enum State
+    {
+        Storybook,
+        Designer,
+        Stage
+    }
+
     public enum TileType
     {
         Grass,

@@ -1,12 +1,15 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Extensions;
+using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that displays text. </summary>
-    public class Label : Control<Patch>
+    public class Label<TUpdate, TDraw> : Control<Label<TUpdate, TDraw>, TUpdate, TDraw>
+        where TUpdate : IPhase
+        where TDraw : IPhase
     {
         #region Constructors
 

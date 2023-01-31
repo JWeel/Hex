@@ -57,8 +57,22 @@ namespace Mogi.Inversion
         bool Prevent();
     }
 
-    public interface ILoad
+    /// <summary> Exposes a flag that indicates whether processing should occur. </summary>
+    public interface IActivate
     {
-        bool HasLoaded { get; }
+        /// <summary> Determines whether this instance should be processed. </summary>
+        bool IsActive { get; }
+
+        /// <summary> Sets this instance to an active state. </summary>
+        void Activate();
+
+        /// <summary> Sets this instance to an inactive state. </summary>
+        void Deactivate();
+    }
+
+    /// <summary> Defines a type which will be used when registering instead of the class type. </summary>
+    /// <typeparam name="T"> The type the inheritor will be registered as. </typeparam>
+    public interface IRegisterAs<T>
+    {
     }
 }

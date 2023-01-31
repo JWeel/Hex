@@ -1,11 +1,14 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Mogi.Extensions;
+using Mogi.Inversion;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that uses 9-patch drawing. </summary>
-    public class Patch : Control<Patch>
+    public class Patch<TUpdate, TDraw> : Control<Patch<TUpdate, TDraw>, TUpdate, TDraw>
+        where TUpdate : IPhase
+        where TDraw : IPhase
     {
         #region Constructors
 

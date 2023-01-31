@@ -36,8 +36,8 @@ namespace Hex.Helpers
         {
             Extern.IsWindowsLaptop().Match(boolean =>
             {
-                this.StartInFullscreen = boolean;
-                this.UseStickyCameraMovement = boolean;
+                // this.StartInFullscreen = boolean;
+                // this.UseStickyCameraMovement = boolean;
             });
 
             this.CenterTilemapRotationOnSource = false;

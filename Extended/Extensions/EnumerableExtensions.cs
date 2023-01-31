@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace Extended.Extensions
@@ -9,6 +10,7 @@ namespace Extended.Extensions
         #region Each
 
         /// <summary> Performs a specified action for each element in a sequence. </summary>
+        [DebuggerStepThrough]
         public static void Each<T>(this IEnumerable<T> enumerable, Action<T> action)
         {
             foreach (var element in enumerable)
@@ -16,6 +18,7 @@ namespace Extended.Extensions
         }
 
         /// <summary> Performs a specified action for each element and their index in a sequence. </summary>
+        [DebuggerStepThrough]
         public static void Each<T>(this IEnumerable<T> enumerable, Action<T, int> action)
         {
             int index = -1;
@@ -235,6 +238,27 @@ namespace Extended.Extensions
                 index++;
             }
             return -1;
+        }
+
+        #endregion
+
+        #region TryGet
+
+        /// <summary> Returns a flag indicating whether the sequence contains at least one element, and returns it in an <see langword="out"/> parameter if it does. </summary>
+        public static bool TryGetFirst<T>(this IEnumerable<T> source, out T value)
+            where T : class
+        {
+            value = source.FirstOrDefault();
+            return (value != default);
+        }
+
+        /// <summary> Returns a flag indicating whether the sequence contains a single element, and returns it in an <see langword="out"/> parameter if it does. 
+        /// <br/> An exception is thrown if there is more than one element. </summary>
+        public static bool TryGetSingle<T>(this IEnumerable<T> source, out T value)
+            where T : class
+        {
+            value = source.SingleOrDefault();
+            return (value != default);
         }
 
         #endregion

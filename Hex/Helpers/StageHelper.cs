@@ -5,6 +5,7 @@ using Hex.Extensions;
 using Hex.Models;
 using Hex.Models.Actors;
 using Hex.Models.Tiles;
+using Hex.Phases;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -13,12 +14,13 @@ using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
 using Mogi.Inversion;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Hex.Helpers
 {
-    public class StageHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IDraw<ForegroundDraw>
+    public class StageHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IDraw<ForegroundDraw>, IActivate
     {
         #region Constructors
 
@@ -42,6 +44,8 @@ namespace Hex.Helpers
 
         #region Data Members
 
+        public bool IsActive { get; protected set; }
+
         /// <summary> The rectangle of the widget, control, or component that contains this stage. </summary>
         public Rectangle Container { get; protected set; }
 
@@ -58,7 +62,19 @@ namespace Hex.Helpers
         /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon FocusTile { get; protected set; }
 
-        public Actor SourceActor { get; protected set; }
+        private Actor _sourceActor;
+        public Actor SourceActor
+        {
+            get => _sourceActor;
+            protected set
+            {
+                if (_sourceActor == value)
+                    return;
+
+                _sourceActor = value;
+                this.OnSourceActorChange?.Invoke(_sourceActor);
+            }
+        }
 
         /// <summary> A transform matrix that scales and moves the stage relative to its internal camera. </summary>
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
@@ -67,6 +83,8 @@ namespace Hex.Helpers
         public int TilemapRotationInterval => this.Tilemap.WraparoundRotationInterval;
 
         public Faction SourceFaction => this.Faction.ActiveFaction;
+
+        public event Action<Actor> OnSourceActorChange;
 
         protected InputHelper Input { get; }
         protected Texture2D BlankTexture { get; }
@@ -132,7 +150,18 @@ namespace Hex.Helpers
         {
             this.Container = container;
             this.Tilemap.Arrange(stagePath);
+            this.ResetStage();
+        }
 
+        public void Arrange(Rectangle container, Shape shape)
+        {
+            this.Container = container;
+            this.Tilemap.Arrange(shape, 8, 4);
+            this.ResetStage();
+        }
+
+        protected void ResetStage()
+        {
             // boundingbox should be all 4 corners of the bounding rectangle (the diagonal of tilemap size)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)
             // below formula gives slightly more than necessary (might be tilesize?), but will do for now
@@ -141,7 +170,7 @@ namespace Hex.Helpers
             // the real size of the stage is the max of the tilemap bounding box and the containing rectangle
             this.StageSize = Vector2.Max(this.TilemapBoundingBox, this.ContainerSize);
 
-            this.Tilemap.CalculateOffset(center: this.StageSize / 2);
+            this.Tilemap.ApplyOffsetToCenter(center: this.StageSize / 2);
 
             this.Camera.Arrange(this.StageSize, this.Container);
 
@@ -332,7 +361,7 @@ namespace Hex.Helpers
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(30, 30, 30), depth: .04f);
+            // spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(30, 30, 30), depth: .04f);
 
             var size = this.StageSize + new Vector2(2); // 1px rounding offset on each side
             spriteBatch.DrawTo(this.BackgroundTexture, size.ToRectangle(), Color.White, depth: .05f);
@@ -394,6 +423,29 @@ namespace Hex.Helpers
                         spriteBatch.DrawAt(this.OverlayFullTexture, position, new Color(100, 100, 100).Blend(128), this.Tilemap.Rotation, depth: .4f);
                 }
             }
+
+            Static.FocalSquares?.Each(square => spriteBatch.DrawTo(this.BlankTexture, square, Color.Red));
+        }
+
+        public void Activate()
+        {
+            this.IsActive = true;
+            // TODO should do this automatically
+            // maybe can leverage IRegister, have it auto get this logic somehow
+            // issue is cannot rely on DependencyHelper.Root since that's Core
+            // (Tilemap and Camera get Attached to Core, not to Stage)
+            // so it would have to happen inside Register but the registering instance is not known
+            // in other words: dunno how to do this
+            this.Tilemap.Activate();
+            this.Camera.Activate();
+        }
+
+        public void Deactivate()
+        {
+            this.IsActive = false;
+            // TODO should do this automatically
+            this.Tilemap.Deactivate();
+            this.Camera.Deactivate();
         }
 
         #endregion

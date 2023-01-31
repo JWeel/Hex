@@ -4,12 +4,15 @@ using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
 using Mogi.Extensions;
 using Mogi.Helpers;
+using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that can be interacted with by clicking. </summary>
-    public class Button : Control<Button>
+    public class Button<TUpdate, TDraw> : Control<Button<TUpdate, TDraw>, TUpdate, TDraw>
+        where TUpdate : IPhase
+        where TDraw : IPhase
     {
         #region Constants
 
@@ -87,7 +90,7 @@ namespace Mogi.Controls
 
         #region Members
 
-        public event Action<Button> OnClick;
+        public event Action<Button<TUpdate, TDraw>> OnClick;
 
         #endregion
 
@@ -114,10 +117,10 @@ namespace Mogi.Controls
                 base.Draw(spriteBatch);
         }
 
-        public override void WithInput(InputHelper input)
+        public override Button<TUpdate, TDraw> WithInput(InputHelper input)
         {
-            base.WithInput(input);
             _mouseLeftDownGetter = () => input.MouseDown(MouseButton.Left);
+            return base.WithInput(input);
         }
 
         #endregion

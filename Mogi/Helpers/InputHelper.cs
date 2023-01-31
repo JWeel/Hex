@@ -10,12 +10,39 @@ using System.Linq;
 namespace Mogi.Helpers
 {
     /// <summary> Provides methods to determine keyboard and mouse state. </summary>
-    public class InputHelper : IUpdate<CriticalUpdate>
+    public class InputHelper<TUpdate> : InputHelper, IUpdate<TUpdate>, IRegisterAs<InputHelper>
+        where TUpdate : IPhase
     {
         #region Constructors
 
         /// <summary> Initializes a new instance. </summary>
         public InputHelper(ClientWindow client)
+            : base(client)
+        {
+        }
+
+        #endregion
+
+        #region IUpdate Implementation
+
+        public void Update(GameTime gameTime)
+        {
+            this.PreviousKeyboard = this.CurrentKeyboard;
+            this.CurrentKeyboard = Keyboard.GetState();
+
+            this.PreviousMouse = this.CurrentMouse;
+            this.CurrentMouse = Mouse.GetState();
+        }
+
+        #endregion
+    }
+
+    /// <summary> Provides methods to determine keyboard and mouse state. </summary>
+    public abstract class InputHelper
+    {
+        #region Constructors
+
+        protected InputHelper(ClientWindow client)
         {
             this.Client = client;
         }
@@ -123,19 +150,6 @@ namespace Mogi.Helpers
 
         /// <summary> Retrieves the current mouse position relative to virtual resolution as a vector. </summary>
         public Vector2 CurrentVirtualMouseVector => this.Client.Translate(this.CurrentMouseVector);
-
-        #endregion
-
-        #region Protected Methods
-
-        public void Update(GameTime gameTime)
-        {
-            this.PreviousKeyboard = this.CurrentKeyboard;
-            this.CurrentKeyboard = Keyboard.GetState();
-
-            this.PreviousMouse = this.CurrentMouse;
-            this.CurrentMouse = Mouse.GetState();
-        }
 
         #endregion
     }

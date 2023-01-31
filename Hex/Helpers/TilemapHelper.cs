@@ -5,6 +5,7 @@ using Hex.Enums;
 using Hex.Extensions;
 using Hex.Models;
 using Hex.Models.Tiles;
+using Hex.Phases;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -19,7 +20,7 @@ using System.Linq;
 
 namespace Hex.Helpers
 {
-    public class TilemapHelper : IUpdate<NormalUpdate>, IDraw<BackgroundDraw>
+    public class TilemapHelper : IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IActivate
     {
         #region Constants
 
@@ -67,6 +68,8 @@ namespace Hex.Helpers
 
         #region Properties
 
+        public bool IsActive { get; protected set; }
+
         /// <summary> Raised when tilemap rotation changes. </summary>
         public event Action OnRotate;
 
@@ -84,9 +87,9 @@ namespace Hex.Helpers
 
         /// <summary> A transform matrix that rotates and moves to relative render position. </summary>
         public Matrix RenderRotationMatrix =>
-            Matrix.CreateTranslation(new Vector3(this.TilemapSize / -2f - this.RenderPosition, 1)) *
+            Matrix.CreateTranslation(new Vector3(-this.Centroid - this.RenderPosition, 1)) *
             Matrix.CreateRotationZ(this.Rotation) *
-            Matrix.CreateTranslation(new Vector3(this.TilemapSize / 2f + this.RenderPosition + this.TilemapOffset, 1));
+            Matrix.CreateTranslation(new Vector3(this.Centroid + this.RenderPosition + this.TilemapOffset, 1));
 
         /// <summary> The amount of rotation in radians to apply to sprites that should maintain a relatively 'upward' orientation. </summary>
         /// <remarks> This is the result of performing a wraparound on <see cref="Rotation"/>. The amount wraps in range intervals of 60 degrees.
@@ -102,7 +105,11 @@ namespace Hex.Helpers
         protected InputHelper Input { get; }
         protected SpriteFont Font { get; }
 
+        /// <summary> Represents the furthest top left coordinates of the tilemap. </summary>
         protected Vector2 RenderPosition { get; set; }
+
+        /// <summary> Represents the center of the tilemap relative to itself. </summary>
+        protected Vector2 Centroid;
 
         protected Hexagon OriginTile { get; set; }
         protected Hexagon CenterTile { get; set; }
@@ -132,10 +139,20 @@ namespace Hex.Helpers
 
         public void Arrange(string path)
         {
-            var axials = path.IsNullOrWhiteSpace() ?
-                this.Spawn(8, 12, Shape.Hexagon) :
-                this.Load(path);
+            Static.Shape = null;
+            var axials = this.Load(path);
+            this.ApplyAxials(axials);
+        }
 
+        public void Arrange(Shape shape, int n, int m)
+        {
+            Static.Shape = shape;
+            var axials = this.Spawn(shape, n, m);
+            this.ApplyAxials(axials);
+        }
+
+        protected void ApplyAxials((int Q, int R, int E, Direction S, TileType T)[] axials)
+        {
             this.Map = axials
                 .Select(axial =>
                 {
@@ -160,7 +177,7 @@ namespace Hex.Helpers
         }
 
         /// <summary> Generate a new tilemap using specified integers to determine shape and size. </summary>
-        public (int Q, int R, int E, Direction S, TileType T)[] Spawn(int n, int m, Shape shape)
+        public (int Q, int R, int E, Direction S, TileType T)[] Spawn(Shape shape, int n, int m)
         {
             var axials = new List<(int Q, int R)>();
             switch (shape)
@@ -183,27 +200,17 @@ namespace Hex.Helpers
                         for (var r = r1; r <= r2; r++)
                             axials.Add((q, r));
                     }
-                    if (n < 3) break;
-                    // DONUT
-                    axials.Remove(default);
-                    axials.Remove((-1, 0));
-                    axials.Remove((-1, 1));
-                    axials.Remove((0, -1));
-                    axials.Remove((0, 1));
-                    axials.Remove((1, -1));
-                    axials.Remove((1, 0));
-                    axials.Remove((0, -2));
-                    axials.Remove((1, -2));
-                    axials.Remove((2, -2));
-                    axials.Remove((-1, -1));
-                    axials.Remove((2, -1));
-                    axials.Remove((-2, 0));
-                    axials.Remove((2, 0));
-                    axials.Remove((-2, 1));
-                    axials.Remove((1, 1));
-                    axials.Remove((-2, 2));
-                    axials.Remove((-1, 2));
-                    axials.Remove((0, 2));
+                    // donut shape by removing inner hexagon of size m
+                    if ((0 < m) && (m < n))
+                    {
+                        for (var q = -m; q <= m; q++)
+                        {
+                            var r1 = Math.Max(-m, -q - m);
+                            var r2 = Math.Min(m, -q + m);
+                            for (var r = r1; r <= r2; r++)
+                                axials.Remove((q, r));
+                        }
+                    }
                     break;
                 case Shape.Rectangle:
                     for (var r = 0; r < m - 1; r++)
@@ -232,14 +239,16 @@ namespace Hex.Helpers
             {
                 var cube = Cube.FromAxial(q, r);
                 return
-                    (cube.X % 7 == cube.Z) ? TileType.Mountain :
-                    (cube.Z % 3 == cube.Y + 5) ? TileType.Sea :
+                    // (cube.X % 7 == cube.Z) ? TileType.Mountain :
+                    // (cube.Z % 3 == cube.Y + 5) ? TileType.Sea :
                     TileType.Grass;
             }
         }
 
         public (int Q, int R, int E, Direction S, TileType T)[] Load(string path)
         {
+            if (path.IsNullOrWhiteSpace())
+                throw new ArgumentException();
             var random = new Random();
             return File.ReadAllLines(path)
                 .Skip(1)
@@ -263,10 +272,21 @@ namespace Hex.Helpers
 
         /// <summary> Determines the distance from origin necessary to render the tilemap so that it is centered on a specified position.
         /// <br/> The result is stored in <see cref="TilemapOffset"/>. </summary>
-        public void CalculateOffset(Vector2 center)
+        public void ApplyOffsetToCenter(Vector2 center)
         {
+            // TODO should probably get Shape here in a normal way
+            this.Centroid = (Static.Shape == Shape.Triangle) ? CalculateTriangleCentroid() : this.TilemapSize / 2;
+
+            Vector2 CalculateTriangleCentroid()
+            {
+                var a = Vector2.Zero;
+                var b = new Vector2(this.TilemapSize.X, 0);
+                var c = new Vector2(this.TilemapSize.X / 2, this.TilemapSize.Y);
+                return (a + b + c) / 3;
+            }
+
             // Get distance from top left (renderposition) to tilemap middle
-            var relativeMiddle = this.TilemapSize / 2 + this.RenderPosition;
+            var relativeMiddle = this.RenderPosition + this.Centroid;
             // Subtract this distance from center to get offset for centered tilemap rendering
             this.TilemapOffset = Vector2.Round(center - relativeMiddle);
         }
@@ -367,6 +387,12 @@ namespace Hex.Helpers
                 }
             }
         }
+
+        public void Activate() => 
+            this.IsActive = true;
+
+        public void Deactivate() =>
+            this.IsActive = false;
 
         /// <summary> Returns the tile located at the specified position, or <see langword="default"/> if there is no such tile. </summary>
         public Hexagon Locate(Vector2 position)
@@ -532,14 +558,14 @@ namespace Hex.Helpers
 
         protected void Rotate(int degrees)
         {
-            var radians = (float) (degrees * Math.PI / 180);
+            var radians = degrees * MathF.PI / 180;
             this.Rotate(radians);
         }
 
         protected void Rotate(float radians)
         {
             this.Rotation += radians;
-            this.Rotation %= (float) (360 * Math.PI / 180);
+            this.Rotation %= 360 * MathF.PI / 180;
 
             this.RecalculateRotations();
             this.OnRotate?.Invoke();
@@ -585,7 +611,7 @@ namespace Hex.Helpers
                     return BorderType.None;
                 if ((tile.SlopeMask & direction) == direction)
                     return BorderType.Slope;
-                if (tile.Elevation - neighbor.Elevation == 1)
+                if ((tile.Elevation - neighbor.Elevation) == 1)
                     return BorderType.Small;
                 return BorderType.Large;
             }

@@ -8,6 +8,8 @@
         "editorGutter.deletedBackground": "#0000",
         "editorOverviewRuler.deletedForeground": "#0000"
     },
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
     "editor.semanticHighlighting.enabled": true,
     "csharp.semanticHighlighting.enabled": true,
     "files.eol": "\r\n",

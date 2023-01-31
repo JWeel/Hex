@@ -29,6 +29,11 @@ namespace Hex.Helpers
                 content.Load<Texture2D>("Graphics/iron1"),
                 content.Load<Texture2D>("Graphics/iron2"),
             };
+            this.TexturesTough = new[]
+            {
+                content.Load<Texture2D>("Graphics/tough1"),
+                content.Load<Texture2D>("Graphics/tough2"),
+            };
         }
 
         #endregion
@@ -42,6 +47,7 @@ namespace Hex.Helpers
 
         protected Texture2D[] TexturesGrimion { get; }
         protected Texture2D[] TexturesIron { get; }
+        protected Texture2D[] TexturesTough { get; }
 
         #endregion
 
@@ -55,6 +61,7 @@ namespace Hex.Helpers
         public Actor Add()
         {
             // TODO better way to set up actors and textures
+            // TODO textures should be in a container class that contains animationduration and stuff like color override
             var textures = (this.Faction.ActiveFaction?.Name == "Monster") ? this.TexturesGrimion : this.TexturesIron;
             
             var actor = new Actor(textures);

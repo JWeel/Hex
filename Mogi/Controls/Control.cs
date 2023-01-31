@@ -3,13 +3,16 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Mogi.Extensions;
 using Mogi.Helpers;
+using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
 {
     /// <summary> Base class for defining a graphical user interface element. </summary>
-    public abstract class Control<T> : IControl
-        where T : Control<T>
+    public abstract class Control<TControl, TUpdate, TDraw> : IControl<TUpdate, TDraw>
+        where TControl : Control<TControl, TUpdate, TDraw>
+        where TUpdate : IPhase
+        where TDraw : IPhase
     {
         #region Constructors
 
@@ -45,14 +48,15 @@ namespace Mogi.Controls
             this.Destination = destination;
             this.Texture = texture;
             this.Color = color;
+            this.IsActive = true;
         }
 
         #endregion
 
         #region Members
 
-        public event Action<Control<T>> OnMouseEnter;
-        public event Action<Control<T>> OnMouseLeave;
+        public event Action<TControl> OnMouseEnter;
+        public event Action<TControl> OnMouseLeave;
 
         public bool IsActive { get; protected set; }
 
@@ -85,9 +89,18 @@ namespace Mogi.Controls
         public void Toggle() =>
             this.IsActive = !this.IsActive;
 
+        public void Recolor(Color color) =>
+            this.Color = color;
+
+        public void Retexture(Texture2D texture) =>
+            this.Texture = texture;
+
         /// <summary> Updates the state of the control. </summary>
         public virtual void Update(GameTime gameTime)
         {
+            if (!this.IsActive)
+                return;
+
             this.ContainedMouse = this.ContainsMouse;
             this.ContainsMouse = this.Destination.Contains(this.MousePositionGetter());
 
@@ -98,8 +111,12 @@ namespace Mogi.Controls
         }
 
         /// <summary> Draws the control using the specified spritebatch. </summary>
-        public virtual void Draw(SpriteBatch spriteBatch) =>
+        public virtual void Draw(SpriteBatch spriteBatch)
+        {
+            if (!this.IsActive)
+                return;
             this.Draw(spriteBatch, this.Color);
+        }
 
         /// <summary> Draws the control using the specified spritebatch with a specified overlay color. </summary>
         public virtual void Draw(SpriteBatch spriteBatch, Color color)
@@ -119,10 +136,15 @@ namespace Mogi.Controls
             spriteBatch.DrawTo(this.Texture, this.Destination, color);
         }
 
-        public virtual void WithInput(InputHelper input)
+        public virtual TControl WithInput(InputHelper input)
         {
             _mousePositionGetter = () => input.CurrentVirtualMouseVector;
+            return this;
         }
+
+        /// <summary> Implicitly converts the control from its abstract type to its real type. </summary>
+        public static implicit operator TControl (Control<TControl, TUpdate, TDraw> control) =>
+            (TControl) control;
 
         #endregion
     }

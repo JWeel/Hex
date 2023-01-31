@@ -7,7 +7,9 @@ using System;
 namespace Mogi.Helpers
 {
     /// <summary> Keeps track of application framerate. </summary>
-    public class FramerateHelper : IUpdate<CriticalUpdate>, IDraw<MenuDraw>
+    public class FramerateHelper<TUpdate, TDraw> : IUpdate<TUpdate>, IDraw<TDraw>
+        where TUpdate: IPhase
+        where TDraw : IPhase
     {
         #region Constants
 

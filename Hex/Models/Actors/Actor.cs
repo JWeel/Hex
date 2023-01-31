@@ -14,6 +14,7 @@ namespace Hex.Models.Actors
             this.TextureScale = .7f;
             this.BaseViewDistance = 8;
             this.BaseMovementAllowed = 6;
+            this.AnimationDuration = 1000;
         }
 
         #endregion
@@ -24,7 +25,7 @@ namespace Hex.Models.Actors
         {
             get
             {
-                var interval = 1000 / this.Textures.Length;
+                var interval = this.AnimationDuration / this.Textures.Length;
                 var ms = DateTime.Now.Millisecond;
                 var index = Math.Min(ms / interval, this.Textures.Length - 1);
                 return this.Textures[index];
@@ -56,6 +57,7 @@ namespace Hex.Models.Actors
         protected Texture2D[] Textures { get; }
         protected int BaseViewDistance { get; }
         protected double BaseMovementAllowed { get; }
+        protected int AnimationDuration { get; }
 
         protected double MovementInRound { get; set; }
         protected double MovementOverall { get; set; }

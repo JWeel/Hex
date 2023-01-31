@@ -1,11 +1,13 @@
 ﻿using Extended.Extensions;
+using Extended.Patterns;
 using Hex.Auxiliary;
+using Hex.Enums;
 using Hex.Extensions;
 using Hex.Helpers;
+using Hex.Phases;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Input.Touch;
 using Mogi.Controls;
 using Mogi.Extensions;
 using Mogi.Framework;
@@ -22,6 +24,7 @@ namespace Hex
         #region Constants
 
         private const string CONTENT_ROOT_DIRECTORY = "Content";
+        private const string CONTENT_SUB_DIRECTORY_LEVEL = "Level";
 
         private const int BASE_WINDOW_WIDTH = 1280;
         private const int BASE_WINDOW_HEIGHT = 720;
@@ -29,7 +32,6 @@ namespace Hex
         private const int BASE_MAP_PANEL_HEIGHT = BASE_WINDOW_HEIGHT;
         private const int BASE_SIDE_PANEL_WIDTH = BASE_WINDOW_WIDTH - BASE_MAP_PANEL_WIDTH;
         private const int BASE_SIDE_PANEL_HEIGHT = 445; // 720 / 1.618 = 444.99
-
         private static readonly Vector2 BASE_WINDOW_SIZE = new Vector2(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT);
         private static readonly Vector2 BASE_WINDOW_INCREMENT = BASE_WINDOW_SIZE / 8; // used for keyboard-based scaling
         private static readonly Rectangle BASE_WINDOW_RECTANGLE = BASE_WINDOW_SIZE.ToRectangle();
@@ -54,12 +56,12 @@ namespace Hex
         protected ClientWindow Client { get; }
         protected SpriteBatch SpriteBatch { get; set; }
 
-        protected FramerateHelper Framerate { get; set; }
-        protected InputHelper Input { get; set; }
+        protected InputHelper<CriticalUpdate> Input { get; set; }
         protected ConfigurationHelper Configuration { get; set; }
         protected StageHelper Stage { get; set; }
 
-        protected Architect Architect { get; set; }
+        protected Panel<NormalUpdate, ControlDraw> Storybook { get; set; }
+        protected Panel<NormalUpdate, ControlDraw> Designer { get; set; }
 
         protected SpriteFont Font { get; set; }
         protected Texture2D BlankTexture { get; set; }
@@ -76,6 +78,9 @@ namespace Hex
         /// <summary> A container of rasterization settings that can be used in spritebatch drawing to enable scissoring. </summary>
         /// <remarks> When scissoring is enabled, a rectangle can be set to <see cref="GraphicsDevice.ScissorRectangle"/>, which will limit all drawing to inside the rectangle. Textures outside of it are culled (not drawn). <para/> Without these settings, the scissor rectangle is ignored. </remarks>
         protected RasterizerState ScissorRasterizer { get; } = new RasterizerState { ScissorTestEnable = true };
+
+        /// <summary> Tracks the current state of the application, which determines the controls to show. </summary>
+        protected Cyclic<State> State { get; set; }
 
         #endregion
 
@@ -102,6 +107,8 @@ namespace Hex
             this.BlankTexture = new Texture2D(this.GraphicsDevice, width: 1, height: 1);
             this.BlankTexture.SetData(new[] { Color.White });
             this.Font = this.Content.Load<SpriteFont>("Graphics/Alphabet/saga");
+            this.State = Cyclic.Enum<State>();
+            this.State.OnChange += this.ChangeState;
 
             var dependency = Dependency.Start(this);
             dependency.Register(this.Content);
@@ -109,9 +116,7 @@ namespace Hex
             dependency.Register(this.SpriteBatch);
             dependency.Register(this.BlankTexture);
             dependency.Register(this.Font);
-            dependency.Register<FramerateHelper>();
-            this.Input = dependency.Register<InputHelper>();
-            this.Architect = dependency.Register<Architect>();
+            this.Input = dependency.Register<InputHelper<CriticalUpdate>>();
             this.Configuration = dependency.Register<ConfigurationHelper>();
             this.Stage = dependency.Register<StageHelper>();
 
@@ -125,28 +130,96 @@ namespace Hex
             var stageContainer = BASE_MAP_PANEL_SIZE.ToRectangle();
             this.Stage.Arrange(stageContainer, this.GetStagePath("plateau"));
 
+            this.Storybook = new Panel<NormalUpdate, ControlDraw>();
+            this.Designer = new Panel<NormalUpdate, ControlDraw>();
+
             // temporary panel stuff
             {
                 this.PanelTexture = this.Content.Load<Texture2D>("Graphics/panel");
                 this.YesTexture = this.Content.Load<Texture2D>("Graphics/buttonYes");
                 this.NoTexture = this.Content.Load<Texture2D>("Graphics/buttonNo");
+                var borderTexture = this.Content.Load<Texture2D>("Graphics/border1");
+                var overlayTexture = this.Content.Load<Texture2D>("Graphics/overlay");
+
+                this.Storybook.Append(new Patch<NormalUpdate, ControlDraw>(BASE_MAP_PANEL_SIZE.ToRectangle(), this.PanelTexture, 11, Color.SandyBrown));
+                this.Storybook.Append(new Label<NormalUpdate, ControlDraw>(new Rectangle(100, 80, 0, 0), this.Font, "Welcome to the world."));
+                this.Storybook.Append(new Label<NormalUpdate, ControlDraw>(new Rectangle(100, 140, 0, 0), this.Font, "In this world you will face many challenges. Pity they were all in vain.\nWho knows what will happen next."));
+                this.Attach(this.Storybook);
+
+                this.Designer.Append(new Patch<NormalUpdate, ControlDraw>(BASE_MAP_PANEL_SIZE.ToRectangle(), this.PanelTexture, 11, Color.ForestGreen));
+                var portraitControl = new Basic<NormalUpdate, ControlDraw>(new Rectangle(100, 100, 100, 100), this.BlankTexture, Color.Crimson);
+                this.Designer.Append(portraitControl);
+                this.Attach(this.Designer);
+
+                this.Attach(new PhasedUpdateWrapper<NormalUpdate>(gameTime =>
+                {
+                    if (this.Input.KeyPressed(Keys.OemPeriod))
+                        portraitControl.Recolor(Color.AntiqueWhite);
+                    if (this.Input.KeyPressed(Keys.OemQuestion))
+                        portraitControl.Recolor(Color.PeachPuff);
+                }));
+
+                // move to DossierHandler
+                var dossierPanel = new Panel<NormalUpdate, ControlDraw>(isActive: true);
+                this.Attach(dossierPanel);
+
+                // use different panel for different type of top-side-panel
+                // then toggle the one that is being used, and untoggle the others
+                var upperSidePanelContainer = new Rectangle(BASE_MAP_PANEL_WIDTH, 0, BASE_SIDE_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT);
+                var actorPanel = new Panel<NormalUpdate, ControlDraw>(isActive: true);
+                dossierPanel.Append(actorPanel);
+                actorPanel.Append(new Patch<NormalUpdate, ControlDraw>(upperSidePanelContainer, this.PanelTexture, 10, Color.BlanchedAlmond));
+
+                // would be nice if positions were relative to panel
+                actorPanel.Append(new Basic<NormalUpdate, ControlDraw>(BASE_MAP_PANEL_WIDTH + 40, 40, 70, 70, this.BlankTexture, Color.WhiteSmoke));
+
+                var actorPortraitBasicBlank = new Basic<NormalUpdate, ControlDraw>(BASE_MAP_PANEL_WIDTH + 42, 42, 66, 66, this.BlankTexture, new Color(201, 185, 161));
+                var actorPortraitBasic = new Basic<NormalUpdate, ControlDraw>(BASE_MAP_PANEL_WIDTH + 42, 42, 66, 66, this.BlankTexture, new Color(201, 185, 161));
+                actorPortraitBasic.Toggle();
+                actorPanel.Append(actorPortraitBasicBlank);
+                actorPanel.Append(actorPortraitBasic);
+                this.Stage.OnSourceActorChange += actor =>
+                {
+                    if (actor == null)
+                    {
+                        if (actorPortraitBasic.IsActive)
+                            actorPortraitBasic.Toggle();
+                    }
+                    else
+                    {
+                        // the texture could be a func so it animates, but portrait might not need to be animated...
+                        actorPortraitBasic.Retexture(actor.Texture);
+                        if (!actorPortraitBasic.IsActive)
+                            actorPortraitBasic.Toggle();
+                    }
+                };
+
+                var lowerSidePanelContainer = new Rectangle(BASE_MAP_PANEL_WIDTH, BASE_SIDE_PANEL_HEIGHT, BASE_SIDE_PANEL_WIDTH, BASE_MAP_PANEL_HEIGHT - BASE_SIDE_PANEL_HEIGHT);
+                dossierPanel.Append(new Basic<NormalUpdate, ControlDraw>(lowerSidePanelContainer, this.BlankTexture, new Color(162, 178, 204))
+                    .WithInput(this.Input)
+                    .With(control =>
+                    {
+                        control.OnMouseEnter += x => x.Recolor(Color.MediumSlateBlue);
+                        control.OnMouseLeave += x => x.Recolor(new Color(162, 178, 204));
+                    }));
+
 
                 var exitConfirmationPanelSize = new Vector2(400, 100);
                 var exitConfirmationPanelLocation = (BASE_WINDOW_SIZE / 2) - (exitConfirmationPanelSize / 2);
                 var exitConfirmationPanelRectangle = new Rectangle(exitConfirmationPanelLocation.ToPoint(), exitConfirmationPanelSize.ToPoint());
-                this.ExitConfirmation = new Panel(exitConfirmationPanelRectangle);
-                this.ExitConfirmation.Append(new Basic(BASE_WINDOW_RECTANGLE, this.BlankTexture, new Color(100, 100, 100, 100)));
-                this.ExitConfirmation.Append(new Patch(exitConfirmationPanelRectangle, this.PanelTexture, 13));
+                this.ExitConfirmation = new Panel<CriticalUpdate, ControlDraw>();
+                this.ExitConfirmation.Append(new Basic<CriticalUpdate, ControlDraw>(BASE_WINDOW_RECTANGLE, this.BlankTexture, new Color(100, 100, 100, 100)));
+                this.ExitConfirmation.Append(new Patch<CriticalUpdate, ControlDraw>(exitConfirmationPanelRectangle, this.PanelTexture, 13));
 
                 var exitConfirmationText = "Are you sure you want to quit?";
                 var exitConformationTextScale = 1.5f;
                 var exitConformationTextSize = this.Font.MeasureString(exitConfirmationText) * exitConformationTextScale;
                 var exitConformationTextLocation = (BASE_WINDOW_SIZE / 2) - (exitConformationTextSize / 2) - new Vector2(0, 30);
-                this.ExitConfirmation.Append(new Label(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
+                this.ExitConfirmation.Append(new Label<CriticalUpdate, ControlDraw>(new Rectangle(exitConformationTextLocation.ToPoint(), exitConformationTextSize.ToPoint()), this.Font, exitConfirmationText, exitConformationTextScale));
 
                 var noYesButtonSize = new Vector2(40);
                 var noButtonLocation = (BASE_WINDOW_SIZE / 2) - new Vector2(noYesButtonSize.X, 0) * 1.5f;
-                var noButton = new Button(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
+                var noButton = new Button<CriticalUpdate, ControlDraw>(new Rectangle(noButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.NoTexture, new Color(200, 0, 0));
                 noButton.WithInput(this.Input);
                 noButton.OnClick += button =>
                 {
@@ -156,27 +229,30 @@ namespace Hex
                 this.ExitConfirmation.Append(noButton);
 
                 var yesButtonLocation = (BASE_WINDOW_SIZE / 2) + new Vector2(noYesButtonSize.X, 0) / 1.5f;
-                var yesButton = new Button(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
+                var yesButton = new Button<CriticalUpdate, ControlDraw>(new Rectangle(yesButtonLocation.ToPoint(), noYesButtonSize.ToPoint()), this.YesTexture, new Color(0, 200, 0));
                 yesButton.WithInput(this.Input);
                 yesButton.OnClick += button => this.Exit();
                 this.ExitConfirmation.Append(yesButton);
 
                 this.Log = new StringBuilder();
-                this.Side = new Panel(new Rectangle());
-                this.Side.Append(new Patch(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.BurlyWood));
-                this.SideLabel = new Label(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
+                this.Side = new Panel<NormalUpdate, ControlDraw>();
+                this.Side.Append(new Patch<NormalUpdate, ControlDraw>(new Rectangle(970, 10, 300, 700), this.PanelTexture, 13, Color.BurlyWood));
+                this.SideLabel = new Label<NormalUpdate, ControlDraw>(new Rectangle(980, 500, 280, 200), this.Font, () => this.Log.ToString());
                 this.Side.Append(this.SideLabel);
 
                 var toggleSize = new Vector2(40);
                 var toggleLocation = new Vector2(1220, 20);
-                this.Toggle = new Button(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, Color.BurlyWood);
+                this.Toggle = new Button<NormalUpdate, ControlDraw>(new Rectangle(toggleLocation.ToPoint(), toggleSize.ToPoint()), this.PanelTexture, Color.BurlyWood);
                 this.Toggle.WithInput(this.Input);
                 this.Toggle.OnClick += button => this.Side.Toggle();
 
-                var exitWrapper = new PhasedWrapper<CriticalUpdate, MenuDraw>(this.ExitConfirmation.Update, this.ExitConfirmation.Draw);
-                this.Attach(exitWrapper);
+                var overlayContainer = BASE_WINDOW_RECTANGLE;
+                var overlayBasic = new Basic<NormalUpdate, ControlDraw>(overlayContainer, overlayTexture);
+                this.Attach(overlayBasic);
+
                 this.Attach(this.Side);
                 this.Attach(this.Toggle);
+                this.Attach(this.ExitConfirmation);
             }
 
             var clientWindowWrapper = new PhasedUpdateWrapper<NormalUpdate>(gametime =>
@@ -198,15 +274,28 @@ namespace Hex
             });
             this.Attach(clientWindowWrapper);
 
+            this.Attach(new PhasedUpdateWrapper<NormalUpdate>(gametime =>
+            {
+                if (this.Input.KeyPressed(Keys.OemQuestion))
+                    this.Configuration.UseStickyCameraMovement = !this.Configuration.UseStickyCameraMovement;
+            }));
+
             this.Attach(new PhasedUpdateWrapper<CriticalUpdate>(gametime => Static.Memo.Clear()));
+
+            // move this above the attaching of map-area panels to hide it on non-stage state
+            dependency.Register<FramerateHelper<CriticalUpdate, ControlDraw>>();
+
+            this.State.Set(Enums.State.Storybook);
+            // in case state is default state need to force change
+            this.ChangeState(default, this.State);
         }
         Texture2D PanelTexture;
         Texture2D YesTexture;
         Texture2D NoTexture;
-        Panel ExitConfirmation;
-        Button Toggle;
-        Panel Side;
-        Label SideLabel;
+        Panel<CriticalUpdate, ControlDraw> ExitConfirmation;
+        Button<NormalUpdate, ControlDraw> Toggle;
+        Panel<NormalUpdate, ControlDraw> Side;
+        Label<NormalUpdate, ControlDraw> SideLabel;
         StringBuilder Log;
 
         protected override void Update(GameTime gameTime)
@@ -219,22 +308,37 @@ namespace Hex
             if (this.Input.KeyPressed(Keys.Escape))
             {
                 this.ExitConfirmation.Toggle();
-                this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
+                // this.ExitConfirmation.SetPrevent(this.ExitConfirmation.IsActive);
             }
             if (this.ExitConfirmation.IsActive)
                 return;
 
             this.IsMouseVisible = true;
 
-            if (this.Input.KeyPressed(Keys.F8))
-                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("grove"));
-            if (this.Input.KeyPressed(Keys.F9))
-                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("plateau"));
             if (this.Input.KeyPressed(Keys.F10))
                 this.Stage.Arrange(this.Stage.Container, this.GetStagePath("valley"));
+            if (this.Input.KeyPressed(Keys.F9))
+                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("plateau"));
+            if (this.Input.KeyPressed(Keys.F8))
+                this.Stage.Arrange(this.Stage.Container, this.GetStagePath("grove"));
+            if (this.Input.KeyPressed(Keys.F7))
+                this.Stage.Arrange(this.Stage.Container, Shape.Hexagon);
+            if (this.Input.KeyPressed(Keys.F6))
+                this.Stage.Arrange(this.Stage.Container, Shape.Rectangle);
+            if (this.Input.KeyPressed(Keys.F5))
+                this.Stage.Arrange(this.Stage.Container, Shape.Triangle);
+            if (this.Input.KeyPressed(Keys.F4))
+                this.Stage.Arrange(this.Stage.Container, Shape.Parallelogram);
+            if (this.Input.KeyPressed(Keys.F3))
+                this.Stage.Arrange(this.Stage.Container, Shape.Line);
 
             if (this.Input.KeyPressed(Keys.Tab))
                 this.Side.Toggle();
+
+            if (this.Input.KeyPressed(Keys.OemOpenBrackets))
+                this.State.Advance();
+            if (this.Input.KeyPressed(Keys.OemCloseBrackets))
+                this.State.Reverse();
 
             if (this.Input.MouseMoved())
             {
@@ -289,7 +393,7 @@ namespace Hex
             }
 
             this.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointWrap);
-            this.OnDraw?.Invoke<MenuDraw>(this.SpriteBatch);
+            this.OnDraw?.Invoke<ControlDraw>(this.SpriteBatch);
             this.SpriteBatch.End();
         }
 
@@ -310,7 +414,20 @@ namespace Hex
 
         protected string GetStagePath(string name)
         {
-            return Path.Combine(CONTENT_ROOT_DIRECTORY, "Level", Path.ChangeExtension(name, ".csv"));
+            return Path.Combine(CONTENT_ROOT_DIRECTORY, CONTENT_SUB_DIRECTORY_LEVEL, Path.ChangeExtension(name, ".csv"));
+        }
+
+        protected void ChangeState(State oldState, State newState)
+        {
+            IActivate Switch(State state) => state switch 
+            {
+                Enums.State.Stage => this.Stage,
+                Enums.State.Designer => this.Designer,
+                Enums.State.Storybook => this.Storybook,
+                _ => throw state.Invalid()
+            };
+            Switch(oldState).Deactivate();
+            Switch(newState).Activate();
         }
 
         #endregion
@@ -325,5 +442,7 @@ namespace Hex
         // font helper -> exposes Font to dependencies and can switch to other fonts
         // make abstract Tile -> can be hexagon or rectangle, maybe triangle
         // content zipped, use custom ContentManager that handles zipped
+        // move all phases out of Mogi and make the classes inside that depend on them generic
+        //      use documentation to give example of what phase looks like, or maybe add ExamplePhase : IPhase
     }
 }

@@ -79,7 +79,7 @@ namespace Extended.Patterns
 
         /// <summary> Passes the wrapped value if it has one into a predicate and returns this option if it is satisfied, otherwise or if no value exists returns an empty option. </summary>
         /// <param name="filter"> The predicate that determines whether to keep the optional value. </param>
-        /// <returns> This option if a wrapped value exists and the value satisfies <paramref name="filter"/> or an empty option if not. </returns>
+        /// <returns> This option if a wrapped value exists and the value satisfies <paramref name="filter"/>, or an empty option if not. </returns>
         public Option<T> Filter(Predicate<T> filter) =>
             this.Bind(value => filter(value) ? Option.Some(value) : Option.None);
 
@@ -101,6 +101,8 @@ namespace Extended.Patterns
     /// <summary> Exposes simplified access to <see cref="Option{T}"/> instances. </summary>
     public static class Option
     {
+        #region Methods
+        
         /// <summary> Wraps a value inside an option. </summary>
         /// <param name="value"> The value that is wrapped. </param>
         /// <typeparam name="T"> The type of the value that is wrapped. </typeparam>
@@ -110,5 +112,7 @@ namespace Extended.Patterns
         /// <summary> Gets an object that represents an empty option. This can be implicitly converted to <see cref="Option{T}"/>. </summary>
         /// <returns> An empty option that can be implicitly converted to <see cref="Option{T}"/>. </returns>
         public static NoneOption None { get; } = new NoneOption();
+
+        #endregion
     }
 }

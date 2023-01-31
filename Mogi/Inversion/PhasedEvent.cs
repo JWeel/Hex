@@ -5,10 +5,11 @@ using System.Linq;
 
 namespace Mogi.Inversion
 {
-    /// <summary> Represents an event where subscription and invocation are scoped to logical phases. </summary>
+    /// <summary> Represents an event where subscription and invocation are scoped within logical phases. </summary>
     /// <remarks> This class is similar to <see langword="event"/>, but does not have language level support, therefore:
     /// <br/> - interfaces cannot expose it as field (use property instead)
-    /// <br/> - this event can be set to null by anyone, not just the owner </remarks>
+    /// <br/> - this event can be set to null by anyone, not just the owner
+    /// <br/> - this event can be invoked by anyone, not just the owner </remarks>
     public class PhasedEvent<T>
     {
         #region Constructors

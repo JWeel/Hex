@@ -201,7 +201,7 @@ namespace Mogi.Framework
             // Changing the BackBuffer and calling ApplyChanges will also cause the ClientBounds to be changed.
             this.Graphics.ApplyChanges();
 
-            // BackBuffer and ClientBounds are equal now, so can construct vector from either: shortest code wins.
+            // BackBuffer and ClientBounds are equal now, so vector can be constructed from either: shortest code wins.
             this.CurrentResolution = this.Window.ClientBounds.Size.ToVector2();
 
             // This can be used to translate screen coordinates from actual to virtual.

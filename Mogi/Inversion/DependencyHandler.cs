@@ -27,6 +27,7 @@ namespace Mogi.Inversion
 
     In the Register overload which takes an instance, the passed instance will be ignored if its type is already registered.
     This is because there is no way to guarantee that other dependencies do not rely specifically on the registered instance.
+    Idea: Alternatively when using the overload that takes an instance, if it already exists throw an exception.
     */
 
     /// <summary> Provides simplified construction of types with automatic subscription to events defined in specific interfaces. </summary>
@@ -110,13 +111,15 @@ namespace Mogi.Inversion
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
         /// <returns> The newly initialized instance, or an existing instance if the type was already in the map. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="ITerminate"/> 
+        /// The following interfaces are leveraged by this method:
+        /// <br/> <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="IActivate"/>, <see cref="ITerminate"/>, <see cref="IRegisterAs{}"/>
         /// </remarks>
         /// <exception cref="ArgumentException"> Parameter <paramref name="args"/> contains elements of the same type. </exception>
         public TDependency Register<TDependency>(params object[] args)
             where TDependency : class
         {
-            if (this.DependencyMap.TryGetValue(typeof(TDependency), out var existingValue))
+            var type = this.GetTypeToRegisterAs(typeof(TDependency));
+            if (this.DependencyMap.TryGetValue(type, out var existingValue))
                 return (TDependency) existingValue;
 
             var instance = this.CreateInstance<TDependency>(args);
@@ -129,21 +132,23 @@ namespace Mogi.Inversion
         /// If the dependency type inherits from specific interfaces (see remarks), and does not yet exist in the map, the instance will automatically get subscribed to events on the root instance.
         /// It may also have instance methods invoked which propagate the map.
         /// <para/>
-        /// If the type already exists in the map, the passed argument is returned and no changes are made.
+        /// If the type already exists in the map, the corresponding registered instance is returned and no changes are made.
         /// </summary>
         /// <typeparam name="TDependency"> The type of the dependency </typeparam>
-        /// <returns> The same instance passed into this method. </returns>
+        /// <returns> The instance passed into this method if its type was not already registered, or the already registered instance. </returns>
         /// <remarks>
-        /// Eligible interfaces are: <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="ITerminate"/> 
+        /// The following interfaces are leveraged by this method:
+        /// <br/> <see cref="IRegister"/>, <see cref="IUpdate{}"/>, <see cref="IDraw{}"/>, <see cref="IResize{}"/>, <see cref="IActivate"/>, <see cref="ITerminate"/>, <see cref="IRegisterAs{}"/>
         /// </remarks>
         public TDependency Register<TDependency>(TDependency instance)
             where TDependency : class
         {
-            if (this.DependencyMap.ContainsKey(typeof(TDependency)))
-                return instance;
+            var type = this.GetTypeToRegisterAs(typeof(TDependency));
+            if (this.DependencyMap.TryGetValue(type, out var existingValue))
+                return (TDependency) existingValue;
 
-            this.DependencyMap.Add(typeof(TDependency), instance);
-            this.OnRegister?.Invoke(typeof(TDependency));
+            this.DependencyMap.Add(type, instance);
+            this.OnRegister?.Invoke(type);
 
             if (instance is IRegister registry)
             {
@@ -161,7 +166,7 @@ namespace Mogi.Inversion
         }
 
         /// <summary> Removes the specified type from the dependency map. If it did not exist in the map, nothing happens. </summary>
-       /// <param name="type"> The type of the dependency. </param>
+        /// <param name="type"> The type of the dependency. </param>
         public void Unregister(Type type)
         {
             this.DependencyMap.Remove(type);
@@ -171,6 +176,20 @@ namespace Mogi.Inversion
 
         #region Helper Methods
 
+        /// <summary> Returns the type with which this type should be registered in the dependency map.
+        /// <br/> The <see cref="IRegisterAs{}"/> interface is used to specify which type to use. If this type does not inherit from it, the type itself will be used. 
+        /// <br/> If this type inherits from <see cref="IRegisterAs{}"/> multiple times, this method will throw an exception. </summary>
+        protected Type GetTypeToRegisterAs(Type type)
+        {
+            var interfaceType = type.GetInterfaces()
+                .Where(interfaceType => interfaceType.IsGenericType)
+                .Where(interfaceType => (interfaceType.GetGenericTypeDefinition() == typeof(IRegisterAs<>)))
+                .SingleOrDefault();
+            if (interfaceType == default)
+                return type;
+            return interfaceType.GetGenericArguments().Single();
+        }
+
         protected TDependency CreateInstance<TDependency>(params object[] args)
             where TDependency : class
         {
@@ -179,16 +198,14 @@ namespace Mogi.Inversion
                 throw new InvalidOperationException($"Cannot register type '{typeof(TDependency).Name}' because it does not have exactly one public constructor.");
 
             var argMap = args.ToDictionary(arg => arg.GetType());
-
-            var constructor = constructors.First();
+            var constructor = constructors.Single();
             var parameters = constructor.GetParameters();
             var arguments = parameters
                 .Select(parameter => argMap.TryGetValue(parameter.ParameterType, out var instance) ||
                     this.DependencyMap.TryGetValue(parameter.ParameterType, out instance) ? instance :
                     throw new InvalidOperationException($"Cannot register type '{typeof(TDependency).Name}' because dependency type '{parameter.ParameterType}' is neither registered nor provided."))
                 .ToArray();
-            var instance = (TDependency) constructor.Invoke(arguments);
-            return instance;
+            return (TDependency) constructor.Invoke(arguments);
         }
 
         protected abstract TDependency Attach<TDependency>(TDependency dependency) where TDependency : class;

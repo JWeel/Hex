@@ -1,5 +1,5 @@
-using System.Linq;
 using Extended.Extensions;
+using System.Linq;
 
 namespace Hex.Helpers
 {
@@ -31,7 +31,7 @@ namespace Hex.Helpers
         {
             if (this.Faction.Final)
                 this.TurnCount++;
-            
+
             this.Faction.Cycle();
             this.Actor.Actors
                 .Where(actor => (actor.Faction == this.Faction.ActiveFaction))
