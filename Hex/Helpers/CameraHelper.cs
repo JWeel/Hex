@@ -58,6 +58,12 @@ namespace Hex.Helpers
         /// <summary> The coordinates of the middle of the viewport. </summary>
         protected Vector2 ViewportCenter { get; set; }
 
+        // TODO make these protected with public methods
+        public bool AllowKeyMovement { get; set; }
+        public bool AllowMouseMovement { get; set; }
+        public bool AllowKeyZoom { get; set; }
+        public bool AllowMouseZoom { get; set; }
+
         /// <summary> A transform matrix that scales and moves to relative camera position. </summary>
         public Matrix TranslationMatrix =>
             Matrix.CreateTranslation(-this.Position.X, -this.Position.Y, 0) *
@@ -94,6 +100,10 @@ namespace Hex.Helpers
             this.Viewport = viewport;
             this.ViewportCenter = Vector2.Round(this.Viewport.Center());
             this.Center();
+            this.AllowKeyMovement = true;
+            this.AllowKeyZoom = true;
+            this.AllowMouseMovement = true;
+            this.AllowMouseZoom = true;
         }
 
         public void Update(GameTime gameTime)
@@ -102,7 +112,7 @@ namespace Hex.Helpers
             this.HandleKeys();
         }
 
-        public void Activate() => 
+        public void Activate() =>
             this.IsActive = true;
 
         public void Deactivate() =>
@@ -116,9 +126,12 @@ namespace Hex.Helpers
 
         public void CenterOn(Vector2 position)
         {
-            var (minimum, maximum) = this.GetPositionExtrema();
-            var cameraCenter = (minimum + maximum) / 2f;
-            this.Position = Vector2.Clamp(position, minimum, maximum);
+            this.SetPositionClamped(position);
+        }
+
+        public void SetZoom(float zoom)
+        {
+            this.Zoom(zoom);
         }
 
         #endregion
@@ -177,12 +190,10 @@ namespace Hex.Helpers
                     this.Zoom(zoomAmount, minimumZoom);
                     if (this.ZoomFactor != currentZoom)
                     {
-                        var zoomPosition = this.FromScreen(mousePosition);
+                        var zoomPoint = this.FromScreen(mousePosition);
                         // to make zooming look natural: set position relatively between previous zoom center and cursor
-                        this.Position = zoomPosition + (currentZoom / this.ZoomFactor) * (this.Position - zoomPosition);
-
-                        if (this.ZoomFactor < 1f)
-                            this.Center();
+                        var zoomPosition = zoomPoint + (currentZoom / this.ZoomFactor) * (this.Position - zoomPoint);
+                        this.SetPositionClamped(zoomPosition);
                     }
                 }
                 if (!stopStickyMovement && !this.IsMoving && this.Input.MousePressed(MouseButton.Right))
@@ -197,30 +208,36 @@ namespace Hex.Helpers
             if (!this.Input.KeysDownAny(Keys.Q, Keys.E, Keys.A, Keys.D, Keys.W, Keys.S, Keys.B))
                 return;
 
-            if (this.Input.KeyDown(Keys.Q))
-                this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
-            if (this.Input.KeyDown(Keys.E))
-                this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
-            if (this.Input.KeyDown(Keys.B))
-                this.ZoomFactor = 1f;
+            if (this.AllowKeyZoom)
+            {
+                if (this.Input.KeyDown(Keys.Q))
+                    this.Zoom(-ZOOM_SCALE_FACTOR_INCREMENT);
+                if (this.Input.KeyDown(Keys.E))
+                    this.Zoom(+ZOOM_SCALE_FACTOR_INCREMENT);
+                if (this.Input.KeyDown(Keys.B))
+                    this.ZoomFactor = 1f;
+            }
 
-            var cameraMovement = Vector2.Zero;
-            if (this.Input.KeyDown(Keys.A))
-                cameraMovement.X = +1;
-            if (this.Input.KeyDown(Keys.D))
-                cameraMovement.X = -1;
-            if (this.Input.KeyDown(Keys.W))
-                cameraMovement.Y = +1;
-            if (this.Input.KeyDown(Keys.S))
-                cameraMovement.Y = -1;
+            if (this.AllowKeyMovement)
+            {
+                var cameraMovement = Vector2.Zero;
+                if (this.Input.KeyDown(Keys.A))
+                    cameraMovement.X = +1;
+                if (this.Input.KeyDown(Keys.D))
+                    cameraMovement.X = -1;
+                if (this.Input.KeyDown(Keys.W))
+                    cameraMovement.Y = +1;
+                if (this.Input.KeyDown(Keys.S))
+                    cameraMovement.Y = -1;
 
-            // normalizing is needed when changing two directions at once
-            if (cameraMovement != Vector2.Zero)
-                cameraMovement.Normalize();
+                // normalizing is needed when changing two directions at once
+                if (cameraMovement != Vector2.Zero)
+                    cameraMovement.Normalize();
 
-            cameraMovement *= POSITION_MOVE_INCREMENT;
-            cameraMovement *= this.ZoomFactor;
-            this.Move(-cameraMovement);
+                cameraMovement *= POSITION_MOVE_INCREMENT;
+                cameraMovement *= this.ZoomFactor;
+                this.Move(-cameraMovement);
+            }
         }
 
         protected void Zoom(float amount, float minAmount = ZOOM_SCALE_STANDARD, float maxAmount = ZOOM_SCALE_MAXIMUM)
@@ -231,11 +248,16 @@ namespace Hex.Helpers
 
         protected void Move(Vector2 amount)
         {
-            var (minimum, maximum) = this.GetPositionExtrema();
-            this.Position = Vector2.Clamp(this.Position + amount, minimum, maximum);
-
             if (this.ZoomFactor < 1f)
                 this.Center();
+            else
+                this.SetPositionClamped(this.Position + amount);
+        }
+
+        protected void SetPositionClamped(Vector2 position)
+        {
+            var (minimum, maximum) = this.GetPositionExtrema();
+            this.Position = Vector2.Clamp(position, minimum, maximum);
         }
 
         #endregion

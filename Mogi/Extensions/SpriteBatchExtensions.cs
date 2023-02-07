@@ -9,12 +9,12 @@ namespace Mogi.Extensions
 
         public static void DrawAt(this SpriteBatch spriteBatch, Texture2D texture, Vector2 position,
             Color? color = default, float rotation = 0f, float scale = 1f, float depth = 0f,
-            SpriteEffects effects = SpriteEffects.None)
+            SpriteEffects effects = SpriteEffects.None, Rectangle? sourceRectangle = null)
         {
             spriteBatch.Draw(
                 texture: texture,
                 position: position,
-                sourceRectangle: null,
+                sourceRectangle: sourceRectangle,
                 color: color ?? Color.White,
                 rotation: rotation,
                 origin: Vector2.Zero,
@@ -40,6 +40,7 @@ namespace Mogi.Extensions
         {
             var shadePosition = position + new Vector2(1 * scale);
             var shadeDepth = depth - 0.01f;
+            text ??= string.Empty;
 
             spriteBatch.DrawString(font, text, shadePosition, Color.Black,
                 rotation: 0f, origin: default, scale, SpriteEffects.None, shadeDepth);
@@ -48,7 +49,7 @@ namespace Mogi.Extensions
         }
 
         public static void DrawNinePatchRectangle(this SpriteBatch spriteBatch, Texture2D texture,
-            Rectangle destinationRectangle, int distanceToMiddle, Color color, float depth = 0f)
+            Rectangle destinationRectangle, int distanceToMiddle, Color color, float depth = 0f, SpriteEffects effects = SpriteEffects.None)
         {
             // Top left
             spriteBatch.Draw(
@@ -58,7 +59,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Top
@@ -69,7 +70,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Top right
@@ -80,7 +81,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Middle left
@@ -91,7 +92,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Middle
@@ -102,7 +103,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Middle right
@@ -113,7 +114,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Bottom left
@@ -124,7 +125,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Bottom
@@ -135,7 +136,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
 
             // Bottom right
@@ -146,7 +147,7 @@ namespace Mogi.Extensions
                 color,
                 rotation: 0f,
                 origin: Vector2.Zero,
-                SpriteEffects.None,
+                effects,
                 depth);
         }
 

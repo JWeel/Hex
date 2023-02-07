@@ -23,14 +23,30 @@ namespace Mogi.Inversion
     }
 
     /// <summary> Exposes a method that should update state. </summary>
-    public interface IUpdate<T> where T : IPhase
+    public interface IUpdate
+    {
+        /// <summary> Updates state using a snapshot of elapsed game time. </summary>
+        void Update(GameTime gameTime);
+    }
+
+    /// <summary> Exposes a method that should update state in a defined phase. </summary>
+    public interface IUpdate<T>
+        where T : IPhase
     {
         /// <summary> Updates state using a snapshot of elapsed game time. </summary>
         void Update(GameTime gameTime);
     }
 
     /// <summary> Exposes a method that should draw state. </summary>
-    public interface IDraw<T> where T : IPhase
+    public interface IDraw
+    {
+        /// <summary> Draws to a specified spritebatch. </summary>
+        void Draw(SpriteBatch spriteBatch);
+    }
+
+    /// <summary> Exposes a method that should draw state in a defined phase. </summary>
+    public interface IDraw<T>
+        where T : IPhase
     {
         /// <summary> Draws to a specified spritebatch. </summary>
         void Draw(SpriteBatch spriteBatch);
@@ -48,13 +64,6 @@ namespace Mogi.Inversion
     {
         /// <summary> An event that should be raised when this instance terminates. </summary>
         event Action OnTerminate;
-    }
-
-    /// <summary> Exposes a method that should prevent further processing. </summary>
-    public interface IPrevent
-    {
-        /// <summary> Determines whether further processing should be stopped. </summary>
-        bool Prevent();
     }
 
     /// <summary> Exposes a flag that indicates whether processing should occur. </summary>

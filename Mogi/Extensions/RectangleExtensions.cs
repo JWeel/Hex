@@ -13,6 +13,10 @@ namespace Mogi.Extensions
         public static Rectangle Relocate(this Rectangle rectangle, Point location) =>
             new Rectangle(location, rectangle.Size);
 
+        /// <summary> Gets a new <see cref="Rectangle"/> with the size of this rectangle but moved to a different point. </summary>
+        public static Rectangle Move(this Rectangle rectangle, Point distance) =>
+            new Rectangle(rectangle.Location + distance, rectangle.Size);
+
         /// <summary> Gets a <see cref="Vector2"/> that contains the coordinates of the center of this rectangle. </summary>
         public static Vector2 Center(this Rectangle rectangle) =>
             rectangle.Location.ToVector2() + rectangle.Size.ToVector2() / 2;

@@ -1,18 +1,14 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using Mogi.Extensions;
 using Mogi.Helpers;
-using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
 {
     /// <summary> Base class for defining a graphical user interface element. </summary>
-    public abstract class Control<TControl, TUpdate, TDraw> : IControl<TUpdate, TDraw>
-        where TControl : Control<TControl, TUpdate, TDraw>
-        where TUpdate : IPhase
-        where TDraw : IPhase
+    public abstract class Control<TControl> : IControl
+        where TControl : Control<TControl>
     {
         #region Constructors
 
@@ -58,36 +54,53 @@ namespace Mogi.Controls
         public event Action<TControl> OnMouseEnter;
         public event Action<TControl> OnMouseLeave;
 
+        /// <summary> A value that can be used to store custom information about this control. </summary>
+        public object Tag { get; set; }
+
+        /// <summary> The identifying name of the instance. </summary>
+        public string Name { get; protected set; }
+
         public bool IsActive { get; protected set; }
 
-        protected Rectangle Destination { get; set; }
+        public Rectangle Destination { get; protected set; }
         protected Texture2D Texture { get; set; }
         protected Color Color { get; set; }
 
         protected bool ContainedMouse { get; set; }
         protected bool ContainsMouse { get; set; }
 
-        private Func<Vector2> _mousePositionGetter;
-        protected Func<Vector2> MousePositionGetter
-        {
-            get
-            {
-                if (_mousePositionGetter == null)
-                {
-                    _mousePositionGetter = () => Mouse.GetState().ToVector2();
-                }
-                return _mousePositionGetter;
-            }
-            set => _mousePositionGetter = value;
-        }
+        // private Func<Vector2> _mousePositionGetter;
+        protected Func<Vector2> MousePositionGetter { get; set; }
+        // {
+        //     get
+        //     {
+        //         if (_mousePositionGetter == null)
+        //         {
+        //             _mousePositionGetter = () => Mouse.GetState().ToVector2();
+        //         }
+        //         return _mousePositionGetter;
+        //     }
+        //     set => _mousePositionGetter = value;
+        // }
 
         #endregion
 
         #region Methods
 
         /// <summary> Toggles the <see cref="IsActive"/> state of the control. </summary>
-        public void Toggle() =>
+        public virtual void Toggle() =>
             this.IsActive = !this.IsActive;
+
+        /// <summary> Set the <see cref="IsActive"/> state to true. </summary>
+        public virtual void Activate() =>
+            this.IsActive = true;
+
+        /// <summary> Set the <see cref="IsActive"/> state to false. </summary>
+        public virtual void Deactivate() =>
+            this.IsActive = false;
+
+        public virtual void Relocate(Rectangle rectangle) =>
+            this.Destination = rectangle;
 
         public void Recolor(Color color) =>
             this.Color = color;
@@ -99,6 +112,9 @@ namespace Mogi.Controls
         public virtual void Update(GameTime gameTime)
         {
             if (!this.IsActive)
+                return;
+
+            if (this.MousePositionGetter == null)
                 return;
 
             this.ContainedMouse = this.ContainsMouse;
@@ -138,12 +154,24 @@ namespace Mogi.Controls
 
         public virtual TControl WithInput(InputHelper input)
         {
-            _mousePositionGetter = () => input.CurrentVirtualMouseVector;
+            this.MousePositionGetter = () => input.CurrentVirtualMouseVector;
+            return this;
+        }
+
+        public virtual TControl WithTag(object tag)
+        {
+            this.Tag = tag;
+            return this;
+        }
+
+        public virtual TControl WithName(string name)
+        {
+            this.Name = name;
             return this;
         }
 
         /// <summary> Implicitly converts the control from its abstract type to its real type. </summary>
-        public static implicit operator TControl (Control<TControl, TUpdate, TDraw> control) =>
+        public static implicit operator TControl(Control<TControl> control) =>
             (TControl) control;
 
         #endregion

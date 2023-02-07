@@ -6,7 +6,10 @@ namespace Hex.Enums
     {
         Storybook,
         Designer,
-        Stage
+        Scenario,
+        Encounter,
+        Operation,
+        Expansion
     }
 
     public enum TileType

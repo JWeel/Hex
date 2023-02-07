@@ -1,6 +1,8 @@
 using Extended.Delegates;
 using Extended.Extensions;
+using Extended.Generators;
 using System;
+using System.Linq;
 
 namespace Extended.Patterns
 {
@@ -111,6 +113,21 @@ namespace Extended.Patterns
             where T : struct, Enum
         {
             return new Cyclic<T>(System.Enum.GetValues<T>());
+        }
+
+        /// <summary> Wraps a sequence of integers starting from 0 and incrementing until the specified value in a new instance of <see cref="Cylic{}"/>. </summary>
+        /// <param name="range"> The upper bound of the sequence of integers. Must be higher than 0. </param>
+        /// <exception cref="ArgumentException"> <paramref name="range"/> is not at higher than 0. </exception>
+        public static Cyclic<int> Range(int range)
+        {
+            if (range < 1)
+                throw new ArgumentException($"{nameof(range)} '{range}' must be higher than 0.");
+            return new Cyclic<int>(Numeric.Range(range).ToArray());
+        }
+
+        public static Cyclic<T> FromValues<T>(params T[] values)
+        {
+            return new Cyclic<T>(values);
         }
 
         #endregion

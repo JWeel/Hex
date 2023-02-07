@@ -21,4 +21,12 @@ namespace Hex.Phases
     public class ControlDraw : IPhase
     {
     }
+
+    public class PortraitDraw : IPhase
+    {
+    }
+
+    public class PopupDraw : IPhase
+    {
+    }
 }

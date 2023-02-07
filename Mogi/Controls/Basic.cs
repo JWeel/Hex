@@ -1,13 +1,10 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Mogi.Inversion;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a basic graphical element with no special logic. </summary>
-    public class Basic<TUpdate, TDraw> : Control<Basic<TUpdate, TDraw>, TUpdate, TDraw>
-        where TUpdate : IPhase
-        where TDraw : IPhase
+    public class Basic : Control<Basic>
     {
         #region Constructors
 

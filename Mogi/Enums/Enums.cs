@@ -9,4 +9,12 @@ namespace Mogi.Enums
         Four = 4,
         Five = 5
     }
+
+    public enum NeighborDirection
+    {
+        Left,
+        Above,
+        Right,
+        Below
+    }
 }

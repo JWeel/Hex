@@ -1,18 +1,14 @@
+using Extended.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using Mogi.Enums;
-using Mogi.Extensions;
 using Mogi.Helpers;
-using Mogi.Inversion;
 using System;
 
 namespace Mogi.Controls
 {
     /// <summary> Represents a graphical element that can be interacted with by clicking. </summary>
-    public class Button<TUpdate, TDraw> : Control<Button<TUpdate, TDraw>, TUpdate, TDraw>
-        where TUpdate : IPhase
-        where TDraw : IPhase
+    public class Button : Control<Button>
     {
         #region Constants
 
@@ -66,31 +62,36 @@ namespace Mogi.Controls
 
         #region Properties
 
+        public Button NeighborLeft { get; protected set; }
+        public Button NeighborAbove { get; protected set; }
+        public Button NeighborRight { get; protected set; }
+        public Button NeighborBelow { get; protected set; }
+
         protected Color ColorWhenHovering { get; }
         protected Color ColorWhenPressing { get; }
 
         protected bool PressedMouse { get; set; }
         protected bool PressingMouse { get; set; }
 
-        private Func<bool> _mouseLeftDownGetter;
-        protected Func<bool> MouseLeftDownGetter
-        {
-            get
-            {
-                if (_mouseLeftDownGetter == null)
-                {
-                    _mouseLeftDownGetter = () => Mouse.GetState().LeftButton.IsPressed();
-                }
-                return _mouseLeftDownGetter;
-            }
-            set => _mouseLeftDownGetter = value;
-        }
+        // private Func<bool> _mouseLeftDownGetter;
+        protected Func<bool> MouseLeftDownGetter { get; set; }
+        // {
+        //     get
+        //     {
+        //         if (_mouseLeftDownGetter == null)
+        //         {
+        //             _mouseLeftDownGetter = () => Mouse.GetState().LeftButton.IsPressed();
+        //         }
+        //         return _mouseLeftDownGetter;
+        //     }
+        //     set => _mouseLeftDownGetter = value;
+        // }
 
         #endregion
 
         #region Members
 
-        public event Action<Button<TUpdate, TDraw>> OnClick;
+        public event Action<Button> OnClick;
 
         #endregion
 
@@ -98,7 +99,13 @@ namespace Mogi.Controls
 
         public override void Update(GameTime gameTime)
         {
+            if (!this.IsActive)
+                return;
+                
             base.Update(gameTime);
+
+            if (this.MouseLeftDownGetter == null)
+                return;
 
             this.PressedMouse = this.PressingMouse;
             this.PressingMouse = (this.ContainsMouse && this.MouseLeftDownGetter());
@@ -117,10 +124,54 @@ namespace Mogi.Controls
                 base.Draw(spriteBatch);
         }
 
-        public override Button<TUpdate, TDraw> WithInput(InputHelper input)
+        public override Button WithInput(InputHelper input)
         {
-            _mouseLeftDownGetter = () => input.MouseDown(MouseButton.Left);
+            this.MouseLeftDownGetter = () => input.MouseDown(MouseButton.Left);
             return base.WithInput(input);
+        }
+
+        public Button WithMouseEnter(Action<Button> action)
+        {
+            this.OnMouseEnter += action;
+            return this;
+        }
+
+        public Button WithMouseLeave(Action<Button> action)
+        {
+            this.OnMouseLeave += action;
+            return this;
+        }
+
+        public Button WithClick(Action<Button> action)
+        {
+            this.OnClick += action;
+            return this;
+        }
+
+        public Button WithNeighbor(Button neighbor, NeighborDirection direction)
+        {
+            switch (direction)
+            {
+                case NeighborDirection.Left:
+                    this.NeighborLeft = neighbor;
+                    neighbor.NeighborRight = this;
+                    break;
+                case NeighborDirection.Right:
+                    this.NeighborRight = neighbor;
+                    neighbor.NeighborLeft = this;
+                    break;
+                case NeighborDirection.Above:
+                    this.NeighborAbove = neighbor;
+                    neighbor.NeighborBelow = this;
+                    break;
+                case NeighborDirection.Below:
+                    this.NeighborBelow = neighbor;
+                    neighbor.NeighborAbove = this;
+                    break;
+                default:
+                    throw direction.Invalid();
+            }
+            return this;
         }
 
         #endregion

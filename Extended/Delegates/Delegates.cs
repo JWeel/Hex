@@ -7,7 +7,7 @@ namespace Extended.Delegates
     /// <param name="result"> The parsed value if parsing was possible, or the <see langword="default"/> value if it was not. </param>
     public delegate bool TryParse<T>(string value, out T result);
 
-    /// <summary> Represents a method that is invoked after a value is changed. </summary>
+    /// <summary> Represents a method that is invoked after a value is changed, to which the before and after are passed as parameters. </summary>
     /// <typeparam name="T"> The type of the value that is changed. </typeparam>
     /// <param name="oldValue"> The previous value. </param>
     /// <param name="newValue"> The new value. </param>

@@ -9,6 +9,11 @@ namespace Hex.Helpers
 
         public ConfigurationHelper()
         {
+            // TODO implement loading from config.ini file
+
+            this.CenterTilemapRotationOnSource = false;
+            this.StartInFullscreen = false;
+            // this.UseStickyCameraMovement = Extern.IsWindowsLaptop().Coalesce(() => false);
         }
 
         #endregion
@@ -26,22 +31,6 @@ namespace Hex.Helpers
         /// <summary> When <see langword="true"/>, rotating the tilemap will automatically cause it to be repositioned with a selected tile in the middle.
         /// <br/> When <see langword="false"/>, or if no tile is selected, tilemap positioning is unaffected. </summary>
         public bool CenterTilemapRotationOnSource { get; set; }
-
-        #endregion
-
-        #region Methods
-
-        // TODO implement loading from config.ini file
-        public void Load()
-        {
-            Extern.IsWindowsLaptop().Match(boolean =>
-            {
-                // this.StartInFullscreen = boolean;
-                // this.UseStickyCameraMovement = boolean;
-            });
-
-            this.CenterTilemapRotationOnSource = false;
-        }
 
         #endregion
     }

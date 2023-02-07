@@ -14,8 +14,9 @@ namespace Mogi.Framework
         /// <param name="window"> An instance of <see cref="GameWindow"/> that should come from <see cref="Game.Window"/>. </param>
         /// <param name="graphics"> An instance of <see cref="GraphicsDeviceManager"/> that should have been created in the <see cref="Game"/> constructor. </param>
         /// <param name="virtualResolution"> Defines the virtual resolution of the client window. Values smaller than <see langword="1"/> will be set to <see langword="1"/>. </param>
-        public ClientWindow(GameWindow window, GraphicsDeviceManager graphics, Vector2 virtualResolution)
-            : this(window, graphics, virtualResolution, minimumResolution: virtualResolution / 2)
+        /// <param name="isFullScreen"> Determines whether the window should start in full screen mode (if true), or windowed mode (if false). </param>
+        public ClientWindow(GameWindow window, GraphicsDeviceManager graphics, Vector2 virtualResolution, bool isFullScreen)
+            : this(window, graphics, virtualResolution, minimumResolution: virtualResolution / 2, isFullScreen)
         {
         }
 
@@ -24,10 +25,12 @@ namespace Mogi.Framework
         /// <param name="graphics"> An instance of <see cref="GraphicsDeviceManager"/> that should have been created in the <see cref="Game"/> constructor. </param>
         /// <param name="virtualResolution"> Defines the virtual resolution of the client window. X and Y values smaller than <see langword="1"/> will be set to <see langword="1"/>. </param>
         /// <param name="minimumResolution"> Defines the minimum resolution of the client window. The vector will be clamped between <see cref="Vector2.One"/> and <paramref name="virtualResolution"/>. </param>
-        public ClientWindow(GameWindow window, GraphicsDeviceManager graphics, Vector2 virtualResolution, Vector2 minimumResolution)
+        /// <param name="isFullScreen"> Determines whether the window should start in full screen mode (if true), or windowed mode (if false). </param>
+        public ClientWindow(GameWindow window, GraphicsDeviceManager graphics, Vector2 virtualResolution, Vector2 minimumResolution, bool isFullScreen)
         {
             this.Window = window;
             this.Graphics = graphics;
+            this.Graphics.IsFullScreen = isFullScreen;
             this.VirtualResolution = Vector2.Max(virtualResolution, Vector2.One);
             this.MinimumResolution = Vector2.Clamp(minimumResolution, min: Vector2.One, max: this.VirtualResolution);
             this.CurrentResolution = this.VirtualResolution;
@@ -56,10 +59,19 @@ namespace Mogi.Framework
             set => this.Graphics.IsFullScreen = value;
         }
 
+        /// <summary> The system window that the application is displayed on. </summary>
         protected GameWindow Window { get; }
+
+        /// <summary> Manages the GPU. </summary>
         protected GraphicsDeviceManager Graphics { get; }
+
+        /// <summary> The minimum value of the virtual resolution of the window. </summary>
         protected Vector2 MinimumResolution { get; }
+
+        /// <summary> Indicates whether the window was previously in a full screen state. </summary>
         protected bool WasPreviouslyFullScreen { get; set; }
+
+        /// <summary> Contains the resolution of the window when it was last in windowed mode. </summary>
         protected Vector2 LastWindowedResolution { get; set; }
 
         /// <summary> Contains the result of dividing current resolution by virtual resolution. Can be used to calculate relative coordinates. </summary>
@@ -86,6 +98,12 @@ namespace Mogi.Framework
             // When set to false, fullscreen is not auto-scaled. By adding a render target it will still auto-scale.
             // This render target can then also be used for non-fullscreen scaling using ClientSizeChanged event.
             this.Graphics.HardwareModeSwitch = false;
+
+            // This overrides the VSync setting from the GPU driver so the application will not use VSync.
+            // On some machines the VSync causes 30FPS despite the application supporting 60FPS.
+            // TODO: It may make sense to enable changing this value with a designated toggle method.
+            // Similarly, it could be passed as a parameter (here or in the constructor) with a preconfigured value.
+            this.Graphics.SynchronizeWithVerticalRetrace = false;
 
             // GraphicsDeviceManager and GameWindow properties require a call to GraphicsDeviceManager.ApplyChanges
             // ResizeBackBuffer internally calls that method, after it sets the preferred backbuffer size.

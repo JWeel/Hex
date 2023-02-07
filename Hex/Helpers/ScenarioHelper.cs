@@ -20,11 +20,11 @@ using System.Linq;
 
 namespace Hex.Helpers
 {
-    public class StageHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IDraw<ForegroundDraw>, IActivate
+    public class ScenarioHelper : IRegister, IUpdate<NormalUpdate>, IDraw<BackgroundDraw>, IDraw<ForegroundDraw>, IActivate
     {
         #region Constructors
 
-        public StageHelper(InputHelper input, Texture2D blankTexture, ContentManager content)
+        public ScenarioHelper(InputHelper input, Texture2D blankTexture, ContentManager content)
         {
             this.Input = input;
             this.BlankTexture = blankTexture;
@@ -46,18 +46,18 @@ namespace Hex.Helpers
 
         public bool IsActive { get; protected set; }
 
-        /// <summary> The rectangle of the widget, control, or component that contains this stage. </summary>
+        /// <summary> The rectangle of the widget, control, or component that contains this scenario. </summary>
         public Rectangle Container { get; protected set; }
 
-        /// <summary> The size of the widget, control, or component that contains this stage. </summary>
+        /// <summary> The size of the widget, control, or component that contains this scenario. </summary>
         public Vector2 ContainerSize => this.Container.Size.ToVector2();
 
         /// <summary> The bounding box which fully contains the tilemap in any rotation. </summary>
         /// <remarks> This is represented by a vector instead of a rectangle, because it specifies the coordinates of the corner opposite the origin: a rectangle can formed by taking origin plus this vector. </remarks>
         public Vector2 TilemapBoundingBox { get; protected set; }
 
-        /// <summary> The unbound size of the stage. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
-        public Vector2 StageSize { get; protected set; }
+        /// <summary> The unbound size of the scenario. This is the max of <see cref="TilemapBoundingBox"/> and <see cref="ContainerSize"/>. </summary>
+        public Vector2 ScenarioSize { get; protected set; }
 
         /// <summary> The tile over which the cursor is hovering. </summary>
         public Hexagon FocusTile { get; protected set; }
@@ -76,7 +76,7 @@ namespace Hex.Helpers
             }
         }
 
-        /// <summary> A transform matrix that scales and moves the stage relative to its internal camera. </summary>
+        /// <summary> A transform matrix that scales and moves the scenario relative to its internal camera. </summary>
         public Matrix TranslationMatrix => this.Camera.TranslationMatrix;
 
         public int TileCount => this.Tilemap.Map.Count;
@@ -102,14 +102,13 @@ namespace Hex.Helpers
 
         protected IDictionary<Faction, IDictionary<Hexagon, bool>> DiscoveryByFactionMap { get; }
         protected IDictionary<Faction, IDictionary<Hexagon, bool>> VisibilityByFactionMap { get; }
+        protected IDictionary<Faction, Actor> LastSourceActorMap { get; }
 
         protected IDictionary<Hexagon, Color> TileEffectMap { get; set; }
 
         protected (Hexagon Tile, bool Accessible, double Accrue)[] SourcePath { get; set; }
 
         protected Hexagon LastFocusTile { get; set; }
-
-        protected IDictionary<Faction, Actor> LastSourceActorMap { get; }
 
         /// <summary> Indicates whether tile focus was changed. </summary>
         protected bool FocusChanged =>
@@ -146,33 +145,33 @@ namespace Hex.Helpers
             }
         }
 
-        public void Arrange(Rectangle container, string stagePath)
+        public void Arrange(Rectangle container, string scenarioPath)
         {
             this.Container = container;
-            this.Tilemap.Arrange(stagePath);
-            this.ResetStage();
+            this.Tilemap.Arrange(scenarioPath);
+            this.ResetScenario();
         }
 
         public void Arrange(Rectangle container, Shape shape)
         {
             this.Container = container;
             this.Tilemap.Arrange(shape, 8, 4);
-            this.ResetStage();
+            this.ResetScenario();
         }
 
-        protected void ResetStage()
+        protected void ResetScenario()
         {
             // boundingbox should be all 4 corners of the bounding rectangle (the diagonal of tilemap size)
             // plus padding for when that corner is the center of rotation (half of containersize on each side)
             // below formula gives slightly more than necessary (might be tilesize?), but will do for now
             this.TilemapBoundingBox = new Vector2(this.Tilemap.TilemapSize.Length()) + this.ContainerSize;
 
-            // the real size of the stage is the max of the tilemap bounding box and the containing rectangle
-            this.StageSize = Vector2.Max(this.TilemapBoundingBox, this.ContainerSize);
+            // the real size of the scenario is the max of the tilemap bounding box and the containing rectangle
+            this.ScenarioSize = Vector2.Max(this.TilemapBoundingBox, this.ContainerSize);
 
-            this.Tilemap.ApplyOffsetToCenter(center: this.StageSize / 2);
+            this.Tilemap.ApplyOffsetToCenter(center: this.ScenarioSize / 2);
 
-            this.Camera.Arrange(this.StageSize, this.Container);
+            this.Camera.Arrange(this.ScenarioSize, this.Container);
 
             this.Actor.Reset();
 
@@ -361,13 +360,13 @@ namespace Hex.Helpers
 
         void IDraw<BackgroundDraw>.Draw(SpriteBatch spriteBatch)
         {
-            // spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(30, 30, 30), depth: .04f);
+            spriteBatch.DrawTo(this.BlankTexture, this.Camera.CameraBox, new Color(30, 30, 30), depth: .04f);
 
-            var size = this.StageSize + new Vector2(2); // 1px rounding offset on each side
+            var size = this.ScenarioSize + new Vector2(2); // 1px rounding offset on each side
             spriteBatch.DrawTo(this.BackgroundTexture, size.ToRectangle(), Color.White, depth: .05f);
         }
 
-        public void Draw(SpriteBatch spriteBatch)
+        void IDraw<ForegroundDraw>.Draw(SpriteBatch spriteBatch)
         {
             foreach (var actor in this.Actor.Actors)
             {
@@ -433,7 +432,7 @@ namespace Hex.Helpers
             // TODO should do this automatically
             // maybe can leverage IRegister, have it auto get this logic somehow
             // issue is cannot rely on DependencyHelper.Root since that's Core
-            // (Tilemap and Camera get Attached to Core, not to Stage)
+            // (Tilemap and Camera get Attached to Core, not to scenario)
             // so it would have to happen inside Register but the registering instance is not known
             // in other words: dunno how to do this
             this.Tilemap.Activate();
