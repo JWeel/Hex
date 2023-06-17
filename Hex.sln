@@ -5,10 +5,6 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hex", "Hex\Hex.csproj", "{9064B33F-08AD-4675-BB77-4C63E9B5248D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Forms", "Forms\Forms.csproj", "{EC8CABD0-106D-4195-9BE2-69D615DCB861}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeonBit.UI", "GeonBit.UI\GeonBit.UI.csproj", "{18124BA8-81AD-4F05-AC5C-A59ABAFE387C}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mogi", "Mogi\Mogi.csproj", "{8E292D76-7EBB-471B-BFCA-693CF54F5242}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Extended", "Extended\Extended.csproj", "{91DEB979-134B-486A-BA57-A269BBB99EDB}"

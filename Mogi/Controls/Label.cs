@@ -56,20 +56,21 @@ namespace Mogi.Controls
         public Label(Rectangle destination, SpriteFont spriteFont, Func<string> textFunc, float scale, Color color)
             : base(destination, texture: default, color)
         {
-            this.Location = destination.Location.ToVector2();
             this.SpriteFont = spriteFont;
             this.TextFunc = textFunc;
             this.Scale = scale;
+            this.Location = destination.Location.ToVector2();
         }
 
         #endregion
 
         #region Properties
 
-        protected Vector2 Location { get; }
         protected SpriteFont SpriteFont { get; }
+
         protected Func<string> TextFunc { get; set; }
         protected float Scale { get; set; }
+        protected Vector2 Location { get; set; }
 
         #endregion
 
@@ -80,6 +81,12 @@ namespace Mogi.Controls
 
         public void SetText(Func<string> textFunc) =>
             this.TextFunc = textFunc;
+
+        public override void Relocate(Rectangle destination)
+        {
+            base.Relocate(destination);
+            this.Location = this.Destination.Location.ToVector2();
+        }
 
         public override void Draw(SpriteBatch spriteBatch, Color color)
         {

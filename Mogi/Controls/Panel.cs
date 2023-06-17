@@ -66,6 +66,11 @@ namespace Mogi.Controls
             this.Controls.Clear();
         }
 
+        public void Move(Point movement)
+        {
+            this.Controls.Each(control => control.Move(movement));
+        }
+
         #endregion
 
         #region IControl Implementation

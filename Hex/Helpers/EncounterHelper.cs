@@ -1,4 +1,3 @@
-using Extended.Generators;
 using Hex.Phases;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -26,10 +25,6 @@ namespace Hex.Helpers
             this.BackgroundTexture = content.Load<Texture2D>("graphics/encounter/backgroundPlains");
             this.ButtonTexture = content.Load<Texture2D>("graphics/encounter/button");
             this.SelectorTexture = content.Load<Texture2D>("graphics/encounter/selector");
-
-            this.PortraitTextures = Numeric.Range(1, 21)
-                .Select(n => content.Load<Texture2D>($"graphics/portraits/{n:00}"))
-                .ToArray();
         }
 
         #endregion
@@ -45,7 +40,7 @@ namespace Hex.Helpers
         protected Texture2D ButtonTexture { get; }
         protected Texture2D SelectorTexture { get; }
 
-        protected Texture2D[] PortraitTextures { get; }
+        protected NameplateHelper Nameplate { get; set; }
 
         protected Basic Background { get; set; }
 
@@ -73,6 +68,7 @@ namespace Hex.Helpers
         {
             using (new DependencyScope(dependency))
             {
+                this.Nameplate = dependency.Register<NameplateHelper>();
             }
         }
 
@@ -167,18 +163,10 @@ namespace Hex.Helpers
                 .WithNeighbor(engagementButton1, NeighborDirection.Right);
             this.EngagementBar.Append(engagementButton6);
 
-            this.PortraitBar = new Panel<NormalUpdate, PortraitDraw>();
-            var characterPanel1 = this.GetCharacterPanel(topRectangle, topRectangle.Location);
-            var characterPanel2 = this.GetCharacterPanel(topRectangle, topRectangle.Location + new Point(topRectangle.Width / 4, 0));
-            var characterPanel3 = this.GetCharacterPanel(topRectangle, topRectangle.Location + new Point(topRectangle.Width / 2, 0));
-            var characterPanel4 = this.GetCharacterPanel(topRectangle, topRectangle.Location + new Point(topRectangle.Width / 4 * 3, 0));
-            this.PortraitBar.Append(characterPanel1);
-            this.PortraitBar.Append(characterPanel2);
-            this.PortraitBar.Append(characterPanel3);
-            this.PortraitBar.Append(characterPanel4);
+            this.Nameplate.Arrange(topRectangle);
 
-            this.EngagementBar.OnActivate += () => this.PortraitBar.Activate();
-            this.EngagementBar.OnDeactivate += () => this.PortraitBar.Deactivate();
+            this.EngagementBar.OnActivate += () => this.Nameplate.Activate();
+            this.EngagementBar.OnDeactivate += () => this.Nameplate.Deactivate();
 
             this.SelectedButton = bottomFightButton;
             this.BarSelector = new Blinker(bottomButtonRectangle1,
@@ -246,7 +234,7 @@ namespace Hex.Helpers
 
         void IDraw<PortraitDraw>.Draw(SpriteBatch spriteBatch)
         {
-            this.PortraitBar.Draw(spriteBatch);
+            // this.PortraitBar.Draw(spriteBatch);
         }
 
         public void Activate()
@@ -256,18 +244,20 @@ namespace Hex.Helpers
             // TODO have a setting that decides whether to turn on non-mouse-based selecting on activate
             // e.g. EncounterStartsWithoutMouse
 
-            // if (this.SelectedButton == null)
-            //     this.SelectedButton = this.BottomFightButton;
             if (!this.BarSelector.IsActive)
                 this.BarSelector.Toggle();
+
             this.BarSelector.Reveal();
-            // this.BarSelector.Relocate(this.BottomFightButton.Destination);
             this.BarLabelText = this.SelectedButton?.Name ?? "Choose >>";
+
+            if (this.EngagementBar.IsActive)
+                this.Nameplate.Activate();
         }
 
         public void Deactivate()
         {
             this.IsActive = false;
+            this.Nameplate.Deactivate();
         }
 
         #endregion
@@ -315,41 +305,6 @@ namespace Hex.Helpers
                         this.MoveSelection(this.PreparationBar.Controls.OfType<Button>().First());
                     break;
             }
-        }
-
-        protected Panel<NormalUpdate, ControlDraw> GetCharacterPanel(Rectangle container, Point location)
-        {
-            var panel = new Panel<NormalUpdate, ControlDraw>(isActive: false);
-
-            var width = container.Width / 4;
-            var rectangle = new Rectangle(location, new Point(width, container.Height));
-            panel.Append(new Patch(rectangle, this.ButtonTexture, 5, Color.SeaGreen));
-
-            var chosenIndex = new Random().Next(this.PortraitTextures.Length);
-            var portraitTexture = this.PortraitTextures[chosenIndex];
-
-            var portraitRectangle = new Rectangle(rectangle.Location.X + (int) Math.Ceiling(rectangle.Width * (15/32f)),
-                rectangle.Location.Y + (int) Math.Ceiling(rectangle.Height * (3/32f)),
-                width / 2, width / 2);
-
-            var portraitOutlineRectangle = new Rectangle(portraitRectangle.Location - new Point(2, 2),
-                portraitRectangle.Size + new Point(4, 4));
-            panel.Append(new Basic(portraitOutlineRectangle, this.ButtonTexture, Color.Gainsboro));
-
-            panel.Append(new Basic(portraitRectangle, portraitTexture));
-
-            var nameRectangle = portraitRectangle.Relocate(new Point(rectangle.Location.X + rectangle.Width / 8, portraitRectangle.Location.Y + rectangle.Height / 16));
-            panel.Append(new Label(nameRectangle, this.Font, $"{chosenIndex+1:00}.png"));
-
-            var healthRectangle = new Rectangle(rectangle.Location.X + rectangle.Width / 8,
-                rectangle.Location.Y + rectangle.Height / 2,
-                width / 4, rectangle.Height / 8);
-            panel.Append(new Label(healthRectangle, this.Font, "40/40"));
-
-            var manaRectangle = healthRectangle.Move(new Point(0, (int) Math.Ceiling(healthRectangle.Height * 4 / 3f)));
-            panel.Append(new Label(manaRectangle, this.Font, "10/10"));
-
-            return panel;
         }
 
         #endregion

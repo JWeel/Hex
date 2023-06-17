@@ -99,6 +99,12 @@ namespace Mogi.Controls
         public virtual void Deactivate() =>
             this.IsActive = false;
 
+        public virtual void Move(Point movement) =>
+            this.Relocate(this.Destination.Move(movement));
+
+        public virtual void Enlarge(Point delta) =>
+            this.Relocate(this.Destination.Enlarge(delta));
+
         public virtual void Relocate(Rectangle rectangle) =>
             this.Destination = rectangle;
 

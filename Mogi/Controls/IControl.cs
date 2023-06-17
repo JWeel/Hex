@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using Mogi.Inversion;
 
 namespace Mogi.Controls
@@ -12,5 +13,6 @@ namespace Mogi.Controls
     /// <summary> Defines a graphical user interface element. </summary>
     public interface IControl : IActivate, IUpdate, IDraw
     {
+        void Move(Point movement);
     }
 }

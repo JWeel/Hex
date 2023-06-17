@@ -29,7 +29,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include = "../Extended/Extended.csproj" />
-    <ProjectReference Include = "../Forms/Forms.csproj" />
     <ProjectReference Include = "../Mogi/Mogi.csproj" />
   </ItemGroup>
   <ItemGroup>

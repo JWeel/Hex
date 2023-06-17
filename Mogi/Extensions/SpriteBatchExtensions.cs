@@ -1,3 +1,4 @@
+using Extended.Extensions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -38,9 +39,11 @@ namespace Mogi.Extensions
 
         public static void DrawText(this SpriteBatch spriteBatch, SpriteFont font, string text, Vector2 position, Color? color = default, float scale = 1f, float depth = 1f)
         {
+            if (text.IsNullOrEmpty())
+                return;
+
             var shadePosition = position + new Vector2(1 * scale);
             var shadeDepth = depth - 0.01f;
-            text ??= string.Empty;
 
             spriteBatch.DrawString(font, text, shadePosition, Color.Black,
                 rotation: 0f, origin: default, scale, SpriteEffects.None, shadeDepth);

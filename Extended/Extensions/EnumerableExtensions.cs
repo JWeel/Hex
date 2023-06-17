@@ -119,6 +119,7 @@ namespace Extended.Extensions
 
         #region Take While Defer
 
+        // maybe rename to TakeWhilePlusOne/TakeWhileAndOne
         /// <summary> Returns elements from a sequence as long as a specified condition is <see langword="true"/>.
         /// <br/> Unlike <see cref="Enumerable.TakeWhile{}"/>, the predicate is checked after the element is returned, which means the element which breaks the condition is also returned. </summary>
         /// <param name="source"> A sequence to return elements from. </param>

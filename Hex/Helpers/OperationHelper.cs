@@ -46,7 +46,7 @@ namespace Hex.Helpers
         protected Texture2D HairSpritesheet { get; set; }
 
         protected CameraHelper Camera { get; set; }
-        protected OperatorHelper Operator { get; set; }
+        protected OperantHelper Operator { get; set; }
 
         #endregion
 
@@ -57,7 +57,7 @@ namespace Hex.Helpers
             using (new DependencyScope(dependency))
             {
                 this.Camera = dependency.Register<CameraHelper>();
-                this.Operator = dependency.Register<OperatorHelper>();
+                this.Operator = dependency.Register<OperantHelper>();
             }
         }
 
